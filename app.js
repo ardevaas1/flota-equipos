@@ -13,12 +13,50 @@ let driveFolders  = {};
 const today = new Date();
 
 // ── OAuth / Google Identity Services ─────────────────────────
-let tokenClient = null;
-let accessToken = null;
+let tokenClient  = null;
+let accessToken  = null;
+let tokenExpiry  = 0;
+
+const TOKEN_KEY  = 'lst_access_token';
+const EXPIRY_KEY = 'lst_token_expiry';
+
+// Guarda token en localStorage con tiempo de expiración
+function saveToken(token, expiresIn) {
+  accessToken = token;
+  tokenExpiry = Date.now() + (expiresIn - 60) * 1000; // 60s de margen
+  try {
+    localStorage.setItem(TOKEN_KEY,  token);
+    localStorage.setItem(EXPIRY_KEY, tokenExpiry.toString());
+  } catch(e) {}
+}
+
+// Carga token guardado si aún es válido
+function loadSavedToken() {
+  try {
+    const token  = localStorage.getItem(TOKEN_KEY);
+    const expiry = parseInt(localStorage.getItem(EXPIRY_KEY) || '0');
+    if (token && expiry > Date.now()) {
+      accessToken = token;
+      tokenExpiry = expiry;
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function clearToken() {
+  accessToken = null;
+  tokenExpiry = 0;
+  try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EXPIRY_KEY); } catch(e) {}
+}
+
+function isTokenValid() {
+  return accessToken && tokenExpiry > Date.now();
+}
 
 function initOAuth() {
   if (typeof google === 'undefined') {
-    setTimeout(initOAuth, 500);
+    setTimeout(initOAuth, 300);
     return;
   }
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -27,34 +65,47 @@ function initOAuth() {
     callback: (response) => {
       if (response.error) {
         document.getElementById('login-hint').textContent = 'Error: ' + response.error;
+        clearToken();
         return;
       }
-      accessToken = response.access_token;
+      saveToken(response.access_token, response.expires_in || 3600);
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash').classList.remove('hidden');
       loadData();
     },
   });
+
+  // Renueva silenciosamente el token 5 min antes de que expire
+  setInterval(() => {
+    if (accessToken && tokenExpiry - Date.now() < 5 * 60 * 1000) {
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }, 60 * 1000);
 }
 
 function signIn() {
   document.getElementById('login-hint').textContent = 'Conectando...';
   if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
-  tokenClient.requestAccessToken({ prompt: '' });
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
-// Renueva el token si expiró (cada ~55 min)
+// Asegura que haya token válido antes de llamar a la API
 function ensureToken() {
-  return new Promise((resolve) => {
-    if (accessToken) { resolve(); return; }
+  return new Promise((resolve, reject) => {
+    if (isTokenValid()) { resolve(); return; }
+    if (!tokenClient) { reject(new Error('OAuth no iniciado')); return; }
+    // Intenta renovar silenciosamente (sin popup)
+    const prevCallback = tokenClient.callback;
+    tokenClient.callback = (response) => {
+      tokenClient.callback = prevCallback;
+      if (response.error) { reject(new Error(response.error)); return; }
+      saveToken(response.access_token, response.expires_in || 3600);
+      resolve();
+    };
     tokenClient.requestAccessToken({ prompt: '' });
-    const check = setInterval(() => {
-      if (accessToken) { clearInterval(check); resolve(); }
-    }, 300);
   });
 }
 
-// Header de autorización para llamadas autenticadas
 function authHeader() {
   return { 'Authorization': 'Bearer ' + accessToken };
 }
@@ -710,10 +761,18 @@ function closePanel(id) {
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Oculta splash, muestra login
-  document.getElementById('splash').classList.add('hidden');
-  document.getElementById('login-screen').classList.remove('hidden');
   initOAuth();
+
+  // Si hay token guardado válido, entra directo
+  if (loadSavedToken()) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('splash').classList.remove('hidden');
+    loadData();
+  } else {
+    // Primera vez o token expirado: muestra login
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+  }
 });
 
 // ── Helpers para upload de documentos en formulario edición ──
