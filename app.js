@@ -335,7 +335,10 @@ async function loadData() {
     renderEquipos();
     renderAlertas();
     renderMantenciones();
-    setTimeout(hideSplash, 300);
+    setTimeout(() => {
+      hideSplash();
+      restoreState();
+    }, 300);
     toast('Datos actualizados ✓');
   } catch (e) {
     console.error(e);
@@ -449,6 +452,7 @@ function setFilter(f, btn) {
   currentFilter = f;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
+  try { localStorage.setItem('lst_filter', f); } catch(e) {}
   renderEquipos();
 }
 
@@ -457,6 +461,7 @@ function openFicha(patente) {
   currentEquipo = allEquipos.find(e => e.patente === patente);
   if (!currentEquipo) return;
   const e = currentEquipo;
+  try { localStorage.setItem('lst_ficha', patente); } catch(err) {}
 
   document.getElementById('ficha-title').textContent = `${e.marca} ${e.modelo}`;
 
@@ -751,6 +756,7 @@ function showPage(id, btn) {
   btn.classList.add('active');
   const titles = { dashboard:'Inicio', equipos:'Equipos', alertas:'Alertas', mantenciones:'Mantención' };
   document.getElementById('page-title').textContent = titles[id] || id;
+  try { localStorage.setItem('lst_page', id); } catch(e) {}
 }
 
 function goEquipos(filter) {
@@ -773,6 +779,40 @@ function closePanel(id) {
   const el = document.getElementById(id);
   el.style.transform = 'translateX(100%)';
   setTimeout(() => el.classList.add('hidden'), 280);
+  if (id === 'panel-ficha') {
+    try { localStorage.removeItem('lst_ficha'); } catch(e) {}
+  }
+}
+
+// ── Restaurar estado anterior ─────────────────────────────────
+function restoreState() {
+  try {
+    const page   = localStorage.getItem('lst_page')  || 'dashboard';
+    const ficha  = localStorage.getItem('lst_ficha');
+    const filter = localStorage.getItem('lst_filter') || 'todos';
+
+    // Restaura pestaña activa
+    const navIdx = { dashboard:0, equipos:1, alertas:2, mantenciones:3 };
+    const idx = navIdx[page];
+    if (idx !== undefined) {
+      const btn = document.querySelectorAll('.nav-item')[idx];
+      if (btn) showPage(page, btn);
+    }
+
+    // Restaura filtro de equipos
+    currentFilter = filter;
+    const chipIdx = { todos:0, op:1, obs:2, det:3, rep:4 };
+    const ci = chipIdx[filter];
+    if (ci !== undefined) {
+      const chip = document.querySelectorAll('.chip')[ci];
+      if (chip) { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); }
+    }
+
+    // Restaura ficha abierta
+    if (ficha && page === 'equipos') {
+      setTimeout(() => openFicha(ficha), 100);
+    }
+  } catch(e) {}
 }
 
 // ── Init ──────────────────────────────────────────────────────
