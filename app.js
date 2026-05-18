@@ -69,6 +69,7 @@ function initOAuth() {
         return;
       }
       saveToken(response.access_token, response.expires_in || 3600);
+      try { localStorage.setItem('lst_had_login', '1'); } catch(e) {}
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash').classList.remove('hidden');
       loadData();
@@ -86,7 +87,9 @@ function initOAuth() {
 function signIn() {
   document.getElementById('login-hint').textContent = 'Conectando...';
   if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
-  tokenClient.requestAccessToken({ prompt: 'select_account' });
+  // Si ya inició sesión antes, intenta silencioso primero
+  const hadLogin = localStorage.getItem('lst_had_login');
+  tokenClient.requestAccessToken({ prompt: hadLogin ? '' : 'select_account' });
 }
 
 // Asegura que haya token válido antes de llamar a la API
@@ -498,23 +501,24 @@ function openFicha(patente) {
       <div class="ficha-sec-title">Documentos</div>
       <div class="doc-row">
         <div><div class="doc-name">SOAP</div><div class="doc-date">${e.soap||'Sin dato'}</div></div>
-        ${docBadge(diasRestantes(e.soap))}
+        <div style="display:flex;gap:6px;align-items:center">
+          ${docBadge(diasRestantes(e.soap))}
+          ${e.soap && e.soap !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','SOAP')">Ver</button>` : ''}
+        </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Permiso de circulación</div><div class="doc-date">${e.permiso||'Sin dato'}</div></div>
-        ${docBadge(diasRestantes(e.permiso))}
+        <div style="display:flex;gap:6px;align-items:center">
+          ${docBadge(diasRestantes(e.permiso))}
+          ${e.permiso && e.permiso !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','PERMISO')">Ver</button>` : ''}
+        </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Revisión técnica</div><div class="doc-date">${e.revision||'Sin dato'}</div></div>
-        ${docBadge(diasRestantes(e.revision))}
-      </div>
-
-      <!-- Subir foto de documento -->
-      <div style="margin-top:12px">
-        <label class="upload-label">
-          📎 Subir foto de documento
-          <input type="file" accept="image/*,.pdf" onchange="handleDocUpload(event,'${e.patente}')" style="display:none">
-        </label>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${docBadge(diasRestantes(e.revision))}
+          ${e.revision && e.revision !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','REVISION')">Ver</button>` : ''}
+        </div>
       </div>
     </div>
 
@@ -525,17 +529,24 @@ function openFicha(patente) {
   openPanel('panel-ficha');
 }
 
-// ── Subir foto de documento desde ficha ──────────────────────
-async function handleDocUpload(event, patente) {
-  const file = event.target.files[0];
-  if (!file) return;
+// ── Abrir documento desde Drive ──────────────────────────────
+async function openDocDrive(patente, prefix) {
+  toast('Buscando documento...');
   try {
-    await uploadFile(file, patente, 'DOC');
-    toast('Documento subido a Drive ✓');
+    const folderId = await getFolderForPatente(patente);
+    const q = encodeURIComponent(`'${folderId}' in parents and name contains '${prefix}_${patente}' and trashed=false`);
+    await ensureToken();
+    const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name,webViewLink)&orderBy=createdTime desc`;
+    const res = await fetch(url, { headers: authHeader() });
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      window.open(data.files[0].webViewLink, '_blank');
+    } else {
+      toast('No se encontró archivo de ' + prefix + ' en Drive', 'error');
+    }
   } catch(err) {
-    toast('Error al subir: ' + err.message, 'error');
+    toast('Error: ' + err.message, 'error');
   }
-  event.target.value = '';
 }
 
 // ── Alertas ───────────────────────────────────────────────────
@@ -761,18 +772,40 @@ function closePanel(id) {
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initOAuth();
+  // Siempre ocultar splash al inicio
+  document.getElementById('splash').classList.add('hidden');
 
-  // Si hay token guardado válido, entra directo
+  // Si hay token válido guardado, entra directo sin mostrar login
   if (loadSavedToken()) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('splash').classList.remove('hidden');
+    initOAuth();
     loadData();
-  } else {
-    // Primera vez o token expirado: muestra login
-    document.getElementById('splash').classList.add('hidden');
-    document.getElementById('login-screen').classList.remove('hidden');
+    return;
   }
+
+  // Si ya inició sesión antes, intenta renovar silenciosamente
+  const hadLogin = localStorage.getItem('lst_had_login');
+  if (hadLogin) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('splash').classList.remove('hidden');
+    initOAuth();
+    // Espera que OAuth cargue e intenta silencioso
+    setTimeout(() => {
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        // Si falla OAuth, muestra login
+        document.getElementById('splash').classList.add('hidden');
+        document.getElementById('login-screen').classList.remove('hidden');
+      }
+    }, 800);
+    return;
+  }
+
+  // Primera vez: muestra pantalla de login
+  document.getElementById('login-screen').classList.remove('hidden');
+  initOAuth();
 });
 
 // ── Helpers para upload de documentos en formulario edición ──
