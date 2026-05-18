@@ -266,8 +266,24 @@
     </div>
   </div>
 
+  <!-- Login overlay -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-box">
+      <img src="logo.png" class="login-logo" alt="LST Constructora">
+      <div class="login-title">Flota &amp; Equipos</div>
+      <div class="login-sub">Constructora LST</div>
+      <button id="login-btn" class="login-btn" onclick="signIn()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="Google">
+        Iniciar sesión con Google
+      </button>
+      <div class="login-hint" id="login-hint">Inicia sesión para acceder a los datos</div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 </div>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

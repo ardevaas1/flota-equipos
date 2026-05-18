@@ -9,8 +9,55 @@ const DRIVE_UP    = 'https://www.googleapis.com/upload/drive/v3';
 let allEquipos    = [];
 let currentEquipo = null;
 let currentFilter = 'todos';
-let driveFolders  = {};   // cache: patente → folder_id
+let driveFolders  = {};
 const today = new Date();
+
+// ── OAuth / Google Identity Services ─────────────────────────
+let tokenClient = null;
+let accessToken = null;
+
+function initOAuth() {
+  if (typeof google === 'undefined') {
+    setTimeout(initOAuth, 500);
+    return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CONFIG.CLIENT_ID,
+    scope: CONFIG.SCOPES,
+    callback: (response) => {
+      if (response.error) {
+        document.getElementById('login-hint').textContent = 'Error: ' + response.error;
+        return;
+      }
+      accessToken = response.access_token;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('splash').classList.remove('hidden');
+      loadData();
+    },
+  });
+}
+
+function signIn() {
+  document.getElementById('login-hint').textContent = 'Conectando...';
+  if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+// Renueva el token si expiró (cada ~55 min)
+function ensureToken() {
+  return new Promise((resolve) => {
+    if (accessToken) { resolve(); return; }
+    tokenClient.requestAccessToken({ prompt: '' });
+    const check = setInterval(() => {
+      if (accessToken) { clearInterval(check); resolve(); }
+    }, 300);
+  });
+}
+
+// Header de autorización para llamadas autenticadas
+function authHeader() {
+  return { 'Authorization': 'Bearer ' + accessToken };
+}
 
 // ── Utilidades ────────────────────────────────────────────────
 function parseEstado(raw) {
@@ -99,17 +146,19 @@ function hideSplash() {
 
 // ── Google Sheets API ─────────────────────────────────────────
 async function fetchSheet(range) {
-  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?key=${CONFIG.API_KEY}`;
-  const res = await fetch(url);
+  await ensureToken();
+  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
+  const res = await fetch(url, { headers: authHeader() });
   if (!res.ok) throw new Error(`Sheets ${res.status}: ${await res.text()}`);
   return (await res.json()).values || [];
 }
 
 async function writeSheet(range, values) {
-  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED&key=${CONFIG.API_KEY}`;
+  await ensureToken();
+  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
   const res = await fetch(url, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
   });
   if (!res.ok) throw new Error(`Sheets write ${res.status}: ${await res.text()}`);
@@ -117,10 +166,11 @@ async function writeSheet(range, values) {
 }
 
 async function appendSheet(range, values) {
-  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${CONFIG.API_KEY}`;
+  await ensureToken();
+  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
   });
   if (!res.ok) throw new Error(`Sheets append ${res.status}: ${await res.text()}`);
@@ -133,8 +183,9 @@ async function getFolderForPatente(patente) {
   if (driveFolders[patente]) return driveFolders[patente];
 
   const q = encodeURIComponent(`'${CONFIG.DRIVE_ROOT_FOLDER}' in parents and name='${patente}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name)&key=${CONFIG.API_KEY}`;
-  const res = await fetch(url);
+  await ensureToken();
+  const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name)`;
+  const res = await fetch(url, { headers: authHeader() });
   if (!res.ok) throw new Error(`Drive search ${res.status}`);
   const data = await res.json();
 
@@ -169,8 +220,10 @@ async function uploadFile(file, patente, prefixName) {
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);
 
-  const res = await fetch(`${DRIVE_UP}/files?uploadType=multipart&key=${CONFIG.API_KEY}`, {
+  await ensureToken();
+  const res = await fetch(`${DRIVE_UP}/files?uploadType=multipart`, {
     method: 'POST',
+    headers: authHeader(),
     body: form,
   });
 
@@ -656,7 +709,12 @@ function closePanel(id) {
 }
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadData);
+document.addEventListener('DOMContentLoaded', () => {
+  // Oculta splash, muestra login
+  document.getElementById('splash').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  initOAuth();
+});
 
 // ── Helpers para upload de documentos en formulario edición ──
 function onDocFileSelected(input, labelId) {
