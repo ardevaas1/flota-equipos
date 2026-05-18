@@ -656,9 +656,14 @@ async function saveMant() {
     // Sube foto a Drive si hay
     let fotoNombre = '';
     if (fotoFile) {
-      toast('Subiendo foto...', 'ok');
-      const uploaded = await uploadFile(fotoFile, patente, `MANT_${tipo.replace(/\s/g,'_')}`);
-      fotoNombre = uploaded.name || '';
+      try {
+        const uploaded = await uploadFile(fotoFile, patente, `MANT_${tipo.replace(/\s/g,'_')}`);
+        fotoNombre = uploaded.name || '';
+        toast('Foto subida a Drive ✓');
+      } catch(uploadErr) {
+        toast('Error al subir foto: ' + uploadErr.message, 'error');
+        console.error('Upload error:', uploadErr);
+      }
     }
 
     // Registra en hoja MANTENCIONES
@@ -826,17 +831,20 @@ async function uploadDocFiles(patente) {
     { inputId: 'permiso-file',  prefix: 'PERMISO' },
     { inputId: 'revision-file', prefix: 'REVISION'},
   ];
-  const uploads = [];
+  let uploaded = 0;
   for (const doc of docs) {
     const input = document.getElementById(doc.inputId);
     if (input && input.files[0]) {
-      uploads.push(uploadFile(input.files[0], patente, doc.prefix));
+      try {
+        await uploadFile(input.files[0], patente, doc.prefix);
+        uploaded++;
+      } catch(e) {
+        toast('Error subiendo ' + doc.prefix + ': ' + e.message, 'error');
+        console.error('Upload ' + doc.prefix, e);
+      }
     }
   }
-  if (uploads.length > 0) {
-    await Promise.all(uploads);
-    toast(`${uploads.length} documento(s) subido(s) a Drive ✓`);
-  }
+  if (uploaded > 0) toast(`${uploaded} documento(s) subido(s) a Drive ✓`);
 }
 
 // Resetea los inputs de archivo del formulario de edición
