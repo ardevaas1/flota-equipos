@@ -611,9 +611,12 @@ async function saveEquipo() {
       soap, permiso, revision, '', '', obs
     ]]);
     toast('Guardado en Google Sheets ✓');
+    // Sube archivos de documentos si se seleccionaron
+    const patente = document.getElementById('edit-patente').value;
+    try { await uploadDocFiles(patente); } catch(e) { console.warn('Doc upload:', e); }
+    resetDocInputs();
     closePanel('panel-edit');
     await loadData();
-    const patente = document.getElementById('edit-patente').value;
     if (patente) openFicha(patente);
   } catch(err) {
     toast('Error: ' + err.message, 'error');
@@ -654,3 +657,50 @@ function closePanel(id) {
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadData);
+
+// ── Helpers para upload de documentos en formulario edición ──
+function onDocFileSelected(input, labelId) {
+  const label = document.getElementById(labelId);
+  if (input.files[0]) {
+    label.textContent = '✅ ' + input.files[0].name;
+    label.classList.add('selected');
+  } else {
+    label.classList.remove('selected');
+  }
+}
+
+// Llama a esto desde saveEquipo para subir los 3 docs si tienen archivo
+async function uploadDocFiles(patente) {
+  const docs = [
+    { inputId: 'soap-file',     prefix: 'SOAP'    },
+    { inputId: 'permiso-file',  prefix: 'PERMISO' },
+    { inputId: 'revision-file', prefix: 'REVISION'},
+  ];
+  const uploads = [];
+  for (const doc of docs) {
+    const input = document.getElementById(doc.inputId);
+    if (input && input.files[0]) {
+      uploads.push(uploadFile(input.files[0], patente, doc.prefix));
+    }
+  }
+  if (uploads.length > 0) {
+    await Promise.all(uploads);
+    toast(`${uploads.length} documento(s) subido(s) a Drive ✓`);
+  }
+}
+
+// Resetea los inputs de archivo del formulario de edición
+function resetDocInputs() {
+  ['soap-file','permiso-file','revision-file'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['soap-file-label','permiso-file-label','revision-file-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('selected');
+      const defaults = { 'soap-file-label':'📎 Subir archivo SOAP', 'permiso-file-label':'📎 Subir archivo Permiso', 'revision-file-label':'📎 Subir archivo Rev. Técnica' };
+      el.textContent = defaults[id];
+    }
+  });
+}

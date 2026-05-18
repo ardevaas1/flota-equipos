@@ -212,3 +212,23 @@ input, select, textarea { font-family: inherit; }
   text-align: center; cursor: pointer; margin-top: 10px;
 }
 .upload-label:active { background: #e3f2fd; }
+
+/* ── Doc upload cards ── */
+.doc-upload-card {
+  background: #f8f9fa; border: 1px solid #e8eaed;
+  border-radius: 10px; padding: 12px; margin-bottom: 10px;
+}
+.doc-upload-title {
+  font-size: 12px; font-weight: 700; color: #1a1a2e;
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.doc-upload-row { margin-top: 4px; }
+.doc-file-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 9px; border-radius: 8px;
+  border: 1.5px dashed #4a8fc1; color: #4a8fc1;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #fff; transition: background 0.15s;
+}
+.doc-file-label:active { background: #e3f2fd; }
+.doc-file-label.selected { border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; border-style: solid; }

@@ -172,17 +172,47 @@
       </div>
 
       <div class="form-sec">Documentos — fecha de vencimiento (dd/mm/aaaa)</div>
-      <div class="form-group">
-        <label>SOAP</label>
-        <input type="text" id="edit-soap" placeholder="Ej: 31/12/2025">
+
+      <div class="doc-upload-card">
+        <div class="doc-upload-title">SOAP</div>
+        <div class="form-group" style="margin-bottom:6px">
+          <label>Fecha de vencimiento</label>
+          <input type="text" id="edit-soap" placeholder="Ej: 31/12/2025">
+        </div>
+        <div class="doc-upload-row">
+          <label id="soap-file-label" class="doc-file-label">
+            📎 Subir archivo SOAP
+            <input type="file" id="soap-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'soap-file-label')" style="display:none">
+          </label>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Permiso de circulación</label>
-        <input type="text" id="edit-permiso" placeholder="Ej: 31/03/2026">
+
+      <div class="doc-upload-card">
+        <div class="doc-upload-title">Permiso de circulación</div>
+        <div class="form-group" style="margin-bottom:6px">
+          <label>Fecha de vencimiento</label>
+          <input type="text" id="edit-permiso" placeholder="Ej: 31/03/2026">
+        </div>
+        <div class="doc-upload-row">
+          <label id="permiso-file-label" class="doc-file-label">
+            📎 Subir archivo Permiso
+            <input type="file" id="permiso-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'permiso-file-label')" style="display:none">
+          </label>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Revisión técnica</label>
-        <input type="text" id="edit-revision" placeholder="Ej: 15/06/2026">
+
+      <div class="doc-upload-card">
+        <div class="doc-upload-title">Revisión técnica</div>
+        <div class="form-group" style="margin-bottom:6px">
+          <label>Fecha de vencimiento</label>
+          <input type="text" id="edit-revision" placeholder="Ej: 15/06/2026">
+        </div>
+        <div class="doc-upload-row">
+          <label id="revision-file-label" class="doc-file-label">
+            📎 Subir archivo Rev. Técnica
+            <input type="file" id="revision-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'revision-file-label')" style="display:none">
+          </label>
+        </div>
       </div>
 
       <div class="form-sec">Observaciones</div>
