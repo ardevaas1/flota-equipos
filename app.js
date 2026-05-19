@@ -305,7 +305,7 @@ async function loadData() {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A4:S200`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A4:T200`);
     splash(70, 'Procesando equipos...');
 
     allEquipos = rows
@@ -325,12 +325,13 @@ async function loadData() {
         ubicacion:   r[10] || '',   // K
         horometro:   r[11] || '',   // L
         proxMant:    r[12] || '',   // M
-        mantCada:    r[13] || '',   // N
-        soap:        r[14] || '',   // O
-        permiso:     r[15] || '',   // P
-        revision:    r[16] || '',   // Q
-        obs:         r[17] || '',   // R
-        linkFicha:   r[18] || '',   // S
+        ultMant:     r[13] || '',   // N ← nueva
+        mantCada:    r[14] || '',   // O
+        soap:        r[15] || '',   // P
+        permiso:     r[16] || '',   // Q
+        revision:    r[17] || '',   // R
+        obs:         r[18] || '',   // S
+        linkFicha:   r[19] || '',   // T
       }));
 
     splash(100, '¡Listo!');
@@ -500,6 +501,7 @@ function openFicha(patente) {
       <div class="ficha-sec-title">Horómetro / Odómetro</div>
       ${field('Actual', formatNum(e.horometro) + (e.mantCada ? ' · Cada ' + e.mantCada : ''))}
       ${field('Próxima mantención', formatNum(e.proxMant))}
+      ${field('Última mantención', formatNum(e.ultMant))}
       ${field('Última mantención', formatNum(e.ultMant))}
       ${e.obs ? `<div class="ficha-obs">⚠️ ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openMantPanel('${e.patente}')">+ Registrar mantención</button>
@@ -680,10 +682,15 @@ async function saveMant() {
       patente, nombreEquipo, horometro, tipo, obs, fecha, fotoNombre
     ]]);
 
-    // Actualiza horómetro en hoja principal
+    // Actualiza horómetro y última mantención en hoja principal
     if (horometro && e) {
-      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]);
+      const fechaMant = new Date().toLocaleDateString('es-CL');
+      await Promise.all([
+        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]),
+        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]),
+      ]);
       e.horometro = horometro;
+      e.ultMant = horometro;
     }
 
     toast('Mantención registrada ✓');
@@ -731,6 +738,7 @@ function openEditPanel() {
   document.getElementById('edit-ubicacion').value = e.ubicacion;
   document.getElementById('edit-horometro').value = e.horometro;
   document.getElementById('edit-proxima').value   = e.proxMant;
+  document.getElementById('edit-ultima').value    = e.ultMant;
 
   document.getElementById('edit-soap').value      = e.soap;
   document.getElementById('edit-permiso').value   = e.permiso;
@@ -762,10 +770,10 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${row}`, [[horometro]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[proxima]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[soap]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[permiso]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[revision]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[obs]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[soap]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
     ]);
     toast('Guardado en Google Sheets ✓');
     const patente = document.getElementById('edit-patente').value;
