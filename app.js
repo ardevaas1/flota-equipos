@@ -5,6 +5,7 @@
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 const DRIVE_API   = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UP    = 'https://www.googleapis.com/upload/drive/v3';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVj2C6YCjlwm4OwXqFBk8RiuYbGS0QXnA062oTq7_j_NiGu2xl5dOrGZb-RdJdExbYqg/exec';
 
 let allEquipos    = [];
 let currentEquipo = null;
@@ -260,16 +261,10 @@ async function getFolderForPatente(patente) {
 async function uploadFile(file, patente, prefixName) {
   toast('Subiendo ' + prefixName + '...');
 
-  // Paso 1: asegurar token
-  try {
-    await ensureToken();
-  } catch(e) {
-    throw new Error('Sin sesión activa. Recarga la app e inicia sesión de nuevo.');
-  }
-
-  // Paso 2: buscar carpeta
+  // Paso 1: buscar carpeta (sigue usando Drive API solo para leer, no para escribir)
   let folderId;
   try {
+    await ensureToken();
     folderId = await getFolderForPatente(patente);
     toast('Carpeta encontrada: ' + patente);
   } catch(e) {
@@ -277,36 +272,36 @@ async function uploadFile(file, patente, prefixName) {
     toast('Carpeta ' + patente + ' no encontrada, usando raíz', 'error');
   }
 
-  // Paso 3: preparar archivo
+  // Paso 2: preparar nombre y leer archivo como base64
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
 
-  const metadata = { name: fileName, parents: [folderId] };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', file);
-
-  // Paso 4: subir
-  toast('Enviando ' + fileName + ' a Drive...');
-  const res = await fetch(`${DRIVE_UP}/files?uploadType=multipart`, {
-    method: 'POST',
-    headers: authHeader(),
-    body: form,
+  const fileData = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]); // solo base64, sin el prefijo
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    let errMsg = 'Error ' + res.status;
-    try {
-      const errJson = JSON.parse(errText);
-      errMsg += ': ' + (errJson.error?.message || errText);
-    } catch(e) { errMsg += ': ' + errText.slice(0,100); }
-    throw new Error(errMsg);
-  }
+  // Paso 3: enviar al Apps Script (que corre dentro de Google y sube a Drive sin restricciones)
+  toast('Enviando ' + fileName + ' a Drive...');
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      folderId: folderId,
+      fileName: fileName,
+      fileData: fileData,
+      mimeType: file.type || 'application/octet-stream'
+    })
+  });
+
+  if (!res.ok) throw new Error('Error HTTP ' + res.status);
 
   const result = await res.json();
+  if (!result.success) throw new Error(result.error || 'Error desconocido en Apps Script');
+
   toast(prefixName + ' subido ✓ → ' + result.name);
-  return result;
+  return { id: result.id, name: result.name };
 }
 
 // ── Cargar datos ──────────────────────────────────────────────
