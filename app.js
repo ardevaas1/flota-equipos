@@ -310,29 +310,26 @@ async function loadData() {
     allEquipos = rows
       .filter(r => r[1] && r[1].toString().trim())
       .map((r, i) => ({
-        rowIndex:     i + 4,
-        equipo:       r[1]  || '',   // B
-        codigo:       r[2]  || '',   // C
-        marca:        r[3]  || '',   // D
-        modelo:       r[4]  || '',   // E
-        anio:         r[5]  || '',   // F
-        color:        r[6]  || '',   // G
-        patente:      r[7]  || '',   // H
-        estadoRaw:    r[8]  || '',   // I
-        estado:       parseEstado(r[8]),
-        ubicacion:    r[9]  || '',   // J
-        horometro:    r[10] || '',   // K
-        proxMant:     r[11] || '',   // L
-        ultMant:      r[12] || '',   // M
-        soap:         r[13] || '',   // N
-        permiso:      r[14] || '',   // O
-        revision:     r[15] || '',   // P
-        // Q=r[16] SI/NO, R=r[17] patente duplicada — no tocar
-        obs:          r[18] || '',   // S
-        mantCada:     r[19] || '',   // T
-        propietario:  r[20] || '',   // U
-        rut:          r[21] || '',   // V
-        linkFicha:    r[22] || '',   // W: link Google Doc ficha técnica
+        rowIndex:    i + 4,
+        equipo:      r[1]  || '',   // B - tipo equipo
+        marca:       r[2]  || '',   // C
+        modelo:      r[3]  || '',   // D
+        patente:     r[4]  || '',   // E
+        anio:        r[5]  || '',   // F
+        color:       r[6]  || '',   // G
+        propietario: r[7]  || '',   // H
+        rut:         r[8]  || '',   // I
+        estadoRaw:   r[9]  || '',   // J
+        estado:      parseEstado(r[9]),
+        ubicacion:   r[10] || '',   // K
+        horometro:   r[11] || '',   // L
+        proxMant:    r[12] || '',   // M
+        mantCada:    r[13] || '',   // N
+        soap:        r[14] || '',   // O
+        permiso:     r[15] || '',   // P
+        revision:    r[16] || '',   // Q
+        obs:         r[17] || '',   // R
+        linkFicha:   r[18] || '',   // S
       }));
 
     splash(100, '¡Listo!');
@@ -684,7 +681,7 @@ async function saveMant() {
 
     // Actualiza horómetro en hoja principal
     if (horometro && e) {
-      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${e.rowIndex}`, [[horometro]]);
+      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]);
       e.horometro = horometro;
     }
 
@@ -709,11 +706,31 @@ function openEditPanel() {
   if (!e) return;
   document.getElementById('edit-row').value       = e.rowIndex;
   document.getElementById('edit-patente').value   = e.patente;
-  document.getElementById('edit-estado').value    = e.estadoRaw || 'OPERATIVO';
+
+  // Carga estado: si el valor exacto no está en las opciones, lo agrega
+  const estadoSelect = document.getElementById('edit-estado');
+  const estadoVal = e.estadoRaw || 'OPERATIVO';
+  let found = false;
+  for (const opt of estadoSelect.options) {
+    if (opt.value.trim().toUpperCase() === estadoVal.trim().toUpperCase()) {
+      estadoSelect.value = opt.value;
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    // Agrega el valor exacto del Sheet como opción
+    const opt = document.createElement('option');
+    opt.value = estadoVal;
+    opt.textContent = estadoVal;
+    estadoSelect.appendChild(opt);
+    estadoSelect.value = estadoVal;
+  }
+
   document.getElementById('edit-ubicacion').value = e.ubicacion;
   document.getElementById('edit-horometro').value = e.horometro;
   document.getElementById('edit-proxima').value   = e.proxMant;
-  document.getElementById('edit-ultima').value    = e.ultMant;
+
   document.getElementById('edit-soap').value      = e.soap;
   document.getElementById('edit-permiso').value   = e.permiso;
   document.getElementById('edit-revision').value  = e.revision;
@@ -727,7 +744,7 @@ async function saveEquipo() {
   const ubicacion = document.getElementById('edit-ubicacion').value;
   const horometro = document.getElementById('edit-horometro').value;
   const proxima  = document.getElementById('edit-proxima').value;
-  const ultima   = document.getElementById('edit-ultima').value;
+
   const soap     = document.getElementById('edit-soap').value;
   const permiso  = document.getElementById('edit-permiso').value;
   const revision = document.getElementById('edit-revision').value;
@@ -738,16 +755,16 @@ async function saveEquipo() {
     // Escribe cada campo en su columna exacta para no pisar otras columnas
     // I=Estado, J=Ubicación, K=Horómetro, L=Próxima, M=Última
     // N=SOAP, O=Permiso, P=Revisión, S=Observaciones
+    console.log('Guardando fila', row, 'estado:', estado);
     await Promise.all([
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!I${row}`, [[estado]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[ubicacion]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[horometro]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${row}`, [[proxima]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[ultima]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[soap]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[permiso]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[revision]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${row}`, [[horometro]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[proxima]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[soap]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[permiso]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[revision]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[obs]]),
     ]);
     toast('Guardado en Google Sheets ✓');
     const patente = document.getElementById('edit-patente').value;
