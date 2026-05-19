@@ -185,7 +185,7 @@ function toast(msg, type = 'ok') {
   t.className = `toast ${type}`;
   t.classList.remove('hidden');
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.add('hidden'), 3500);
+  t._timer = setTimeout(() => t.classList.add('hidden'), 6000);
 }
 
 function splash(pct, hint) {
@@ -258,28 +258,36 @@ async function getFolderForPatente(patente) {
 
 // Sube un archivo a la carpeta de la patente
 async function uploadFile(file, patente, prefixName) {
-  toast('Subiendo archivo...', 'ok');
+  toast('Subiendo ' + prefixName + '...');
 
+  // Paso 1: asegurar token
+  try {
+    await ensureToken();
+  } catch(e) {
+    throw new Error('Sin sesión activa. Recarga la app e inicia sesión de nuevo.');
+  }
+
+  // Paso 2: buscar carpeta
   let folderId;
   try {
     folderId = await getFolderForPatente(patente);
+    toast('Carpeta encontrada: ' + patente);
   } catch(e) {
     folderId = CONFIG.DRIVE_ROOT_FOLDER;
+    toast('Carpeta ' + patente + ' no encontrada, usando raíz', 'error');
   }
 
+  // Paso 3: preparar archivo
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
 
-  const metadata = {
-    name: fileName,
-    parents: [folderId],
-  };
-
+  const metadata = { name: fileName, parents: [folderId] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);
 
-  await ensureToken();
+  // Paso 4: subir
+  toast('Enviando ' + fileName + ' a Drive...');
   const res = await fetch(`${DRIVE_UP}/files?uploadType=multipart`, {
     method: 'POST',
     headers: authHeader(),
@@ -287,10 +295,18 @@ async function uploadFile(file, patente, prefixName) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Drive upload ${res.status}: ${err}`);
+    const errText = await res.text();
+    let errMsg = 'Error ' + res.status;
+    try {
+      const errJson = JSON.parse(errText);
+      errMsg += ': ' + (errJson.error?.message || errText);
+    } catch(e) { errMsg += ': ' + errText.slice(0,100); }
+    throw new Error(errMsg);
   }
-  return res.json();
+
+  const result = await res.json();
+  toast(prefixName + ' subido ✓ → ' + result.name);
+  return result;
 }
 
 // ── Cargar datos ──────────────────────────────────────────────
