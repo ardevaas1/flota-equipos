@@ -134,19 +134,123 @@ const ESTADO_COLOR = { op:'green', obs:'amber', det:'red', rep:'blue', otro:'gra
 
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
-  if (t.includes('camioneta'))   return '🚙';
-  if (t.includes('camion') || t.includes('camión')) return '🚛';
-  if (t.includes('furgon') || t.includes('furgón')) return '🚐';
-  if (t.includes('retroexcavadora')) return '🚜';
-  if (t.includes('excavadora'))  return '🏗️';
-  if (t.includes('minicargador')) return '🟡';
-  if (t.includes('manipulador')) return '🏗️';
-  if (t.includes('grua') || t.includes('grúa')) return '🏗️';
-  if (t.includes('rodillo'))     return '🛞';
-  if (t.includes('mixer'))       return '🔄';
-  if (t.includes('tractor'))     return '🚜';
-  if (t.includes('generador'))   return '⚡';
-  return '🔧';
+  // SVG icons por tipo de máquina
+  const svgs = {
+    camioneta: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="18" width="36" height="14" rx="3" fill="#3B82F6"/>
+      <path d="M6 18 L10 10 L28 10 L34 18" fill="#2563EB"/>
+      <rect x="10" y="11" width="8" height="6" rx="1" fill="#BAE6FD"/>
+      <rect x="20" y="11" width="8" height="6" rx="1" fill="#BAE6FD"/>
+      <circle cx="10" cy="32" r="4" fill="#1E293B"/><circle cx="10" cy="32" r="2" fill="#94A3B8"/>
+      <circle cx="30" cy="32" r="4" fill="#1E293B"/><circle cx="30" cy="32" r="2" fill="#94A3B8"/>
+    </svg>`,
+    camion: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="16" width="24" height="16" rx="2" fill="#F59E0B"/>
+      <rect x="26" y="20" width="12" height="12" rx="2" fill="#D97706"/>
+      <rect x="28" y="22" width="8" height="7" rx="1" fill="#FEF3C7"/>
+      <rect x="4" y="18" width="10" height="8" rx="1" fill="#FDE68A"/>
+      <circle cx="9" cy="32" r="4" fill="#1E293B"/><circle cx="9" cy="32" r="2" fill="#94A3B8"/>
+      <circle cx="31" cy="32" r="4" fill="#1E293B"/><circle cx="31" cy="32" r="2" fill="#94A3B8"/>
+    </svg>`,
+    furgon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="14" width="36" height="18" rx="3" fill="#8B5CF6"/>
+      <rect x="4" y="16" width="12" height="9" rx="1" fill="#C4B5FD"/>
+      <rect x="18" y="16" width="8" height="9" rx="1" fill="#C4B5FD"/>
+      <rect x="28" y="16" width="8" height="9" rx="1" fill="#C4B5FD"/>
+      <circle cx="10" cy="32" r="4" fill="#1E293B"/><circle cx="10" cy="32" r="2" fill="#94A3B8"/>
+      <circle cx="30" cy="32" r="4" fill="#1E293B"/><circle cx="30" cy="32" r="2" fill="#94A3B8"/>
+    </svg>`,
+    retroexcavadora: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="24" width="22" height="10" rx="2" fill="#F59E0B"/>
+      <rect x="4" y="18" width="14" height="8" rx="1" fill="#D97706"/>
+      <rect x="6" y="20" width="8" height="5" rx="1" fill="#FEF3C7"/>
+      <path d="M24 22 L30 14 L34 18 L28 26 Z" fill="#92400E"/>
+      <path d="M34 18 L38 22 L36 28 L32 26 Z" fill="#78350F"/>
+      <rect x="2" y="32" width="22" height="4" rx="2" fill="#1E293B"/>
+    </svg>`,
+    excavadora: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="26" width="24" height="8" rx="2" fill="#EF4444"/>
+      <rect x="4" y="18" width="16" height="10" rx="1" fill="#DC2626"/>
+      <rect x="6" y="20" width="10" height="6" rx="1" fill="#FCA5A5"/>
+      <path d="M20 16 L28 10 L32 14 L26 22 Z" fill="#B91C1C"/>
+      <path d="M32 14 L38 18 L36 24 L30 22 Z" fill="#991B1B"/>
+      <path d="M36 24 L40 26 L38 30 L34 28 Z" fill="#7F1D1D"/>
+      <rect x="2" y="32" width="24" height="4" rx="2" fill="#1E293B"/>
+    </svg>`,
+    minicargador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="6" y="20" width="20" height="12" rx="2" fill="#F59E0B"/>
+      <rect x="8" y="22" width="10" height="7" rx="1" fill="#FEF3C7"/>
+      <path d="M2 28 L6 24 L6 32 L2 32 Z" fill="#D97706"/>
+      <path d="M2 26 L8 26 L8 28 L2 28 Z" fill="#92400E"/>
+      <rect x="26" y="16" width="4" height="6" rx="1" fill="#92400E"/>
+      <rect x="22" y="14" width="12" height="4" rx="1" fill="#78350F"/>
+      <rect x="4" y="30" width="22" height="5" rx="2" fill="#1E293B"/>
+    </svg>`,
+    manipulador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="4" y="22" width="20" height="12" rx="2" fill="#10B981"/>
+      <rect x="6" y="24" width="10" height="7" rx="1" fill="#D1FAE5"/>
+      <path d="M24 20 L34 8 L36 10 L28 24 Z" fill="#059669"/>
+      <path d="M34 8 L38 10 L38 14 L36 14 Z" fill="#065F46"/>
+      <rect x="4" y="32" width="20" height="4" rx="2" fill="#1E293B"/>
+    </svg>`,
+    grua: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="4" y="24" width="16" height="10" rx="2" fill="#F59E0B"/>
+      <rect x="6" y="26" width="8" height="6" rx="1" fill="#FEF3C7"/>
+      <rect x="18" y="6" width="3" height="28" fill="#D97706"/>
+      <rect x="18" y="6" width="18" height="3" fill="#D97706"/>
+      <rect x="33" y="9" width="2" height="12" fill="#92400E"/>
+      <rect x="4" y="32" width="16" height="4" rx="2" fill="#1E293B"/>
+    </svg>`,
+    rodillo: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="8" y="16" width="24" height="12" rx="2" fill="#6B7280"/>
+      <rect x="10" y="18" width="12" height="7" rx="1" fill="#D1D5DB"/>
+      <ellipse cx="20" cy="30" rx="14" ry="6" fill="#374151"/>
+      <ellipse cx="20" cy="30" rx="10" ry="4" fill="#6B7280"/>
+      <rect x="6" y="12" width="28" height="6" rx="3" fill="#4B5563"/>
+    </svg>`,
+    mixer: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="2" y="20" width="20" height="14" rx="2" fill="#3B82F6"/>
+      <rect x="4" y="22" width="8" height="8" rx="1" fill="#BFDBFE"/>
+      <ellipse cx="28" cy="22" rx="9" ry="11" fill="#1D4ED8"/>
+      <path d="M22 16 L34 14 L34 30 L22 28 Z" fill="#2563EB"/>
+      <circle cx="8" cy="34" r="3" fill="#1E293B"/><circle cx="8" cy="34" r="1.5" fill="#94A3B8"/>
+      <circle cx="16" cy="34" r="3" fill="#1E293B"/><circle cx="16" cy="34" r="1.5" fill="#94A3B8"/>
+    </svg>`,
+    tractor: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="4" y="18" width="20" height="14" rx="2" fill="#16A34A"/>
+      <rect x="6" y="20" width="10" height="8" rx="1" fill="#BBF7D0"/>
+      <circle cx="12" cy="32" r="6" fill="#1E293B"/><circle cx="12" cy="32" r="3" fill="#4B5563"/>
+      <circle cx="30" cy="34" r="4" fill="#1E293B"/><circle cx="30" cy="34" r="2" fill="#4B5563"/>
+      <rect x="22" y="22" width="12" height="8" rx="1" fill="#15803D"/>
+    </svg>`,
+    generador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="4" y="16" width="32" height="18" rx="3" fill="#6B7280"/>
+      <rect x="8" y="20" width="10" height="8" rx="1" fill="#D1D5DB"/>
+      <path d="M22 18 L26 26 L23 26 L27 34 L21 24 L24 24 Z" fill="#FCD34D"/>
+      <circle cx="32" cy="24" r="4" fill="#374151"/>
+      <circle cx="32" cy="24" r="2" fill="#9CA3AF"/>
+    </svg>`,
+    default: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
+      <rect x="8" y="12" width="24" height="20" rx="3" fill="#6B7280"/>
+      <rect x="12" y="16" width="8" height="6" rx="1" fill="#D1D5DB"/>
+      <path d="M16 8 L20 4 L24 8 L22 8 L22 12 L18 12 L18 8 Z" fill="#4B5563"/>
+      <rect x="10" y="28" width="6" height="4" rx="1" fill="#374151"/>
+      <rect x="24" y="28" width="6" height="4" rx="1" fill="#374151"/>
+    </svg>`,
+  };
+  if (t.includes('camioneta'))   return svgs.camioneta;
+  if (t.includes('camion') || t.includes('camión')) return svgs.camion;
+  if (t.includes('furgon') || t.includes('furgón')) return svgs.furgon;
+  if (t.includes('retroexcavadora')) return svgs.retroexcavadora;
+  if (t.includes('excavadora'))  return svgs.excavadora;
+  if (t.includes('minicargador')) return svgs.minicargador;
+  if (t.includes('manipulador')) return svgs.manipulador;
+  if (t.includes('grua') || t.includes('grúa')) return svgs.grua;
+  if (t.includes('rodillo'))     return svgs.rodillo;
+  if (t.includes('mixer'))       return svgs.mixer;
+  if (t.includes('tractor'))     return svgs.tractor;
+  if (t.includes('generador'))   return svgs.generador;
+  return svgs.default;
 }
 
 function diasRestantes(fechaStr) {
@@ -316,13 +420,13 @@ async function loadData() {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A4:T200`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:T200`);
     splash(70, 'Procesando equipos...');
 
     allEquipos = rows
-      .filter(r => r[1] && r[1].toString().trim())
+      .filter(r => r[1] && r[1].toString().trim() && r[1].toString().trim().toUpperCase() !== 'EQUIPO')
       .map((r, i) => ({
-        rowIndex:    i + 4,
+        rowIndex:    i + 2,
         equipo:      r[1]  || '',   // B - tipo equipo
         marca:       r[2]  || '',   // C
         modelo:      r[3]  || '',   // D
@@ -965,3 +1069,34 @@ function resetDocInputs() {
     }
   });
 }
+
+// ── Manejo del botón Back del navegador ──────────────────────
+// Cada vez que se abre un panel, empujamos un estado al historial.
+// Cuando el usuario presiona Back, cerramos el panel en vez de salir.
+
+const _panelStack = [];
+
+const _origOpenPanel = openPanel;
+window.openPanel = function(id) {
+  history.pushState({ panel: id }, '');
+  _panelStack.push(id);
+  _origOpenPanel(id);
+};
+
+const _origClosePanel = closePanel;
+window.closePanel = function(id) {
+  if (_panelStack.length && _panelStack[_panelStack.length - 1] === id) {
+    _panelStack.pop();
+    // go(-1) disparará popstate, que llama closePanel de nuevo → evitar loop
+    history.go(-1);
+  } else {
+    _origClosePanel(id);
+  }
+};
+
+window.addEventListener('popstate', (e) => {
+  if (_panelStack.length > 0) {
+    const id = _panelStack.pop();
+    _origClosePanel(id);
+  }
+});
