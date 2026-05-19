@@ -502,7 +502,6 @@ function openFicha(patente) {
       ${field('Actual', formatNum(e.horometro) + (e.mantCada ? ' · Cada ' + e.mantCada : ''))}
       ${field('Próxima mantención', formatNum(e.proxMant))}
       ${field('Última mantención', formatNum(e.ultMant))}
-      ${field('Última mantención', formatNum(e.ultMant))}
       ${e.obs ? `<div class="ficha-obs">⚠️ ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openMantPanel('${e.patente}')">+ Registrar mantención</button>
     </div>
