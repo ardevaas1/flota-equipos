@@ -387,21 +387,30 @@ async function uploadFile(file, patente, prefixName) {
     reader.readAsDataURL(file);
   });
 
-  // Paso 3: enviar al Apps Script (que corre dentro de Google y sube a Drive sin restricciones)
+  // Paso 3: enviar al Apps Script
+  // Usamos text/plain para evitar CORS preflight (Apps Script solo acepta simple requests)
   toast('Enviando ' + fileName + ' a Drive...');
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      folderId: folderId,
-      fileName: fileName,
-      fileData: fileData,
-      mimeType: file.type || 'application/octet-stream'
-    })
-  });
+  let result;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        folderId: folderId,
+        fileName: fileName,
+        fileData: fileData,
+        mimeType: file.type || 'application/octet-stream'
+      })
+    });
+    const text = await res.text();
+    try { result = JSON.parse(text); }
+    catch(e) { throw new Error('Respuesta inválida del servidor: ' + text.slice(0,120)); }
+  } catch(fetchErr) {
+    // Si hay error de red/CORS, intentar con no-cors como fallback (no sabremos el resultado)
+    throw new Error('Error de red al contactar Apps Script: ' + fetchErr.message +
+      '. Verifica que el Apps Script esté publicado como "Cualquier persona".');
+  }
 
-  if (!res.ok) throw new Error('Error HTTP ' + res.status);
-
-  const result = await res.json();
   if (!result.success) throw new Error(result.error || 'Error desconocido en Apps Script');
 
   toast(prefixName + ' subido ✓ → ' + result.name);
@@ -627,21 +636,21 @@ function openFicha(patente) {
         <div><div class="doc-name">SOAP</div><div class="doc-date">${e.soap||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.soap))}
-          ${e.soap && e.soap !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','SOAP')">Ver</button>` : ''}
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','SOAP')">📂 Ver</button>
         </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Permiso de circulación</div><div class="doc-date">${e.permiso||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.permiso))}
-          ${e.permiso && e.permiso !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','PERMISO')">Ver</button>` : ''}
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','PERMISO')">📂 Ver</button>
         </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Revisión técnica</div><div class="doc-date">${e.revision||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.revision))}
-          ${e.revision && e.revision !== 'Sin dato' ? `<button class="doc-open-btn" onclick="openDocDrive('${e.patente}','REVISION')">Ver</button>` : ''}
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','REVISION')">📂 Ver</button>
         </div>
       </div>
     </div>
@@ -655,19 +664,27 @@ function openFicha(patente) {
 
 // ── Abrir documento desde Drive ──────────────────────────────
 async function openDocDrive(patente, prefix) {
-  toast('Buscando documento...');
+  toast('Buscando documento en Drive...');
   try {
-    const folderId = await getFolderForPatente(patente);
-    const q = encodeURIComponent(`'${folderId}' in parents and name contains '${prefix}_${patente}' and trashed=false`);
     await ensureToken();
-    const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name,webViewLink)&orderBy=createdTime desc`;
-    const res = await fetch(url, { headers: authHeader() });
-    const data = await res.json();
-    if (data.files && data.files.length > 0) {
-      window.open(data.files[0].webViewLink, '_blank');
-    } else {
-      toast('No se encontró archivo de ' + prefix + ' en Drive', 'error');
+    // Busca en subcarpeta de la patente Y en la carpeta raíz
+    const folderId = await getFolderForPatente(patente);
+    const foldersToSearch = folderId !== CONFIG.DRIVE_ROOT_FOLDER
+      ? [folderId, CONFIG.DRIVE_ROOT_FOLDER]
+      : [CONFIG.DRIVE_ROOT_FOLDER];
+
+    for (const folder of foldersToSearch) {
+      const q = encodeURIComponent(`'${folder}' in parents and name contains '${prefix}_${patente}' and trashed=false`);
+      const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name,webViewLink)&orderBy=createdTime desc`;
+      const res = await fetch(url, { headers: authHeader() });
+      const data = await res.json();
+      if (data.files && data.files.length > 0) {
+        toast('Abriendo ' + data.files[0].name + '...');
+        window.open(data.files[0].webViewLink, '_blank');
+        return;
+      }
     }
+    toast('No se encontró archivo de ' + prefix + ' para ' + patente + '. ¿Ya subiste el documento?', 'error');
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   }
