@@ -776,7 +776,7 @@ async function saveEquipo() {
     ]);
     toast('Guardado en Google Sheets ✓');
     const patente = document.getElementById('edit-patente').value;
-    try { await uploadDocFiles(patente); } catch(e) { console.warn('Doc upload:', e); }
+    await uploadDocFiles(patente);
     resetDocInputs();
     closePanel('panel-edit');
     await loadData();
@@ -908,17 +908,32 @@ async function uploadDocFiles(patente) {
     { inputId: 'permiso-file',  prefix: 'PERMISO' },
     { inputId: 'revision-file', prefix: 'REVISION'},
   ];
+
+  // Verifica si hay archivos seleccionados
+  const hasFiles = docs.some(d => {
+    const el = document.getElementById(d.inputId);
+    return el && el.files && el.files[0];
+  });
+  if (!hasFiles) return;
+
+  toast('Subiendo documentos...');
   let uploaded = 0;
+
   for (const doc of docs) {
     const input = document.getElementById(doc.inputId);
-    if (input && input.files[0]) {
-      try {
-        await uploadFile(input.files[0], patente, doc.prefix);
-        uploaded++;
-      } catch(e) {
-        toast('Error subiendo ' + doc.prefix + ': ' + e.message, 'error');
-        console.error('Upload ' + doc.prefix, e);
-      }
+    if (!input || !input.files || !input.files[0]) continue;
+    const file = input.files[0];
+    console.log('Subiendo:', doc.prefix, file.name, file.size, 'bytes');
+    try {
+      await ensureToken();
+      console.log('Token OK, subiendo a carpeta de:', patente);
+      const result = await uploadFile(file, patente, doc.prefix);
+      console.log('Subida exitosa:', result);
+      uploaded++;
+      toast(doc.prefix + ' subido ✓');
+    } catch(e) {
+      console.error('Error subiendo ' + doc.prefix + ':', e);
+      toast('Error ' + doc.prefix + ': ' + e.message, 'error');
     }
   }
   if (uploaded > 0) toast(`${uploaded} documento(s) subido(s) a Drive ✓`);
