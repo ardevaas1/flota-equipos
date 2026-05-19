@@ -120,11 +120,12 @@ function authHeader() {
 // ── Utilidades ────────────────────────────────────────────────
 function parseEstado(raw) {
   if (!raw) return 'sin-dato';
-  const r = raw.toLowerCase();
+  const r = raw.toLowerCase().trim();
   if (r.includes('reparaci')) return 'rep';
+  if (r.includes('deteni') || r.includes('vender') || r.includes('parada')) return 'det';
+  // obs antes de op para que "operativo (con observaciones)" quede como obs
   if (r.includes('observaci') || r.includes('falla') || r.includes('presenta')) return 'obs';
   if (r.includes('operativ')) return 'op';
-  if (r.includes('deteni') || r.includes('vender')) return 'det';
   return 'otro';
 }
 const ESTADO_LABEL = { op:'Operativo', obs:'Con observaciones', det:'Detenido', rep:'En reparación', 'sin-dato':'Sin dato', otro:'Otro' };
