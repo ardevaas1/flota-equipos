@@ -87,9 +87,13 @@ function initOAuth() {
 function signIn() {
   document.getElementById('login-hint').textContent = 'Conectando...';
   if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
-  // Si ya inició sesión antes, intenta silencioso primero
   const hadLogin = localStorage.getItem('lst_had_login');
-  tokenClient.requestAccessToken({ prompt: hadLogin ? '' : 'select_account' });
+  // Primera vez: muestra pantalla de consentimiento con todos los permisos
+  // Veces siguientes: silencioso
+  tokenClient.requestAccessToken({ 
+    prompt: hadLogin ? '' : 'consent',
+    include_granted_scopes: 'true'
+  });
 }
 
 // Asegura que haya token válido antes de llamar a la API
@@ -307,27 +311,28 @@ async function loadData() {
       .filter(r => r[1] && r[1].toString().trim())
       .map((r, i) => ({
         rowIndex:     i + 4,
-        equipo:       r[1]  || '',
-        codigo:       r[2]  || '',
-        marca:        r[3]  || '',
-        modelo:       r[4]  || '',
-        anio:         r[5]  || '',
-        color:        r[6]  || '',
-        patente:      r[7]  || '',
-        estadoRaw:    r[8]  || '',
+        equipo:       r[1]  || '',   // B
+        codigo:       r[2]  || '',   // C
+        marca:        r[3]  || '',   // D
+        modelo:       r[4]  || '',   // E
+        anio:         r[5]  || '',   // F
+        color:        r[6]  || '',   // G
+        patente:      r[7]  || '',   // H
+        estadoRaw:    r[8]  || '',   // I
         estado:       parseEstado(r[8]),
-        ubicacion:    r[9]  || '',
-        horometro:    r[10] || '',
-        proxMant:     r[11] || '',
-        ultMant:      r[12] || '',
-        soap:         r[13] || '',
-        permiso:      r[14] || '',
-        revision:     r[15] || '',
-        obs:          r[18] || '',
-        mantCada:     r[19] || '',
-        propietario:  r[20] || '',
-        rut:          r[21] || '',
-        linkFicha:    r[22] || '',   // columna W: link Google Doc ficha técnica
+        ubicacion:    r[9]  || '',   // J
+        horometro:    r[10] || '',   // K
+        proxMant:     r[11] || '',   // L
+        ultMant:      r[12] || '',   // M
+        soap:         r[13] || '',   // N
+        permiso:      r[14] || '',   // O
+        revision:     r[15] || '',   // P
+        // Q=r[16] SI/NO, R=r[17] patente duplicada — no tocar
+        obs:          r[18] || '',   // S
+        mantCada:     r[19] || '',   // T
+        propietario:  r[20] || '',   // U
+        rut:          r[21] || '',   // V
+        linkFicha:    r[22] || '',   // W: link Google Doc ficha técnica
       }));
 
     splash(100, '¡Listo!');
@@ -730,13 +735,21 @@ async function saveEquipo() {
   if (!row) return;
 
   try {
-    // I=ESTADO J=UBICACION K=HOROMETRO L=PROX M=ULT N=SOAP O=PERMISO P=REVISION Q='' R='' S=OBS
-    await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!I${row}:S${row}`, [[
-      estado, ubicacion, horometro, proxima, ultima,
-      soap, permiso, revision, '', '', obs
-    ]]);
+    // Escribe cada campo en su columna exacta para no pisar otras columnas
+    // I=Estado, J=Ubicación, K=Horómetro, L=Próxima, M=Última
+    // N=SOAP, O=Permiso, P=Revisión, S=Observaciones
+    await Promise.all([
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!I${row}`, [[estado]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[ubicacion]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[horometro]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${row}`, [[proxima]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[ultima]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[soap]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[permiso]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[revision]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
+    ]);
     toast('Guardado en Google Sheets ✓');
-    // Sube archivos de documentos si se seleccionaron
     const patente = document.getElementById('edit-patente').value;
     try { await uploadDocFiles(patente); } catch(e) { console.warn('Doc upload:', e); }
     resetDocInputs();
@@ -835,12 +848,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('splash').classList.remove('hidden');
     initOAuth();
-    // Espera que OAuth cargue e intenta silencioso
     setTimeout(() => {
       if (tokenClient) {
+        // prompt:'' renueva silenciosamente con los scopes ya autorizados
         tokenClient.requestAccessToken({ prompt: '' });
       } else {
-        // Si falla OAuth, muestra login
         document.getElementById('splash').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
