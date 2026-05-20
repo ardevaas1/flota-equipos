@@ -187,7 +187,7 @@
         <div class="doc-upload-row">
           <label id="soap-file-label" class="doc-file-label">
             📎 Subir archivo SOAP
-            <input type="file" id="soap-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'soap-file-label')" style="opacity:0;position:absolute;width:0;height:0">
+            <input type="file" id="soap-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'soap-file-label'); console.log('FILE CAPTURED:', this.files[0]?.name, this.files[0]?.size)" style="opacity:0;position:absolute;width:0;height:0">
           </label>
         </div>
       </div>
