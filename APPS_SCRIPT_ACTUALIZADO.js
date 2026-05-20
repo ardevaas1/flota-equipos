@@ -1,31 +1,55 @@
 // ============================================================
-// APPS SCRIPT — LST Flota (versión final con CORS)
-// 
+// APPS SCRIPT — LST Flota (versión diagnóstico + robusta)
 // INSTRUCCIONES:
-// 1. Abre Google Sheets → Extensiones → Apps Script
-// 2. Borra TODO el código existente
-// 3. Pega este código completo
-// 4. Clic en 💾 Guardar
-// 5. Clic en "Implementar" → "Administrar implementaciones"
-// 6. Clic en el lápiz ✏️ de tu implementación actual
-// 7. Versión: selecciona "Nueva versión"
-// 8. Clic en "Implementar"
-// 9. La URL NO cambia, la misma sigue funcionando
+// 1. Extensiones → Apps Script → borrar todo → pegar esto
+// 2. 💾 Guardar
+// 3. Implementar → Administrar implementaciones → ✏️ → Nueva versión → Implementar
 // ============================================================
 
 function doPost(e) {
   try {
-    const data     = JSON.parse(e.postData.contents);
+    // LOG para diagnóstico — ver en Apps Script → Ejecuciones
+    console.log('doPost llamado');
+    console.log('postData type:', e.postData ? e.postData.type : 'null');
+    console.log('postData length:', e.postData ? e.postData.contents.length : 0);
+
+    // Parsear el body — funciona con text/plain y application/json
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch(parseErr) {
+      // Intento alternativo: parámetros de formulario
+      data = {
+        folderId: e.parameter.folderId,
+        fileName: e.parameter.fileName,
+        fileData: e.parameter.fileData,
+        mimeType: e.parameter.mimeType
+      };
+    }
+
+    if (!data.fileName || !data.fileData) {
+      throw new Error('Faltan datos: fileName=' + data.fileName + ' fileData length=' + (data.fileData ? data.fileData.length : 0));
+    }
+
+    console.log('fileName:', data.fileName);
+    console.log('folderId:', data.folderId);
+    console.log('mimeType:', data.mimeType);
+    console.log('fileData length:', data.fileData.length);
+
     const folderId = data.folderId;
     const fileName = data.fileName;
-    const fileData = Utilities.base64Decode(data.fileData);
     const mimeType = data.mimeType || 'application/octet-stream';
 
-    // Obtener carpeta destino
+    // Decodificar base64
+    const fileBytes = Utilities.base64Decode(data.fileData);
+    
+    // Obtener carpeta
     let folder;
     try {
       folder = DriveApp.getFolderById(folderId);
-    } catch(err) {
+      console.log('Carpeta encontrada:', folder.getName());
+    } catch(folderErr) {
+      console.log('Carpeta no encontrada, usando raíz');
       folder = DriveApp.getRootFolder();
     }
 
@@ -35,33 +59,56 @@ function doPost(e) {
       existing.next().setTrashed(true);
     }
 
-    // Crear el archivo
-    const blob = Utilities.newBlob(fileData, mimeType, fileName);
-    const file  = folder.createFile(blob);
-
-    // Dar acceso de lectura a cualquiera con el link
+    // Crear archivo
+    const blob = Utilities.newBlob(fileBytes, mimeType, fileName);
+    const file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    const output = JSON.stringify({
-      success: true,
-      id:      file.getId(),
-      name:    file.getName(),
-      link:    file.getUrl()
-    });
+    console.log('Archivo creado:', file.getId());
 
     return ContentService
-      .createTextOutput(output)
+      .createTextOutput(JSON.stringify({
+        success: true,
+        id: file.getId(),
+        name: file.getName(),
+        link: file.getUrl()
+      }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch(err) {
+    console.log('ERROR:', err.toString());
     return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .createTextOutput(JSON.stringify({
+        success: false,
+        error: err.toString()
+      }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function doGet(e) {
   return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ok' }))
+    .createTextOutput(JSON.stringify({ status: 'ok', msg: 'LST Flota Apps Script activo' }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Función de prueba — ejecutar manualmente desde el editor para verificar permisos
+function testSubida() {
+  const testData = {
+    folderId: '1l9YwEquhfKlP-DA86h3wPzF72vVXt0_l',
+    fileName: 'TEST_conexion.txt',
+    fileData: Utilities.base64Encode('Prueba LST Flota ' + new Date()),
+    mimeType: 'text/plain'
+  };
+  
+  const fakeEvent = {
+    postData: {
+      contents: JSON.stringify(testData),
+      type: 'text/plain'
+    },
+    parameter: {}
+  };
+  
+  const result = doPost(fakeEvent);
+  Logger.log('Resultado:', result.getContent());
 }

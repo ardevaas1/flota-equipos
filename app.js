@@ -398,13 +398,14 @@ async function uploadFile(file, patente, prefixName) {
     xhr.timeout = 60000; // 60 segundos máximo
 
     xhr.onload = function() {
+      const text = xhr.responseText;
+      console.log('[UPLOAD] status:', xhr.status, 'respuesta:', text.slice(0, 300));
+      toast('Respuesta Drive: ' + text.slice(0, 80));
       try {
-        // Apps Script puede redirigir (302) y XHR lo sigue automáticamente
-        const text = xhr.responseText;
         const parsed = JSON.parse(text);
         resolve(parsed);
       } catch(e) {
-        reject(new Error('Respuesta inesperada: ' + xhr.responseText.slice(0, 150)));
+        reject(new Error('Respuesta no-JSON (status ' + xhr.status + '): ' + text.slice(0, 200)));
       }
     };
     xhr.onerror = function() {
