@@ -406,23 +406,37 @@ async function uploadFile(file, patente, prefixName) {
     '--' + boundary + '--'
   ].join('\r\n');
 
+  console.log('[UPLOAD] Iniciando fetch multipart para:', fileName);
+  console.log('[UPLOAD] folderId:', folderId);
+  console.log('[UPLOAD] token válido:', !!accessToken, 'expira en:', Math.round((tokenExpiry - Date.now())/1000) + 's');
+  console.log('[UPLOAD] body length:', body.length, 'b64 length:', b64.length);
   toast('Enviando a Drive...');
 
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + accessToken,
-      'Content-Type': 'multipart/related; boundary=' + boundary,
-    },
-    body: body
-  });
+  let res;
+  try {
+    res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'multipart/related; boundary=' + boundary,
+      },
+      body: body
+    });
+  } catch(fetchErr) {
+    console.error('[UPLOAD] fetch error:', fetchErr);
+    throw new Error('Error de red: ' + fetchErr.message);
+  }
 
+  console.log('[UPLOAD] respuesta status:', res.status);
+  
   if (!res.ok) {
     const err = await res.text();
-    throw new Error('Drive error ' + res.status + ': ' + err.slice(0, 200));
+    console.error('[UPLOAD] error body:', err);
+    throw new Error('Drive error ' + res.status + ': ' + err.slice(0, 300));
   }
 
   const result = await res.json();
+  console.log('[UPLOAD] éxito:', result);
   toast(prefixName + ' subido ✓');
   return { id: result.id, name: result.name };
 }
@@ -918,20 +932,34 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
     ]);
-    toast('Datos guardados ✓');
 
-    // 2. Subir documentos si hay archivos seleccionados (ANTES de cerrar el panel)
-    const hayArchivos = ['soap-file','permiso-file','revision-file'].some(id => {
-      const el = document.getElementById(id);
+    // 2. Subir archivos seleccionados ANTES de cerrar
+    const archivos = [
+      { inputId: 'soap-file',     prefix: 'SOAP'     },
+      { inputId: 'permiso-file',  prefix: 'PERMISO'  },
+      { inputId: 'revision-file', prefix: 'REVISION' },
+    ].filter(d => {
+      const el = document.getElementById(d.inputId);
       return el && el.files && el.files[0];
     });
 
-    if (hayArchivos) {
-      if (btn) btn.textContent = 'Subiendo docs...';
-      await uploadDocFiles(patente);
+    if (archivos.length > 0) {
+      for (const doc of archivos) {
+        const input = document.getElementById(doc.inputId);
+        const file = input.files[0];
+        if (btn) btn.textContent = 'Subiendo ' + doc.prefix + '...';
+        toast('Subiendo ' + doc.prefix + '...');
+        try {
+          await uploadFile(file, patente, doc.prefix);
+          toast(doc.prefix + ' subido a Drive ✓');
+        } catch(uploadErr) {
+          // Mostrar error de subida con alert para que no se pierda
+          alert('Error subiendo ' + doc.prefix + ':\n' + uploadErr.message);
+        }
+      }
     }
 
-    // 3. Cerrar panel y recargar solo al final
+    // 3. Cerrar y recargar
     resetDocInputs();
     if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
     closePanel('panel-edit');
@@ -939,7 +967,7 @@ async function saveEquipo() {
     if (patente) openFicha(patente);
 
   } catch(err) {
-    toast('Error: ' + err.message, 'error');
+    alert('Error al guardar:\n' + err.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
   }
 }
