@@ -362,8 +362,6 @@ async function getFolderForPatente(patente) {
 }
 
 // Sube un archivo a la carpeta de la patente
-// Sube archivo via Apps Script usando fetch con no-cors + polling de confirmación
-// Apps Script no soporta CORS real, usamos XMLHttpRequest que maneja mejor los redirects de Google
 async function uploadFile(file, patente, prefixName) {
   toast('Preparando ' + prefixName + '...');
 
@@ -386,42 +384,72 @@ async function uploadFile(file, patente, prefixName) {
     reader.readAsDataURL(file);
   });
 
-  toast('Subiendo ' + fileName + '...');
+  toast('Subiendo ' + fileName + ' (' + (fileData.length / 1024).toFixed(0) + ' KB)...');
 
-  // Usar XMLHttpRequest que maneja mejor los redirects 302 de Apps Script
-  const result = await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', APPS_SCRIPT_URL, true);
-    // NO setear Content-Type: el browser enviará text/plain automáticamente
-    // lo que evita el preflight CORS
-    xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
-    xhr.timeout = 60000; // 60 segundos máximo
-
-    xhr.onload = function() {
-      const text = xhr.responseText;
-      console.log('[UPLOAD] status:', xhr.status, 'respuesta:', text.slice(0, 300));
-      toast('Respuesta Drive: ' + text.slice(0, 80));
-      try {
-        const parsed = JSON.parse(text);
-        resolve(parsed);
-      } catch(e) {
-        reject(new Error('Respuesta no-JSON (status ' + xhr.status + '): ' + text.slice(0, 200)));
-      }
-    };
-    xhr.onerror = function() {
-      reject(new Error('Error de red. Verifica conexión y que el Apps Script esté publicado como "Cualquier persona".'));
-    };
-    xhr.ontimeout = function() {
-      reject(new Error('Tiempo agotado. El archivo puede ser muy grande o hay problemas de conexión.'));
-    };
-
-    xhr.send(JSON.stringify({ folderId, fileName, fileData, mimeType: file.type || 'application/octet-stream' }));
+  // Enviar via GET params — Apps Script GET no tiene restricciones CORS
+  // Para archivos grandes usamos fetch con no-cors (el archivo igual llega, pero no podemos leer la respuesta)
+  // Luego confirmamos buscando el archivo en Drive
+  const params = new URLSearchParams({
+    fileName: fileName,
+    folderId: folderId,
+    mimeType: file.type || 'application/octet-stream',
+    fileData: fileData
   });
 
-  if (!result.success) throw new Error(result.error || 'Error en Apps Script');
+  // Intentar con fetch normal primero (funciona si Apps Script devuelve CORS headers)
+  let uploaded = false;
+  let fileId = null;
 
-  toast(prefixName + ' subido ✓');
-  return { id: result.id, name: result.name };
+  try {
+    const url = APPS_SCRIPT_URL + '?' + params.toString();
+    // GET con URL larga — funciona hasta ~7MB en base64
+    const res = await fetch(url, { method: 'GET' });
+    const text = await res.text();
+    console.log('[UPLOAD GET] respuesta:', text.slice(0, 200));
+    try {
+      const result = JSON.parse(text);
+      if (result.success) {
+        uploaded = true;
+        fileId = result.id;
+        toast(prefixName + ' subido ✓ → ' + result.name);
+        return { id: result.id, name: result.name };
+      } else {
+        throw new Error(result.error || 'Error en Apps Script');
+      }
+    } catch(parseErr) {
+      throw new Error('Respuesta inesperada: ' + text.slice(0, 100));
+    }
+  } catch(getErr) {
+    console.log('[UPLOAD] GET falló:', getErr.message, '— intentando no-cors POST');
+  }
+
+  // Fallback: no-cors POST (el archivo llega pero no podemos leer la respuesta)
+  // Confirmamos buscando el archivo en Drive después
+  if (!uploaded) {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ fileName, folderId, mimeType: file.type || 'application/octet-stream', fileData })
+    });
+
+    // Esperar 3 segundos y buscar el archivo en Drive para confirmar
+    toast('Verificando subida...');
+    await new Promise(r => setTimeout(r, 3000));
+
+    await ensureToken();
+    const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
+    const checkRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeader() });
+    const checkData = await checkRes.json();
+
+    if (checkData.files && checkData.files.length > 0) {
+      const f = checkData.files[0];
+      toast(prefixName + ' subido ✓ → ' + f.name);
+      return { id: f.id, name: f.name };
+    } else {
+      throw new Error('El archivo no llegó a Drive. Verifica que el Apps Script esté publicado como "Cualquier persona" (no solo usuarios de Google).');
+    }
+  }
 }
 
 // ── Cargar datos ──────────────────────────────────────────────
