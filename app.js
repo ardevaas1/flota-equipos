@@ -70,7 +70,10 @@ function initOAuth() {
         return;
       }
       saveToken(response.access_token, response.expires_in || 3600);
-      try { localStorage.setItem('lst_had_login', '1'); } catch(e) {}
+      try { 
+        localStorage.setItem('lst_had_login', '1');
+        localStorage.setItem('lst_has_drive_scope', '1');
+      } catch(e) {}
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash').classList.remove('hidden');
       loadData();
@@ -91,8 +94,10 @@ function signIn() {
   const hadLogin = localStorage.getItem('lst_had_login');
   // Primera vez: muestra pantalla de consentimiento con todos los permisos
   // Veces siguientes: silencioso
+  // Forzar consent si no tenemos aún el scope drive
+  const hasAllScopes = localStorage.getItem('lst_has_drive_scope');
   tokenClient.requestAccessToken({ 
-    prompt: hadLogin ? '' : 'consent',
+    prompt: (hadLogin && hasAllScopes) ? '' : 'consent',
     include_granted_scopes: 'true'
   });
 }
@@ -363,93 +368,65 @@ async function getFolderForPatente(patente) {
 
 // Sube un archivo a la carpeta de la patente
 async function uploadFile(file, patente, prefixName) {
-  toast('Preparando ' + prefixName + '...');
+  toast('Subiendo ' + prefixName + '...');
 
-  // Buscar carpeta destino
+  await ensureToken();
+
+  // Carpeta destino
   let folderId = CONFIG.DRIVE_ROOT_FOLDER;
-  try {
-    await ensureToken();
-    folderId = await getFolderForPatente(patente);
-  } catch(e) { /* usar raíz */ }
+  try { folderId = await getFolderForPatente(patente); } catch(e) {}
 
-  // Nombre del archivo
+  // Nombre
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
 
-  // Leer como base64
-  const fileData = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  toast('Subiendo ' + fileName + ' (' + (fileData.length / 1024).toFixed(0) + ' KB)...');
-
-  // Enviar via GET params — Apps Script GET no tiene restricciones CORS
-  // Para archivos grandes usamos fetch con no-cors (el archivo igual llega, pero no podemos leer la respuesta)
-  // Luego confirmamos buscando el archivo en Drive
-  const params = new URLSearchParams({
-    fileName: fileName,
-    folderId: folderId,
-    mimeType: file.type || 'application/octet-stream',
-    fileData: fileData
-  });
-
-  // Intentar con fetch normal primero (funciona si Apps Script devuelve CORS headers)
-  let uploaded = false;
-  let fileId = null;
-
-  try {
-    const url = APPS_SCRIPT_URL + '?' + params.toString();
-    // GET con URL larga — funciona hasta ~7MB en base64
-    const res = await fetch(url, { method: 'GET' });
-    const text = await res.text();
-    console.log('[UPLOAD GET] respuesta:', text.slice(0, 200));
-    try {
-      const result = JSON.parse(text);
-      if (result.success) {
-        uploaded = true;
-        fileId = result.id;
-        toast(prefixName + ' subido ✓ → ' + result.name);
-        return { id: result.id, name: result.name };
-      } else {
-        throw new Error(result.error || 'Error en Apps Script');
-      }
-    } catch(parseErr) {
-      throw new Error('Respuesta inesperada: ' + text.slice(0, 100));
-    }
-  } catch(getErr) {
-    console.log('[UPLOAD] GET falló:', getErr.message, '— intentando no-cors POST');
-  }
-
-  // Fallback: no-cors POST (el archivo llega pero no podemos leer la respuesta)
-  // Confirmamos buscando el archivo en Drive después
-  if (!uploaded) {
-    await fetch(APPS_SCRIPT_URL, {
+  // ── Paso 1: iniciar sesión de subida (resumable upload) ──
+  const initRes = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`,
+    {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ fileName, folderId, mimeType: file.type || 'application/octet-stream', fileData })
-    });
-
-    // Esperar 3 segundos y buscar el archivo en Drive para confirmar
-    toast('Verificando subida...');
-    await new Promise(r => setTimeout(r, 3000));
-
-    await ensureToken();
-    const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
-    const checkRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeader() });
-    const checkData = await checkRes.json();
-
-    if (checkData.files && checkData.files.length > 0) {
-      const f = checkData.files[0];
-      toast(prefixName + ' subido ✓ → ' + f.name);
-      return { id: f.id, name: f.name };
-    } else {
-      throw new Error('El archivo no llegó a Drive. Verifica que el Apps Script esté publicado como "Cualquier persona" (no solo usuarios de Google).');
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+        'X-Upload-Content-Type': file.type || 'application/octet-stream',
+        'X-Upload-Content-Length': file.size,
+      },
+      body: JSON.stringify({
+        name: fileName,
+        parents: [folderId]
+      })
     }
+  );
+
+  if (!initRes.ok) {
+    const err = await initRes.text();
+    throw new Error('Drive init error ' + initRes.status + ': ' + err.slice(0, 200));
   }
+
+  // La URL de subida viene en el header Location
+  const uploadUrl = initRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('Drive no devolvió URL de subida');
+
+  toast('Enviando archivo...');
+
+  // ── Paso 2: subir el archivo binario ──
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Length': file.size,
+    },
+    body: file
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error('Drive upload error ' + uploadRes.status + ': ' + err.slice(0, 200));
+  }
+
+  const result = await uploadRes.json();
+  toast(prefixName + ' subido ✓');
+  return { id: result.id, name: result.name };
 }
 
 // ── Cargar datos ──────────────────────────────────────────────

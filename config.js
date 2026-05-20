@@ -14,7 +14,7 @@ const CONFIG = {
   DRIVE_ROOT_FOLDER: '1l9YwEquhfKlP-DA86h3wPzF72vVXt0_l',
 
   // Scopes necesarios
-  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
+  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file',
 
   DIAS_ALERTA: 60,
 };
