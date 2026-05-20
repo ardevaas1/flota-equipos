@@ -368,6 +368,7 @@ async function getFolderForPatente(patente) {
 
 // Sube un archivo a la carpeta de la patente
 async function uploadFile(file, patente, prefixName) {
+  console.log('[UPLOAD] uploadFile llamado:', prefixName, patente, file?.name, file?.size);
   toast('Subiendo ' + prefixName + '...');
   await ensureToken();
 
@@ -903,37 +904,44 @@ function openEditPanel() {
 }
 
 async function saveEquipo() {
-  const row      = document.getElementById('edit-row').value;
-  const estado   = document.getElementById('edit-estado').value;
+  const row       = document.getElementById('edit-row').value;
+  const estado    = document.getElementById('edit-estado').value;
   const ubicacion = document.getElementById('edit-ubicacion').value;
   const horometro = document.getElementById('edit-horometro').value;
-  const proxima  = document.getElementById('edit-proxima').value;
-  const soap     = document.getElementById('edit-soap').value;
-  const permiso  = document.getElementById('edit-permiso').value;
-  const revision = document.getElementById('edit-revision').value;
-  const obs      = document.getElementById('edit-obs').value;
-  const patente  = document.getElementById('edit-patente').value;
+  const proxima   = document.getElementById('edit-proxima').value;
+  const ultima    = document.getElementById('edit-ultima').value;
+  const soap      = document.getElementById('edit-soap').value;
+  const permiso   = document.getElementById('edit-permiso').value;
+  const revision  = document.getElementById('edit-revision').value;
+  const obs       = document.getElementById('edit-obs').value;
+  const patente   = document.getElementById('edit-patente').value;
   if (!row) return;
 
-  // Bloquear botón para evitar doble tap
-  const btn = document.querySelector('.pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  // Bloquear botón — buscarlo por ID para evitar que querySelector falle
+  const btn = document.getElementById('save-equipo-btn');
+  const setBtnState = (disabled, text) => {
+    if (btn) { btn.disabled = disabled; btn.textContent = text; }
+  };
+  setBtnState(true, 'Guardando...');
 
   try {
-    // 1. Guardar datos en Sheets
+    // 1. Guardar todos los campos en Sheets (incluye ultMant en columna N)
     toast('Guardando datos...');
+    console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${row}`, [[horometro]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[proxima]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[ultima]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[soap]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
     ]);
+    console.log('[SAVE] Sheet OK');
 
-    // 2. Subir archivos seleccionados ANTES de cerrar
+    // 2. Subir archivos a Drive si hay seleccionados
     const archivos = [
       { inputId: 'soap-file',     prefix: 'SOAP'     },
       { inputId: 'permiso-file',  prefix: 'PERMISO'  },
@@ -943,32 +951,39 @@ async function saveEquipo() {
       return el && el.files && el.files[0];
     });
 
+    console.log('[SAVE] Archivos a subir:', archivos.length);
+
     if (archivos.length > 0) {
+      await ensureToken();
+      console.log('[SAVE] Token OK, iniciando subidas...');
       for (const doc of archivos) {
         const input = document.getElementById(doc.inputId);
-        const file = input.files[0];
-        if (btn) btn.textContent = 'Subiendo ' + doc.prefix + '...';
+        const file  = input.files[0];
+        setBtnState(true, 'Subiendo ' + doc.prefix + '...');
         toast('Subiendo ' + doc.prefix + '...');
+        console.log('[SAVE] Subiendo', doc.prefix, '-', file.name, file.size, 'bytes');
         try {
-          await uploadFile(file, patente, doc.prefix);
+          const result = await uploadFile(file, patente, doc.prefix);
+          console.log('[SAVE] Subida OK:', result);
           toast(doc.prefix + ' subido a Drive ✓');
         } catch(uploadErr) {
-          // Mostrar error de subida con alert para que no se pierda
-          alert('Error subiendo ' + doc.prefix + ':\n' + uploadErr.message);
+          console.error('[SAVE] Error subiendo ' + doc.prefix + ':', uploadErr);
+          toast('Error subiendo ' + doc.prefix + ': ' + uploadErr.message, 'error');
         }
       }
     }
 
     // 3. Cerrar y recargar
     resetDocInputs();
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    setBtnState(false, 'Guardar');
     closePanel('panel-edit');
     await loadData();
     if (patente) openFicha(patente);
 
   } catch(err) {
-    alert('Error al guardar:\n' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    console.error('[SAVE] Error general:', err);
+    toast('Error al guardar: ' + err.message, 'error');
+    setBtnState(false, 'Guardar');
   }
 }
 
