@@ -362,58 +362,64 @@ async function getFolderForPatente(patente) {
 }
 
 // Sube un archivo a la carpeta de la patente
+// Sube archivo via Apps Script usando fetch con no-cors + polling de confirmación
+// Apps Script no soporta CORS real, usamos XMLHttpRequest que maneja mejor los redirects de Google
 async function uploadFile(file, patente, prefixName) {
-  toast('Subiendo ' + prefixName + '...');
+  toast('Preparando ' + prefixName + '...');
 
-  // Paso 1: buscar carpeta (sigue usando Drive API solo para leer, no para escribir)
-  let folderId;
+  // Buscar carpeta destino
+  let folderId = CONFIG.DRIVE_ROOT_FOLDER;
   try {
     await ensureToken();
     folderId = await getFolderForPatente(patente);
-    toast('Carpeta encontrada: ' + patente);
-  } catch(e) {
-    folderId = CONFIG.DRIVE_ROOT_FOLDER;
-    toast('Carpeta ' + patente + ' no encontrada, usando raíz', 'error');
-  }
+  } catch(e) { /* usar raíz */ }
 
-  // Paso 2: preparar nombre y leer archivo como base64
+  // Nombre del archivo
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
 
+  // Leer como base64
   const fileData = await new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]); // solo base64, sin el prefijo
+    reader.onload = () => resolve(reader.result.split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 
-  // Paso 3: enviar al Apps Script
-  // Usamos text/plain para evitar CORS preflight (Apps Script solo acepta simple requests)
-  toast('Enviando ' + fileName + ' a Drive...');
-  let result;
-  try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        folderId: folderId,
-        fileName: fileName,
-        fileData: fileData,
-        mimeType: file.type || 'application/octet-stream'
-      })
-    });
-    const text = await res.text();
-    try { result = JSON.parse(text); }
-    catch(e) { throw new Error('Respuesta inválida del servidor: ' + text.slice(0,120)); }
-  } catch(fetchErr) {
-    // Si hay error de red/CORS, intentar con no-cors como fallback (no sabremos el resultado)
-    throw new Error('Error de red al contactar Apps Script: ' + fetchErr.message +
-      '. Verifica que el Apps Script esté publicado como "Cualquier persona".');
-  }
+  toast('Subiendo ' + fileName + '...');
 
-  if (!result.success) throw new Error(result.error || 'Error desconocido en Apps Script');
+  // Usar XMLHttpRequest que maneja mejor los redirects 302 de Apps Script
+  const result = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', APPS_SCRIPT_URL, true);
+    // NO setear Content-Type: el browser enviará text/plain automáticamente
+    // lo que evita el preflight CORS
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
+    xhr.timeout = 60000; // 60 segundos máximo
 
-  toast(prefixName + ' subido ✓ → ' + result.name);
+    xhr.onload = function() {
+      try {
+        // Apps Script puede redirigir (302) y XHR lo sigue automáticamente
+        const text = xhr.responseText;
+        const parsed = JSON.parse(text);
+        resolve(parsed);
+      } catch(e) {
+        reject(new Error('Respuesta inesperada: ' + xhr.responseText.slice(0, 150)));
+      }
+    };
+    xhr.onerror = function() {
+      reject(new Error('Error de red. Verifica conexión y que el Apps Script esté publicado como "Cualquier persona".'));
+    };
+    xhr.ontimeout = function() {
+      reject(new Error('Tiempo agotado. El archivo puede ser muy grande o hay problemas de conexión.'));
+    };
+
+    xhr.send(JSON.stringify({ folderId, fileName, fileData, mimeType: file.type || 'application/octet-stream' }));
+  });
+
+  if (!result.success) throw new Error(result.error || 'Error en Apps Script');
+
+  toast(prefixName + ' subido ✓');
   return { id: result.id, name: result.name };
 }
 
@@ -884,18 +890,20 @@ async function saveEquipo() {
   const ubicacion = document.getElementById('edit-ubicacion').value;
   const horometro = document.getElementById('edit-horometro').value;
   const proxima  = document.getElementById('edit-proxima').value;
-
   const soap     = document.getElementById('edit-soap').value;
   const permiso  = document.getElementById('edit-permiso').value;
   const revision = document.getElementById('edit-revision').value;
   const obs      = document.getElementById('edit-obs').value;
+  const patente  = document.getElementById('edit-patente').value;
   if (!row) return;
 
+  // Bloquear botón para evitar doble tap
+  const btn = document.querySelector('.pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
   try {
-    // Escribe cada campo en su columna exacta para no pisar otras columnas
-    // I=Estado, J=Ubicación, K=Horómetro, L=Próxima, M=Última
-    // N=SOAP, O=Permiso, P=Revisión, S=Observaciones
-    console.log('Guardando fila', row, 'estado:', estado);
+    // 1. Guardar datos en Sheets
+    toast('Guardando datos...');
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
@@ -906,15 +914,29 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
     ]);
-    toast('Guardado en Google Sheets ✓');
-    const patente = document.getElementById('edit-patente').value;
-    await uploadDocFiles(patente);
+    toast('Datos guardados ✓');
+
+    // 2. Subir documentos si hay archivos seleccionados (ANTES de cerrar el panel)
+    const hayArchivos = ['soap-file','permiso-file','revision-file'].some(id => {
+      const el = document.getElementById(id);
+      return el && el.files && el.files[0];
+    });
+
+    if (hayArchivos) {
+      if (btn) btn.textContent = 'Subiendo docs...';
+      await uploadDocFiles(patente);
+    }
+
+    // 3. Cerrar panel y recargar solo al final
     resetDocInputs();
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
     closePanel('panel-edit');
     await loadData();
     if (patente) openFicha(patente);
+
   } catch(err) {
     toast('Error: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
   }
 }
 
@@ -1085,6 +1107,24 @@ function resetDocInputs() {
       el.textContent = defaults[id];
     }
   });
+}
+
+
+// ── Test de conexión al Apps Script (diagnóstico) ────────────
+async function testAppsScript() {
+  toast('Probando conexión con Apps Script...');
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.status === 'ok') {
+      toast('✅ Apps Script OK — conexión funciona');
+    } else {
+      toast('⚠️ Apps Script responde pero con estado: ' + JSON.stringify(data), 'error');
+    }
+  } catch(e) {
+    toast('❌ No se puede conectar al Apps Script: ' + e.message, 'error');
+  }
 }
 
 // ── Manejo del botón Back del navegador ──────────────────────
