@@ -369,62 +369,60 @@ async function getFolderForPatente(patente) {
 // Sube un archivo a la carpeta de la patente
 async function uploadFile(file, patente, prefixName) {
   toast('Subiendo ' + prefixName + '...');
-
   await ensureToken();
 
   // Carpeta destino
   let folderId = CONFIG.DRIVE_ROOT_FOLDER;
   try { folderId = await getFolderForPatente(patente); } catch(e) {}
 
-  // Nombre
+  // Nombre del archivo
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+  const mimeType = file.type || 'application/octet-stream';
 
-  // ── Paso 1: iniciar sesión de subida (resumable upload) ──
-  const initRes = await fetch(
-    `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + accessToken,
-        'Content-Type': 'application/json',
-        'X-Upload-Content-Type': file.type || 'application/octet-stream',
-        'X-Upload-Content-Length': file.size,
-      },
-      body: JSON.stringify({
-        name: fileName,
-        parents: [folderId]
-      })
-    }
-  );
-
-  if (!initRes.ok) {
-    const err = await initRes.text();
-    throw new Error('Drive init error ' + initRes.status + ': ' + err.slice(0, 200));
-  }
-
-  // La URL de subida viene en el header Location
-  const uploadUrl = initRes.headers.get('Location');
-  if (!uploadUrl) throw new Error('Drive no devolvió URL de subida');
-
-  toast('Enviando archivo...');
-
-  // ── Paso 2: subir el archivo binario ──
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type || 'application/octet-stream',
-      'Content-Length': file.size,
-    },
-    body: file
+  // Leer como base64
+  const b64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error('Drive upload error ' + uploadRes.status + ': ' + err.slice(0, 200));
+  // Construir multipart body manualmente
+  // Este endpoint SÍ acepta requests desde github.io
+  const boundary = 'lst_boundary_' + Date.now();
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+
+  const body = [
+    '--' + boundary,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    metadata,
+    '--' + boundary,
+    'Content-Type: ' + mimeType,
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64,
+    '--' + boundary + '--'
+  ].join('\r\n');
+
+  toast('Enviando a Drive...');
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'multipart/related; boundary=' + boundary,
+    },
+    body: body
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Drive error ' + res.status + ': ' + err.slice(0, 200));
   }
 
-  const result = await uploadRes.json();
+  const result = await res.json();
   toast(prefixName + ' subido ✓');
   return { id: result.id, name: result.name };
 }
