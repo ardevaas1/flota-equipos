@@ -917,37 +917,13 @@ async function saveEquipo() {
   const patente   = document.getElementById('edit-patente').value;
   if (!row) return;
 
-  // ── PASO 0: Leer archivos del DOM AHORA, antes de cualquier await ──
-  // Los input[type=file] pueden vaciarse si el navegador suspende/redirige
-  // durante llamadas async (especialmente en móvil con OAuth).
-  // Convertimos a base64 sincrónicamente antes de tocar la red.
-  const fileQueue = [];
-  for (const doc of [
-    { inputId: 'soap-file',     prefix: 'SOAP'     },
-    { inputId: 'permiso-file',  prefix: 'PERMISO'  },
-    { inputId: 'revision-file', prefix: 'REVISION' },
-  ]) {
-    const el = document.getElementById(doc.inputId);
-    const file = el && el.files && el.files[0];
-    if (!file) continue;
-    console.log('[SAVE] Leyendo archivo antes de await:', doc.prefix, file.name, file.size);
-    // Leer a base64 SINCRÓNICAMENTE (FileReader es async pero lo hacemos aquí
-    // antes de cualquier await de red, así el archivo no puede desaparecer)
-    const b64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    fileQueue.push({
-      prefix:   doc.prefix,
-      name:     file.name,
-      size:     file.size,
-      mimeType: file.type || 'application/octet-stream',
-      b64,      // base64 guardado en memoria — ya no depende del DOM
-    });
-  }
-  console.log('[SAVE] Archivos capturados:', fileQueue.length);
+  // ── PASO 0: Leer archivos desde _capturedFiles (guardados al seleccionar) ──
+  // Los input[type=file] se vacían solos en móvil durante navegación async.
+  // Por eso onDocFileSelected ya convirtió cada archivo a base64 en memoria.
+  const fileQueue = Object.values(_capturedFiles);
+  console.log('[SAVE] Archivos en memoria:', fileQueue.length, fileQueue.map(f => f.prefix));
+  // Limpiar para el próximo uso
+  Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
 
   // Bloquear botón
   const btn = document.getElementById('save-equipo-btn');
@@ -1158,11 +1134,30 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Helpers para upload de documentos en formulario edición ──
+// Almacén en memoria — se llena al seleccionar, se lee al guardar
+const _capturedFiles = {};
+
 function onDocFileSelected(input, labelId) {
   const label = document.getElementById(labelId);
-  if (input.files[0]) {
-    label.textContent = '✅ ' + input.files[0].name;
+  const file = input.files[0];
+  if (file) {
+    label.textContent = '✅ ' + file.name;
     label.classList.add('selected');
+    // Leer a base64 AHORA, antes de cualquier await o navegación
+    const prefix = { 'soap-file':'SOAP', 'permiso-file':'PERMISO', 'revision-file':'REVISION' }[input.id];
+    const reader = new FileReader();
+    reader.onload = () => {
+      _capturedFiles[prefix] = {
+        b64:      reader.result.split(',')[1],
+        name:     file.name,
+        size:     file.size,
+        mimeType: file.type || 'application/octet-stream',
+        prefix,
+      };
+      console.log('[CAPTURE] Guardado en memoria:', prefix, file.name, file.size);
+    };
+    reader.onerror = (e) => console.error('[CAPTURE] Error leyendo archivo:', e);
+    reader.readAsDataURL(file);
   } else {
     label.classList.remove('selected');
   }
