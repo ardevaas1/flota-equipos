@@ -917,7 +917,39 @@ async function saveEquipo() {
   const patente   = document.getElementById('edit-patente').value;
   if (!row) return;
 
-  // Bloquear botón — buscarlo por ID para evitar que querySelector falle
+  // ── PASO 0: Leer archivos del DOM AHORA, antes de cualquier await ──
+  // Los input[type=file] pueden vaciarse si el navegador suspende/redirige
+  // durante llamadas async (especialmente en móvil con OAuth).
+  // Convertimos a base64 sincrónicamente antes de tocar la red.
+  const fileQueue = [];
+  for (const doc of [
+    { inputId: 'soap-file',     prefix: 'SOAP'     },
+    { inputId: 'permiso-file',  prefix: 'PERMISO'  },
+    { inputId: 'revision-file', prefix: 'REVISION' },
+  ]) {
+    const el = document.getElementById(doc.inputId);
+    const file = el && el.files && el.files[0];
+    if (!file) continue;
+    console.log('[SAVE] Leyendo archivo antes de await:', doc.prefix, file.name, file.size);
+    // Leer a base64 SINCRÓNICAMENTE (FileReader es async pero lo hacemos aquí
+    // antes de cualquier await de red, así el archivo no puede desaparecer)
+    const b64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    fileQueue.push({
+      prefix:   doc.prefix,
+      name:     file.name,
+      size:     file.size,
+      mimeType: file.type || 'application/octet-stream',
+      b64,      // base64 guardado en memoria — ya no depende del DOM
+    });
+  }
+  console.log('[SAVE] Archivos capturados:', fileQueue.length);
+
+  // Bloquear botón
   const btn = document.getElementById('save-equipo-btn');
   const setBtnState = (disabled, text) => {
     if (btn) { btn.disabled = disabled; btn.textContent = text; }
@@ -925,7 +957,7 @@ async function saveEquipo() {
   setBtnState(true, 'Guardando...');
 
   try {
-    // 1. Guardar todos los campos en Sheets (incluye ultMant en columna N)
+    // 1. Guardar todos los campos en Sheets
     toast('Guardando datos...');
     console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
     await Promise.all([
@@ -941,31 +973,58 @@ async function saveEquipo() {
     ]);
     console.log('[SAVE] Sheet OK');
 
-    // 2. Subir archivos a Drive si hay seleccionados
-    const archivos = [
-      { inputId: 'soap-file',     prefix: 'SOAP'     },
-      { inputId: 'permiso-file',  prefix: 'PERMISO'  },
-      { inputId: 'revision-file', prefix: 'REVISION' },
-    ].filter(d => {
-      const el = document.getElementById(d.inputId);
-      return el && el.files && el.files[0];
-    });
-
-    console.log('[SAVE] Archivos a subir:', archivos.length);
-
-    if (archivos.length > 0) {
+    // 2. Subir archivos desde fileQueue (ya en memoria, no depende del DOM)
+    if (fileQueue.length > 0) {
       await ensureToken();
-      console.log('[SAVE] Token OK, iniciando subidas...');
-      for (const doc of archivos) {
-        const input = document.getElementById(doc.inputId);
-        const file  = input.files[0];
+      console.log('[SAVE] Token OK, subiendo', fileQueue.length, 'archivo(s)...');
+
+      // Obtener carpeta destino una sola vez
+      let folderId = CONFIG.DRIVE_ROOT_FOLDER;
+      try { folderId = await getFolderForPatente(patente); } catch(e) {}
+      console.log('[SAVE] folderId:', folderId);
+
+      for (const doc of fileQueue) {
         setBtnState(true, 'Subiendo ' + doc.prefix + '...');
         toast('Subiendo ' + doc.prefix + '...');
-        console.log('[SAVE] Subiendo', doc.prefix, '-', file.name, file.size, 'bytes');
+        console.log('[SAVE] Subiendo', doc.prefix, doc.name, doc.size, 'bytes');
+
         try {
-          const result = await uploadFile(file, patente, doc.prefix);
-          console.log('[SAVE] Subida OK:', result);
-          toast(doc.prefix + ' subido a Drive ✓');
+          const ext      = doc.name.split('.').pop();
+          const fileName = `${doc.prefix}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+          const boundary = 'lst_boundary_' + Date.now();
+          const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+          const body = [
+            '--' + boundary,
+            'Content-Type: application/json; charset=UTF-8',
+            '',
+            metadata,
+            '--' + boundary,
+            'Content-Type: ' + doc.mimeType,
+            'Content-Transfer-Encoding: base64',
+            '',
+            doc.b64,
+            '--' + boundary + '--'
+          ].join('\r\n');
+
+          console.log('[SAVE] POST a Drive, body length:', body.length);
+          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + accessToken,
+              'Content-Type': 'multipart/related; boundary=' + boundary,
+            },
+            body,
+          });
+          console.log('[SAVE] Drive response status:', res.status);
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error('[SAVE] Drive error:', errText);
+            toast('Error ' + doc.prefix + ': ' + res.status, 'error');
+          } else {
+            const result = await res.json();
+            console.log('[SAVE] Subida OK:', result.id, result.name);
+            toast(doc.prefix + ' subido a Drive ✓');
+          }
         } catch(uploadErr) {
           console.error('[SAVE] Error subiendo ' + doc.prefix + ':', uploadErr);
           toast('Error subiendo ' + doc.prefix + ': ' + uploadErr.message, 'error');
@@ -974,9 +1033,16 @@ async function saveEquipo() {
     }
 
     // 3. Cerrar y recargar
+    // Usamos _origClosePanel directamente para NO disparar history.go(-1),
+    // que causaría un popstate que vuelve a cerrar el panel y rompe el flujo.
     resetDocInputs();
     setBtnState(false, 'Guardar');
-    closePanel('panel-edit');
+    _origClosePanel('panel-edit');
+    // Limpiar el stack de paneles para que el botón Back no quede desincronizado
+    const editIdx = _panelStack.lastIndexOf('panel-edit');
+    if (editIdx !== -1) _panelStack.splice(editIdx, 1);
+    // Esperar animación de cierre (280ms) antes de recargar y abrir ficha
+    await new Promise(r => setTimeout(r, 320));
     await loadData();
     if (patente) openFicha(patente);
 
