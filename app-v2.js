@@ -442,6 +442,209 @@ async function uploadFile(file, patente, prefixName) {
   return { id: result.id, name: result.name };
 }
 
+// ── Tipos de eventos ──────────────────────────────────────────
+const TIPOS_EVENTO = [
+  { value: 'Mantención preventiva', icon: '🔧', color: 'green'  },
+  { value: 'Reparación',            icon: '🔨', color: 'blue'   },
+  { value: 'Falla',                 icon: '⚠️', color: 'amber'  },
+  { value: 'Choque / Accidente',    icon: '💥', color: 'red'    },
+  { value: 'Inspección',            icon: '📋', color: 'blue'   },
+  { value: 'Cambio de documento',   icon: '📄', color: 'gray'   },
+  { value: 'Otro',                  icon: '🔩', color: 'gray'   },
+];
+
+function tipoEventoMeta(tipo) {
+  return TIPOS_EVENTO.find(t => t.value === tipo) || { icon: '🔩', color: 'gray' };
+}
+
+// allEventos: cargados desde hoja MANTENCIONES
+// Columnas: A=FECHA_REGISTRO B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESCRIPCION G=FECHA_EVENTO H=FOTO
+let allEventos = [];
+
+async function loadEventos() {
+  try {
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MANTENCIONES}'!A2:H500`);
+    allEventos = rows
+      .filter(r => r[0] || r[1])
+      .map((r, i) => ({
+        rowIndex:      i + 2,
+        fechaRegistro: r[0] || '',
+        patente:       r[1] || '',
+        equipo:        r[2] || '',
+        horometro:     r[3] || '',
+        tipo:          r[4] || 'Mantención preventiva',
+        descripcion:   r[5] || '',
+        fechaEvento:   r[6] || r[0] || '',
+        foto:          r[7] || '',
+      }))
+      .sort((a, b) => {
+        const parseDate = s => {
+          if (!s) return 0;
+          const p = s.split('/');
+          if (p.length === 3) return new Date(+p[2], +p[1]-1, +p[0]).getTime();
+          return new Date(s).getTime() || 0;
+        };
+        return parseDate(b.fechaEvento) - parseDate(a.fechaEvento);
+      });
+  } catch(e) {
+    console.warn('No se pudieron cargar eventos:', e.message);
+    allEventos = [];
+  }
+}
+
+function renderEventos() {
+  // Selector de equipos en el formulario
+  const sel = document.getElementById('evento-equipo');
+  if (sel) {
+    sel.innerHTML = allEquipos.map(e =>
+      `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
+    ).join('');
+  }
+
+  // Próximas mantenciones (desde MAQUINARIA)
+  const conHoro = allEquipos
+    .filter(e => e.horometro && e.proxMant)
+    .map(e => {
+      const actual = parseFloat((e.horometro||'').toString().replace(/\./g,'')) || 0;
+      const prox   = parseFloat((e.proxMant ||'').toString().replace(/\./g,'')) || 0;
+      return { ...e, actual, prox, diff: prox - actual };
+    })
+    .filter(e => e.prox > 0)
+    .sort((a,b) => a.diff - b.diff);
+
+  document.getElementById('eventos-proximas').innerHTML = conHoro.slice(0,8).map(e => {
+    const cls = e.diff < 0 ? 'red' : e.diff < 500 ? 'amber' : 'green';
+    return `<div class="mant-card" onclick="openFicha('${e.patente}')">
+      <div class="mant-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="mant-body">
+        <div class="mant-title">${e.marca} ${e.modelo}</div>
+        <div class="mant-meta">${e.equipo} · Actual: ${formatNum(e.actual)} · Próxima: ${formatNum(e.prox)} · Cada: ${e.mantCada||'—'}</div>
+      </div>
+      <span class="badge ${cls}">${e.diff >= 0 ? formatNum(e.diff)+' restante' : 'ATRASADA'}</span>
+    </div>`;
+  }).join('') || '<div class="empty">Sin datos de horómetro disponibles</div>';
+
+  // Historial cronológico general
+  renderHistorialEventos('eventos-historial', allEventos);
+}
+
+function renderHistorialEventos(containerId, eventos, limit = 50) {
+  const list = eventos.slice(0, limit);
+  document.getElementById(containerId).innerHTML = list.map(ev => {
+    const meta   = tipoEventoMeta(ev.tipo);
+    const equipo = allEquipos.find(e => e.patente === ev.patente);
+    const nombre = equipo ? `${equipo.marca} ${equipo.modelo}` : ev.equipo || ev.patente;
+    return `<div class="evento-card" onclick="${equipo ? `openFicha('${ev.patente}')` : ''}">
+      <div class="evento-tipo-icon">${meta.icon}</div>
+      <div class="mant-body">
+        <div class="mant-title">${ev.tipo}</div>
+        <div class="mant-meta">${ev.fechaEvento} · ${nombre} · ${ev.patente}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>
+        ${ev.descripcion ? `<div class="evento-desc">${ev.descripcion}</div>` : ''}
+      </div>
+      <span class="badge ${meta.color}" style="white-space:nowrap">${ev.patente}</span>
+    </div>`;
+  }).join('') || '<div class="empty">Sin eventos registrados</div>';
+}
+
+function renderHistorialEquipo(patente) {
+  const eventos = allEventos.filter(ev => ev.patente === patente);
+  if (eventos.length === 0) return '<div class="empty">Sin eventos registrados para este equipo</div>';
+  return eventos.slice(0, 20).map(ev => {
+    const meta = tipoEventoMeta(ev.tipo);
+    return `<div class="evento-card-mini">
+      <div class="evento-tipo-icon">${meta.icon}</div>
+      <div class="mant-body">
+        <div class="mant-title">${ev.tipo}</div>
+        <div class="mant-meta">${ev.fechaEvento}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>
+        ${ev.descripcion ? `<div class="evento-desc">${ev.descripcion}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Panel evento ───────────────────────────────────────────────
+function openEventoPanel(patente) {
+  const sel = document.getElementById('evento-equipo');
+  if (sel) {
+    sel.innerHTML = allEquipos.map(e =>
+      `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
+    ).join('');
+    if (patente) {
+      for (const opt of sel.options) {
+        if (opt.value === patente) { sel.value = patente; break; }
+      }
+    }
+  }
+  document.getElementById('evento-fecha').value     = new Date().toISOString().slice(0,10);
+  document.getElementById('evento-horometro').value = '';
+  document.getElementById('evento-obs').value       = '';
+  document.getElementById('evento-foto').value      = '';
+  document.getElementById('evento-foto-label').textContent = '📷 Agregar foto (opcional)';
+  openPanel('panel-evento');
+}
+
+// Alias para compatibilidad con botones existentes
+function openMantPanel(patente) { openEventoPanel(patente); }
+
+async function saveEvento() {
+  const patente   = document.getElementById('evento-equipo').value;
+  const horometro = document.getElementById('evento-horometro').value;
+  const fecha     = document.getElementById('evento-fecha').value;
+  const tipo      = document.getElementById('evento-tipo').value;
+  const obs       = document.getElementById('evento-obs').value;
+  const fotoFile  = document.getElementById('evento-foto').files[0];
+
+  if (!patente || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
+
+  try {
+    const e = allEquipos.find(x => x.patente === patente);
+    const nombreEquipo = e ? `${e.marca} ${e.modelo}` : patente;
+
+    // Sube foto a [PATENTE]/Eventos/
+    let fotoNombre = '';
+    if (fotoFile) {
+      try {
+        const uploaded = await uploadFile(fotoFile, patente, `EVT_${tipo.replace(/[\s\/]/g,'_')}`, 'Eventos');
+        fotoNombre = uploaded.name || '';
+        toast('Foto subida a Drive ✓');
+      } catch(uploadErr) {
+        toast('Error al subir foto: ' + uploadErr.message, 'error');
+        console.error('Upload error:', uploadErr);
+      }
+    }
+
+    // A=FECHA_REG B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
+    const fechaReg = new Date().toLocaleDateString('es-CL');
+    const fechaFmt = fecha.split('-').reverse().join('/'); // yyyy-mm-dd → dd/mm/yyyy
+    await appendSheet(`'${CONFIG.SHEET_MANTENCIONES}'!A:H`, [[
+      fechaReg, patente, nombreEquipo, horometro, tipo, obs, fechaFmt, fotoNombre
+    ]]);
+
+    // Actualizar horómetro solo en Mantención preventiva o Reparación
+    if (horometro && e && ['Mantención preventiva','Reparación'].includes(tipo)) {
+      await Promise.all([
+        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]),
+        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]),
+      ]);
+      e.horometro = horometro;
+      e.ultMant   = horometro;
+    }
+
+    toast('Evento registrado ✓');
+    closePanel('panel-evento');
+    await loadEventos();
+    renderEventos();
+    renderDashboard();
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function onFotoSelected(input) {
+  const label = document.getElementById('evento-foto-label');
+  label.textContent = input.files[0] ? '✅ ' + input.files[0].name : '📷 Agregar foto (opcional)';
+}
+
 // ── Cargar datos ──────────────────────────────────────────────
 async function loadData() {
   const btn = document.getElementById('refresh-btn');
