@@ -42,17 +42,21 @@
     /* ── Evento cards ── */
     .evento-card {
       display: flex; align-items: flex-start; gap: 10px;
-      background: var(--card, #1e293b); border-radius: 12px;
+      background: #1e293b; border-radius: 12px;
       padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
     }
     .evento-card-mini {
       display: flex; align-items: flex-start; gap: 10px;
-      background: var(--card-alt, #0f172a); border-radius: 10px;
+      background: #1e293b; border-radius: 10px;
       padding: 10px 12px; margin-bottom: 6px;
     }
+    .evento-card .mant-title,
+    .evento-card-mini .mant-title { color: #f1f5f9 !important; font-size: 14px; font-weight: 600; }
+    .evento-card .mant-meta,
+    .evento-card-mini .mant-meta  { color: #94a3b8 !important; font-size: 12px; margin-top: 2px; }
     .evento-tipo-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
     .evento-desc {
-      font-size: 12px; color: #94a3b8; margin-top: 3px;
+      font-size: 12px; color: #cbd5e1; margin-top: 3px;
       white-space: pre-wrap; line-height: 1.4;
     }
   </style>
