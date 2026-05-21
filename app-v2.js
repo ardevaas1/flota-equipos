@@ -566,9 +566,10 @@ function renderHistorialEquipo(patente) {
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
   if (sel) {
-    sel.innerHTML = allEquipos.map(e =>
-      `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
-    ).join('');
+    sel.innerHTML = '<option value="">— Seleccionar equipo —</option>' +
+      allEquipos.map(e =>
+        `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
+      ).join('');
     if (patente) {
       for (const opt of sel.options) {
         if (opt.value === patente) { sel.value = patente; break; }
@@ -650,7 +651,10 @@ async function saveEvento() {
     }
 
     toast('Evento registrado ✓');
-    closePanel('panel-evento');
+    // Usar _origClosePanel para no disparar history.go(-1) que deja el panel colgado
+    _origClosePanel('panel-evento');
+    const idx = _panelStack.lastIndexOf('panel-evento');
+    if (idx !== -1) _panelStack.splice(idx, 1);
     await loadEventos();
     renderEventos();
     renderDashboard();
