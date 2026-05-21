@@ -620,14 +620,10 @@ async function saveEvento() {
       fechaReg, patente, nombreEquipo, horometro, tipo, obs, fechaFmt, fotoNombre
     ]]);
 
-    // Actualizar horómetro solo en Mantención preventiva o Reparación
-    if (horometro && e && ['Mantención preventiva','Reparación'].includes(tipo)) {
-      await Promise.all([
-        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]),
-        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]),
-      ]);
-      e.horometro = horometro;
-      e.ultMant   = horometro;
+    // Actualizar última mantención en sheet solo si es Mantención preventiva
+    if (horometro && e && tipo === 'Mantención preventiva') {
+      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]);
+      e.ultMant = horometro;
     }
 
     toast('Evento registrado ✓');
