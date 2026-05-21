@@ -1097,30 +1097,116 @@ function restoreState() {
 }
 
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  // Siempre ocultar splash al inicio
-  document.getElementById('splash').classList.add('hidden');
+// ── Sistema PIN ──────────────────────────────────────────────
+const PIN_KEY        = 'lst_pin_ok';
+const PIN_ATTEMPTS   = 'lst_pin_attempts';
+const PIN_BLOCK_TIME = 'lst_pin_block';
+const PINS_VALIDOS   = ['1234', '5678', '9012', '3456']; // Cambia estos PINs
 
-  // Si hay token válido guardado, entra directo sin mostrar login
+let pinIngresado = '';
+
+function initPin() {
+  document.getElementById('splash').classList.add('hidden');
+  document.getElementById('login-screen').classList.add('hidden');
+
+  // Si ya validó PIN en este dispositivo, entrar directo
+  if (localStorage.getItem(PIN_KEY) === 'true') {
+    enterApp();
+    return;
+  }
+  mostrarPantallaPIN();
+}
+
+function mostrarPantallaPIN() {
+  document.getElementById('pin-screen').classList.remove('hidden');
+  pinIngresado = '';
+  actualizarPuntos();
+  verificarBloqueo();
+}
+
+function verificarBloqueo() {
+  const blockTime = parseInt(localStorage.getItem(PIN_BLOCK_TIME) || '0');
+  const ahora = Date.now();
+  if (blockTime > ahora) {
+    const seg = Math.ceil((blockTime - ahora) / 1000);
+    document.getElementById('pin-hint').textContent = `Demasiados intentos. Espera ${seg}s`;
+    document.getElementById('pin-hint').style.color = '#EF4444';
+    setTimeout(verificarBloqueo, 1000);
+    return false;
+  }
+  document.getElementById('pin-hint').textContent = 'Ingresa tu PIN';
+  document.getElementById('pin-hint').style.color = '';
+  return true;
+}
+
+function pinPresionar(digito) {
+  if (!verificarBloqueo()) return;
+  if (pinIngresado.length >= 4) return;
+  pinIngresado += digito;
+  actualizarPuntos();
+  if (pinIngresado.length === 4) {
+    setTimeout(validarPin, 150);
+  }
+}
+
+function pinBorrar() {
+  pinIngresado = pinIngresado.slice(0, -1);
+  actualizarPuntos();
+}
+
+function actualizarPuntos() {
+  const puntos = document.querySelectorAll('.pin-dot');
+  puntos.forEach((dot, i) => {
+    dot.classList.toggle('filled', i < pinIngresado.length);
+  });
+}
+
+function validarPin() {
+  if (PINS_VALIDOS.includes(pinIngresado)) {
+    // PIN correcto
+    localStorage.setItem(PIN_KEY, 'true');
+    localStorage.removeItem(PIN_ATTEMPTS);
+    localStorage.removeItem(PIN_BLOCK_TIME);
+    document.getElementById('pin-screen').classList.add('hidden');
+    enterApp();
+  } else {
+    // PIN incorrecto
+    const intentos = parseInt(localStorage.getItem(PIN_ATTEMPTS) || '0') + 1;
+    localStorage.setItem(PIN_ATTEMPTS, intentos.toString());
+    if (intentos >= 3) {
+      localStorage.setItem(PIN_BLOCK_TIME, (Date.now() + 60000).toString());
+      localStorage.setItem(PIN_ATTEMPTS, '0');
+    }
+    document.getElementById('pin-hint').textContent = intentos >= 3 
+      ? 'Bloqueado 1 minuto' 
+      : `PIN incorrecto (${3 - intentos} intentos restantes)`;
+    document.getElementById('pin-hint').style.color = '#EF4444';
+    // Vibrar si disponible
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    pinIngresado = '';
+    actualizarPuntos();
+    setTimeout(verificarBloqueo, 1500);
+  }
+}
+
+function enterApp() {
+  document.getElementById('splash').classList.remove('hidden');
+  initOAuth();
+
+  // Si hay token válido, carga directo
   if (loadSavedToken()) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('splash').classList.remove('hidden');
-    initOAuth();
     loadData();
     return;
   }
 
-  // Si ya inició sesión antes, intenta renovar silenciosamente
+  // Si ya hizo login antes, renueva silenciosamente
   const hadLogin = localStorage.getItem('lst_had_login');
   if (hadLogin) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('splash').classList.remove('hidden');
-    initOAuth();
     setTimeout(() => {
       if (tokenClient) {
-        // prompt:'' renueva silenciosamente con los scopes ya autorizados
         tokenClient.requestAccessToken({ prompt: '' });
       } else {
+        // Fallback: mostrar login Google solo si falla todo
         document.getElementById('splash').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
@@ -1128,9 +1214,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Primera vez: muestra pantalla de login
+  // Primera vez: OAuth con lstflota@gmail.com
+  document.getElementById('splash').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
-  initOAuth();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initPin();
 });
 
 // ── Helpers para upload de documentos en formulario edición ──

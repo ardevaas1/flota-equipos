@@ -11,9 +11,65 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── PIN Screen ── */
+    #pin-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #0f172a;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 32px; padding: 24px;
+    }
+    #pin-screen.hidden { display: none; }
+    .pin-logo { width: 72px; height: 72px; border-radius: 18px; object-fit: contain; background:#1e293b; padding:8px; }
+    .pin-title { color: #f1f5f9; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .pin-hint  { color: #94a3b8; font-size: 14px; min-height: 20px; transition: color 0.2s; }
+    .pin-dots  { display: flex; gap: 16px; }
+    .pin-dot   { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #475569; background: transparent; transition: all 0.15s; }
+    .pin-dot.filled { background: #3b82f6; border-color: #3b82f6; transform: scale(1.1); }
+    .pin-pad   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 240px; }
+    .pin-btn   {
+      height: 72px; border-radius: 16px; border: none;
+      background: #1e293b; color: #f1f5f9;
+      font-size: 24px; font-weight: 600;
+      cursor: pointer; transition: background 0.1s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pin-btn:active { background: #3b82f6; transform: scale(0.95); }
+    .pin-btn.del    { font-size: 20px; color: #94a3b8; }
+    .pin-btn.empty  { background: transparent; cursor: default; }
+  </style>
 </head>
 <body>
 <div id="app">
+
+  <!-- PIN Screen -->
+  <div id="pin-screen" class="hidden">
+    <img src="logo.png" class="pin-logo" alt="LST">
+    <div class="pin-title">Flota &amp; Equipos</div>
+    <div class="pin-hint" id="pin-hint">Ingresa tu PIN</div>
+    <div class="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-btn" onclick="pinPresionar('1')">1</button>
+      <button class="pin-btn" onclick="pinPresionar('2')">2</button>
+      <button class="pin-btn" onclick="pinPresionar('3')">3</button>
+      <button class="pin-btn" onclick="pinPresionar('4')">4</button>
+      <button class="pin-btn" onclick="pinPresionar('5')">5</button>
+      <button class="pin-btn" onclick="pinPresionar('6')">6</button>
+      <button class="pin-btn" onclick="pinPresionar('7')">7</button>
+      <button class="pin-btn" onclick="pinPresionar('8')">8</button>
+      <button class="pin-btn" onclick="pinPresionar('9')">9</button>
+      <button class="pin-btn empty"></button>
+      <button class="pin-btn" onclick="pinPresionar('0')">0</button>
+      <button class="pin-btn del" onclick="pinBorrar()">⌫</button>
+    </div>
+  </div>
+
 
   <!-- Splash -->
   <div id="splash" class="splash">
@@ -187,7 +243,7 @@
         <div class="doc-upload-row">
           <label id="soap-file-label" class="doc-file-label">
             📎 Subir archivo SOAP
-            <input type="file" id="soap-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'soap-file-label'); console.log('FILE CAPTURED:', this.files[0]?.name, this.files[0]?.size)" style="opacity:0;position:absolute;width:0;height:0">
+            <input type="file" id="soap-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'soap-file-label')" style="display:none">
           </label>
         </div>
       </div>
@@ -201,7 +257,7 @@
         <div class="doc-upload-row">
           <label id="permiso-file-label" class="doc-file-label">
             📎 Subir archivo Permiso
-            <input type="file" id="permiso-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'permiso-file-label')" style="opacity:0;position:absolute;width:0;height:0">
+            <input type="file" id="permiso-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'permiso-file-label')" style="display:none">
           </label>
         </div>
       </div>
@@ -215,7 +271,7 @@
         <div class="doc-upload-row">
           <label id="revision-file-label" class="doc-file-label">
             📎 Subir archivo Rev. Técnica
-            <input type="file" id="revision-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'revision-file-label')" style="opacity:0;position:absolute;width:0;height:0">
+            <input type="file" id="revision-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'revision-file-label')" style="display:none">
           </label>
         </div>
       </div>
