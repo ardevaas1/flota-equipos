@@ -38,6 +38,23 @@
     .pin-btn:active { background: #3b82f6; transform: scale(0.95); }
     .pin-btn.del    { font-size: 20px; color: #94a3b8; }
     .pin-btn.empty  { background: transparent; cursor: default; }
+
+    /* ── Evento cards ── */
+    .evento-card {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--card, #1e293b); border-radius: 12px;
+      padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+    }
+    .evento-card-mini {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--card-alt, #0f172a); border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 6px;
+    }
+    .evento-tipo-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    .evento-desc {
+      font-size: 12px; color: #94a3b8; margin-top: 3px;
+      white-space: pre-wrap; line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -147,13 +164,13 @@
         <div id="alertas-ok"></div>
       </div>
 
-      <!-- Mantenciones -->
-      <div id="page-mantenciones" class="page">
-        <button class="btn-add" onclick="openMantPanel(null)">+ Registrar mantención</button>
-        <div class="sec-label">📅 Próximas</div>
-        <div id="mant-proximas"></div>
-        <div class="sec-label">📋 Historial</div>
-        <div id="mant-historial"></div>
+      <!-- Eventos -->
+      <div id="page-eventos" class="page">
+        <button class="btn-add" onclick="openEventoPanel(null)">+ Registrar evento</button>
+        <div class="sec-label">📅 Próximas mantenciones</div>
+        <div id="eventos-proximas"></div>
+        <div class="sec-label">📋 Historial general</div>
+        <div id="eventos-historial"></div>
       </div>
 
     </div>
@@ -169,8 +186,8 @@
         <span class="nv-ic">🔔</span><span class="nv-lb">Alertas</span>
         <span class="nav-dot" id="nav-dot" style="display:none"></span>
       </button>
-      <button class="nav-item" onclick="showPage('mantenciones',this)">
-        <span class="nv-ic">🔧</span><span class="nv-lb">Mantención</span>
+      <button class="nav-item" onclick="showPage('eventos',this)">
+        <span class="nv-ic">🗂️</span><span class="nv-lb">Eventos</span>
       </button>
     </nav>
 
@@ -289,45 +306,46 @@
     </div>
   </div>
 
-  <!-- Panel: Mantención -->
-  <div id="panel-mant" class="panel hidden">
+  <!-- Panel: Evento -->
+  <div id="panel-evento" class="panel hidden">
     <div class="panel-bar">
-      <button class="pnl-back" onclick="closePanel('panel-mant')">‹ Cancelar</button>
-      <span class="pnl-title">Registrar mantención</span>
-      <button class="pnl-action" onclick="saveMant()">Guardar</button>
+      <button class="pnl-back" onclick="closePanel('panel-evento')">‹ Cancelar</button>
+      <span class="pnl-title">Registrar evento</span>
+      <button class="pnl-action" onclick="saveEvento()">Guardar</button>
     </div>
     <div class="panel-body">
       <div class="form-group">
         <label>Equipo</label>
-        <select id="mant-equipo"></select>
+        <select id="evento-equipo"></select>
       </div>
       <div class="form-group">
-        <label>Horómetro / Odómetro actual</label>
-        <input type="number" id="mant-horometro" placeholder="Ej: 12500">
-      </div>
-      <div class="form-group">
-        <label>Fecha</label>
-        <input type="date" id="mant-fecha">
-      </div>
-      <div class="form-group">
-        <label>Tipo de mantención</label>
-        <select id="mant-tipo">
-          <option>Preventiva</option>
-          <option>Correctiva</option>
-          <option>Cambio de aceite</option>
-          <option>Cambio de filtros</option>
-          <option>Revisión general</option>
-          <option>Otro</option>
+        <label>Tipo de evento</label>
+        <select id="evento-tipo">
+          <option value="Mantención preventiva">🔧 Mantención preventiva</option>
+          <option value="Reparación">🔨 Reparación</option>
+          <option value="Falla">⚠️ Falla</option>
+          <option value="Choque / Accidente">💥 Choque / Accidente</option>
+          <option value="Inspección">📋 Inspección</option>
+          <option value="Cambio de documento">📄 Cambio de documento</option>
+          <option value="Otro">🔩 Otro</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Observaciones</label>
-        <textarea id="mant-obs" placeholder="Detalle lo realizado..."></textarea>
+        <label>Fecha del evento</label>
+        <input type="date" id="evento-fecha">
       </div>
       <div class="form-group">
-        <label id="mant-foto-label">📷 Agregar foto (opcional)</label>
-        <input type="file" id="mant-foto" accept="image/*" capture="environment" onchange="onFotoSelected(this)" style="display:none">
-        <button type="button" onclick="document.getElementById('mant-foto').click()" class="action-btn" style="margin-top:0">Seleccionar foto</button>
+        <label>Horómetro / Odómetro actual</label>
+        <input type="number" id="evento-horometro" placeholder="Ej: 12500">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea id="evento-obs" placeholder="Detalle lo ocurrido o realizado..."></textarea>
+      </div>
+      <div class="form-group">
+        <label id="evento-foto-label">📷 Agregar foto (opcional)</label>
+        <input type="file" id="evento-foto" accept="image/*" capture="environment" onchange="onFotoSelected(this)" style="display:none">
+        <button type="button" onclick="document.getElementById('evento-foto').click()" class="action-btn" style="margin-top:0">Seleccionar foto</button>
       </div>
     </div>
   </div>

@@ -461,33 +461,36 @@ async function loadData() {
       .filter(r => r[1] && r[1].toString().trim() && r[1].toString().trim().toUpperCase() !== 'EQUIPO')
       .map((r, i) => ({
         rowIndex:    i + 2,
-        equipo:      r[1]  || '',   // B - tipo equipo
-        marca:       r[2]  || '',   // C
-        modelo:      r[3]  || '',   // D
-        patente:     r[4]  || '',   // E
-        anio:        r[5]  || '',   // F
-        color:       r[6]  || '',   // G
-        propietario: r[7]  || '',   // H
-        rut:         r[8]  || '',   // I
-        estadoRaw:   r[9]  || '',   // J
+        equipo:      r[1]  || '',
+        marca:       r[2]  || '',
+        modelo:      r[3]  || '',
+        patente:     r[4]  || '',
+        anio:        r[5]  || '',
+        color:       r[6]  || '',
+        propietario: r[7]  || '',
+        rut:         r[8]  || '',
+        estadoRaw:   r[9]  || '',
         estado:      parseEstado(r[9]),
-        ubicacion:   r[10] || '',   // K
-        horometro:   r[11] || '',   // L
-        proxMant:    r[12] || '',   // M
-        ultMant:     r[13] || '',   // N ← nueva
-        mantCada:    r[14] || '',   // O
-        soap:        r[15] || '',   // P
-        permiso:     r[16] || '',   // Q
-        revision:    r[17] || '',   // R
-        obs:         r[18] || '',   // S
-        linkFicha:   r[19] || '',   // T
+        ubicacion:   r[10] || '',
+        horometro:   r[11] || '',
+        proxMant:    r[12] || '',
+        ultMant:     r[13] || '',
+        mantCada:    r[14] || '',
+        soap:        r[15] || '',
+        permiso:     r[16] || '',
+        revision:    r[17] || '',
+        obs:         r[18] || '',
+        linkFicha:   r[19] || '',
       }));
+
+    splash(80, 'Cargando eventos...');
+    await loadEventos();
 
     splash(100, '¡Listo!');
     renderDashboard();
     renderEquipos();
     renderAlertas();
-    renderMantenciones();
+    renderEventos();
     setTimeout(() => {
       hideSplash();
       restoreState();
@@ -652,7 +655,12 @@ function openFicha(patente) {
       ${field('Próxima mantención', formatNum(e.proxMant))}
       ${field('Última mantención', formatNum(e.ultMant))}
       ${e.obs ? `<div class="ficha-obs">⚠️ ${e.obs}</div>` : ''}
-      <button class="action-btn" onclick="openMantPanel('${e.patente}')">+ Registrar mantención</button>
+      <button class="action-btn" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
+    </div>
+
+    <div class="ficha-section">
+      <div class="ficha-sec-title">Historial de eventos</div>
+      ${renderHistorialEquipo(e.patente)}
     </div>
 
     <div class="ficha-section">
@@ -750,120 +758,6 @@ function renderAlertas() {
   document.getElementById('alertas-ok').innerHTML       = ok.join('')       || '<div class="empty">Sin equipos con documentos</div>';
 }
 
-// ── Mantenciones ──────────────────────────────────────────────
-function renderMantenciones() {
-  document.getElementById('mant-equipo').innerHTML = allEquipos.map(e =>
-    `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
-  ).join('');
-
-  const conHoro = allEquipos
-    .filter(e => e.horometro && e.proxMant)
-    .map(e => {
-      const actual = parseFloat((e.horometro||'').toString().replace(/\./g,'')) || 0;
-      const prox   = parseFloat((e.proxMant ||'').toString().replace(/\./g,'')) || 0;
-      return { ...e, actual, prox, diff: prox - actual };
-    })
-    .filter(e => e.prox > 0)
-    .sort((a,b) => a.diff - b.diff);
-
-  document.getElementById('mant-proximas').innerHTML = conHoro.slice(0,8).map(e => {
-    const cls = e.diff < 0 ? 'red' : e.diff < 500 ? 'amber' : 'green';
-    return `<div class="mant-card" onclick="openFicha('${e.patente}')">
-      <div class="mant-icon">${iconoEquipo(e.equipo)}</div>
-      <div class="mant-body">
-        <div class="mant-title">${e.marca} ${e.modelo}</div>
-        <div class="mant-meta">${e.equipo} · Actual: ${formatNum(e.actual)} · Próxima: ${formatNum(e.prox)} · Cada: ${e.mantCada||'—'}</div>
-      </div>
-      <span class="badge ${cls}">${e.diff >= 0 ? formatNum(e.diff)+' restante' : 'ATRASADA'}</span>
-    </div>`;
-  }).join('') || '<div class="empty">Sin datos de horómetro disponibles</div>';
-
-  document.getElementById('mant-historial').innerHTML = allEquipos
-    .filter(e => e.ultMant && !['-','falta',''].includes(e.ultMant.toString().toLowerCase()))
-    .slice(0,8)
-    .map(e => `<div class="mant-card" onclick="openFicha('${e.patente}')">
-      <div class="mant-icon">${iconoEquipo(e.equipo)}</div>
-      <div class="mant-body">
-        <div class="mant-title">${e.marca} ${e.modelo}</div>
-        <div class="mant-meta">${e.equipo} · Última: ${formatNum(e.ultMant)} · ${e.ubicacion}</div>
-      </div>
-    </div>`).join('') || '<div class="empty">Sin historial registrado</div>';
-}
-
-// ── Panel mantención ──────────────────────────────────────────
-function openMantPanel(patente) {
-  if (patente) {
-    const sel = document.getElementById('mant-equipo');
-    for (const opt of sel.options) {
-      if (opt.value === patente) { sel.value = patente; break; }
-    }
-  }
-  document.getElementById('mant-fecha').value = new Date().toISOString().slice(0,10);
-  document.getElementById('mant-horometro').value = '';
-  document.getElementById('mant-obs').value = '';
-  document.getElementById('mant-foto').value = '';
-  document.getElementById('mant-foto-label').textContent = '📷 Agregar foto (opcional)';
-  openPanel('panel-mant');
-}
-
-async function saveMant() {
-  const patente   = document.getElementById('mant-equipo').value;
-  const horometro = document.getElementById('mant-horometro').value;
-  const fecha     = document.getElementById('mant-fecha').value;
-  const tipo      = document.getElementById('mant-tipo').value;
-  const obs       = document.getElementById('mant-obs').value;
-  const fotoFile  = document.getElementById('mant-foto').files[0];
-
-  if (!patente || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
-
-  try {
-    const e = allEquipos.find(x => x.patente === patente);
-    const nombreEquipo = e ? `${e.marca} ${e.modelo}` : patente;
-
-    // Sube foto a Drive si hay
-    let fotoNombre = '';
-    if (fotoFile) {
-      try {
-        const uploaded = await uploadFile(fotoFile, patente, `MANT_${tipo.replace(/\s/g,'_')}`);
-        fotoNombre = uploaded.name || '';
-        toast('Foto subida a Drive ✓');
-      } catch(uploadErr) {
-        toast('Error al subir foto: ' + uploadErr.message, 'error');
-        console.error('Upload error:', uploadErr);
-      }
-    }
-
-    // Registra en hoja MANTENCIONES
-    await appendSheet(`'${CONFIG.SHEET_MANTENCIONES}'!A:H`, [[
-      new Date().toLocaleDateString('es-CL'),
-      patente, nombreEquipo, horometro, tipo, obs, fecha, fotoNombre
-    ]]);
-
-    // Actualiza horómetro y última mantención en hoja principal
-    if (horometro && e) {
-      const fechaMant = new Date().toLocaleDateString('es-CL');
-      await Promise.all([
-        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!L${e.rowIndex}`, [[horometro]]),
-        writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]),
-      ]);
-      e.horometro = horometro;
-      e.ultMant = horometro;
-    }
-
-    toast('Mantención registrada ✓');
-    closePanel('panel-mant');
-    renderMantenciones();
-    renderDashboard();
-  } catch(err) {
-    toast('Error: ' + err.message, 'error');
-  }
-}
-
-// Preview nombre foto seleccionada
-function onFotoSelected(input) {
-  const label = document.getElementById('mant-foto-label');
-  label.textContent = input.files[0] ? '✅ ' + input.files[0].name : '📷 Agregar foto (opcional)';
-}
 
 // ── Panel editar equipo ───────────────────────────────────────
 function openEditPanel() {
@@ -1036,7 +930,7 @@ function showPage(id, btn) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
-  const titles = { dashboard:'Inicio', equipos:'Equipos', alertas:'Alertas', mantenciones:'Mantención' };
+  const titles = { dashboard:'Inicio', equipos:'Equipos', alertas:'Alertas', eventos:'Eventos' };
   document.getElementById('page-title').textContent = titles[id] || id;
   try { localStorage.setItem('lst_page', id); } catch(e) {}
 }
@@ -1074,7 +968,7 @@ function restoreState() {
     const filter = localStorage.getItem('lst_filter') || 'todos';
 
     // Restaura pestaña activa
-    const navIdx = { dashboard:0, equipos:1, alertas:2, mantenciones:3 };
+    const navIdx = { dashboard:0, equipos:1, alertas:2, eventos:3 };
     const idx = navIdx[page];
     if (idx !== undefined) {
       const btn = document.querySelectorAll('.nav-item')[idx];
