@@ -577,9 +577,19 @@ function openEventoPanel(patente) {
   }
   document.getElementById('evento-fecha').value     = new Date().toISOString().slice(0,10);
   document.getElementById('evento-horometro').value = '';
+  document.getElementById('evento-proxima').value   = '';
   document.getElementById('evento-obs').value       = '';
   document.getElementById('evento-foto').value      = '';
   document.getElementById('evento-foto-label').textContent = '📷 Agregar foto (opcional)';
+  // Mostrar/ocultar campo próxima según tipo
+  const tipoSel = document.getElementById('evento-tipo');
+  const toggleProxima = () => {
+    document.getElementById('evento-proxima-group').style.display =
+      tipoSel.value === 'Mantención preventiva' ? 'block' : 'none';
+  };
+  tipoSel.onchange = toggleProxima;
+  tipoSel.value = 'Mantención preventiva';
+  toggleProxima();
   openPanel('panel-evento');
 }
 
@@ -593,8 +603,13 @@ async function saveEvento() {
   const tipo      = document.getElementById('evento-tipo').value;
   const obs       = document.getElementById('evento-obs').value;
   const fotoFile  = document.getElementById('evento-foto').files[0];
+  const proxima   = document.getElementById('evento-proxima')?.value || '';
 
   if (!patente || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
+
+  // Bloquear botón para evitar doble guardado
+  const btn = document.querySelector('#panel-evento .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
   try {
     const e = allEquipos.find(x => x.patente === patente);
@@ -615,15 +630,23 @@ async function saveEvento() {
 
     // A=FECHA_REG B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
     const fechaReg = new Date().toLocaleDateString('es-CL');
-    const fechaFmt = fecha.split('-').reverse().join('/'); // yyyy-mm-dd → dd/mm/yyyy
+    const fechaFmt = fecha.split('-').reverse().join('/');
     await appendSheet(`'${CONFIG.SHEET_MANTENCIONES}'!A:H`, [[
       fechaReg, patente, nombreEquipo, horometro, tipo, obs, fechaFmt, fotoNombre
     ]]);
 
-    // Actualizar última mantención en sheet solo si es Mantención preventiva
-    if (horometro && e && tipo === 'Mantención preventiva') {
-      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]);
-      e.ultMant = horometro;
+    // Solo Mantención preventiva: actualizar última mantención (N) y próxima (M)
+    if (e && tipo === 'Mantención preventiva') {
+      const writes = [];
+      if (horometro) {
+        writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${e.rowIndex}`, [[horometro]]));
+        e.ultMant = horometro;
+      }
+      if (proxima) {
+        writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${e.rowIndex}`, [[proxima]]));
+        e.proxMant = proxima;
+      }
+      if (writes.length) await Promise.all(writes);
     }
 
     toast('Evento registrado ✓');
@@ -633,6 +656,8 @@ async function saveEvento() {
     renderDashboard();
   } catch(err) {
     toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
   }
 }
 
