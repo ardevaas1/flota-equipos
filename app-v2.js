@@ -705,7 +705,8 @@ async function openDocDrive(patente, prefix) {
       const data = await res.json();
       if (data.files && data.files.length > 0) {
         toast('Abriendo ' + data.files[0].name + '...');
-        window.open(data.files[0].webViewLink, '_blank');
+        const fileId = data.files[0].id;
+        window.open(`https://drive.google.com/uc?export=view&id=${fileId}`, '_blank');
         return;
       }
     }
