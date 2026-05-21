@@ -10,7 +10,8 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVj2C6YCjlwm4O
 let allEquipos    = [];
 let currentEquipo = null;
 let currentFilter = 'todos';
-let driveFolders  = {};
+let driveFolders    = {};   // cache patente → folderId
+let driveSubfolders = {};   // cache patente/subfolder → folderId
 const today = new Date();
 
 // ── OAuth / Google Identity Services ─────────────────────────
@@ -347,34 +348,75 @@ async function appendSheet(range, values) {
 }
 
 // ── Google Drive API ──────────────────────────────────────────
-// Busca la subcarpeta de una patente dentro de la carpeta raíz
-async function getFolderForPatente(patente) {
-  if (driveFolders[patente]) return driveFolders[patente];
 
-  const q = encodeURIComponent(`'${CONFIG.DRIVE_ROOT_FOLDER}' in parents and name='${patente}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+// Busca o crea una carpeta. Usa uploadType=multipart porque es el único
+// endpoint que acepta CORS desde GitHub Pages.
+async function findOrCreateFolder(name, parentId) {
   await ensureToken();
-  const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name)`;
-  const res = await fetch(url, { headers: authHeader() });
-  if (!res.ok) throw new Error(`Drive search ${res.status}`);
-  const data = await res.json();
 
-  if (data.files && data.files.length > 0) {
-    driveFolders[patente] = data.files[0].id;
-    return data.files[0].id;
+  // 1. Buscar si ya existe
+  const q = encodeURIComponent(`'${parentId}' in parents and name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const searchRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeader() });
+  if (!searchRes.ok) throw new Error(`Drive search ${searchRes.status}: ${await searchRes.text()}`);
+  const searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) {
+    console.log('[FOLDER] Encontrada:', name, searchData.files[0].id);
+    return searchData.files[0].id;
   }
-  // Si no existe la carpeta, usa la raíz
-  return CONFIG.DRIVE_ROOT_FOLDER;
+
+  // 2. Crear — multipart con body vacío (único endpoint CORS-friendly desde GitHub Pages)
+  console.log('[FOLDER] Creando:', name, 'en:', parentId);
+  const boundary = 'lst_boundary_' + Date.now();
+  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] });
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: text/plain\r\n\r\n\r\n--${boundary}--`;
+
+  const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+    body,
+  });
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    console.error('[FOLDER] Error:', err);
+    throw new Error(`Drive mkdir ${createRes.status}: ${err.slice(0,200)}`);
+  }
+  const folder = await createRes.json();
+  console.log('[FOLDER] Creada OK:', name, folder.id);
+  return folder.id;
 }
 
-// Sube un archivo a la carpeta de la patente
-async function uploadFile(file, patente, prefixName) {
-  console.log('[UPLOAD] uploadFile llamado:', prefixName, patente, file?.name, file?.size);
+// Devuelve el ID de [PATENTE]/ — la crea si no existe
+async function getFolderForPatente(patente) {
+  if (driveFolders[patente]) return driveFolders[patente];
+  const id = await findOrCreateFolder(patente, CONFIG.DRIVE_ROOT_FOLDER);
+  driveFolders[patente] = id;
+  return id;
+}
+
+// Devuelve el ID de [PATENTE]/subfolder — la crea si no existe
+// subfolder: 'Documentos' | 'Eventos'
+async function getSubfolder(patente, subfolder) {
+  const key = `${patente}/${subfolder}`;
+  if (driveSubfolders[key]) return driveSubfolders[key];
+  const parentId = await getFolderForPatente(patente);
+  const id = await findOrCreateFolder(subfolder, parentId);
+  driveSubfolders[key] = id;
+  return id;
+}
+
+// Sube un archivo a [PATENTE]/subfolder (default 'Eventos')
+async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
+  console.log('[UPLOAD] uploadFile:', prefixName, patente, file?.name, file?.size, '→', subfolder);
   toast('Subiendo ' + prefixName + '...');
   await ensureToken();
 
-  // Carpeta destino
-  let folderId = CONFIG.DRIVE_ROOT_FOLDER;
-  try { folderId = await getFolderForPatente(patente); } catch(e) {}
+  let folderId;
+  try {
+    folderId = await getSubfolder(patente, subfolder);
+  } catch(e) {
+    console.warn('[UPLOAD] No se pudo crear subcarpeta, usando raíz:', e.message);
+    folderId = CONFIG.DRIVE_ROOT_FOLDER;
+  }
 
   // Nombre del archivo
   const ext = file.name.split('.').pop();
@@ -928,21 +970,24 @@ async function openDocDrive(patente, prefix) {
   toast('Buscando documento en Drive...');
   try {
     await ensureToken();
-    // Busca en subcarpeta de la patente Y en la carpeta raíz
-    const folderId = await getFolderForPatente(patente);
-    const foldersToSearch = folderId !== CONFIG.DRIVE_ROOT_FOLDER
-      ? [folderId, CONFIG.DRIVE_ROOT_FOLDER]
-      : [CONFIG.DRIVE_ROOT_FOLDER];
 
-    for (const folder of foldersToSearch) {
+    // Busca en: [PATENTE]/Documentos/ → [PATENTE]/ → raíz (retrocompatible)
+    const foldersToSearch = [];
+    try { foldersToSearch.push(await getSubfolder(patente, 'Documentos')); } catch(e) {}
+    try { foldersToSearch.push(await getFolderForPatente(patente)); } catch(e) {}
+    foldersToSearch.push(CONFIG.DRIVE_ROOT_FOLDER);
+
+    // Deduplicar
+    const unique = [...new Set(foldersToSearch)];
+
+    for (const folder of unique) {
       const q = encodeURIComponent(`'${folder}' in parents and name contains '${prefix}_${patente}' and trashed=false`);
       const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name,webViewLink)&orderBy=createdTime desc`;
       const res = await fetch(url, { headers: authHeader() });
       const data = await res.json();
       if (data.files && data.files.length > 0) {
         toast('Abriendo ' + data.files[0].name + '...');
-        const fileId = data.files[0].id;
-        window.open(`https://drive.google.com/uc?export=view&id=${fileId}`, '_blank');
+        window.open(`https://drive.google.com/uc?export=view&id=${data.files[0].id}`, '_blank');
         return;
       }
     }
@@ -1077,10 +1122,12 @@ async function saveEquipo() {
       await ensureToken();
       console.log('[SAVE] Token OK, subiendo', fileQueue.length, 'archivo(s)...');
 
-      // Obtener carpeta destino una sola vez
+      // Obtener carpeta [PATENTE]/Documentos/ — la crea si no existe
       let folderId = CONFIG.DRIVE_ROOT_FOLDER;
-      try { folderId = await getFolderForPatente(patente); } catch(e) {}
-      console.log('[SAVE] folderId:', folderId);
+      try { folderId = await getSubfolder(patente, 'Documentos'); } catch(e) {
+        console.warn('[SAVE] No se pudo obtener subcarpeta, usando raíz:', e.message);
+      }
+      console.log('[SAVE] folderId (Documentos):', folderId);
 
       for (const doc of fileQueue) {
         setBtnState(true, 'Subiendo ' + doc.prefix + '...');
@@ -1402,7 +1449,7 @@ async function uploadDocFiles(patente) {
     try {
       await ensureToken();
       console.log('Token OK, subiendo a carpeta de:', patente);
-      const result = await uploadFile(file, patente, doc.prefix);
+      const result = await uploadFile(file, patente, doc.prefix, 'Documentos');
       console.log('Subida exitosa:', result);
       uploaded++;
       toast(doc.prefix + ' subido ✓');
