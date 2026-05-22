@@ -1220,10 +1220,25 @@ function goEquipos(filter) {
   renderEquipos();
 }
 
+const isDesktop = () => window.innerWidth >= 900;
+
 function openPanel(id) {
   const el = document.getElementById(id);
   el.classList.remove('hidden');
   requestAnimationFrame(() => el.style.transform = 'translateX(0)');
+
+  // Desktop: overlay detrás del panel
+  if (isDesktop() && !document.getElementById('panel-overlay')) {
+    const ov = document.createElement('div');
+    ov.id = 'panel-overlay';
+    ov.className = 'panel-overlay';
+    ov.onclick = () => {
+      // cierra el panel visible más reciente
+      const visible = [...document.querySelectorAll('.panel:not(.hidden)')].pop();
+      if (visible) closePanel(visible.id);
+    };
+    document.getElementById('app').appendChild(ov);
+  }
 }
 
 function closePanel(id) {
@@ -1232,6 +1247,17 @@ function closePanel(id) {
   setTimeout(() => el.classList.add('hidden'), 280);
   if (id === 'panel-ficha') {
     try { localStorage.removeItem('lst_ficha'); } catch(e) {}
+  }
+
+  // Desktop: quitar overlay si no queda ningún panel abierto
+  if (isDesktop()) {
+    setTimeout(() => {
+      const stillOpen = document.querySelectorAll('.panel:not(.hidden)').length;
+      if (!stillOpen) {
+        const ov = document.getElementById('panel-overlay');
+        if (ov) ov.remove();
+      }
+    }, 290);
   }
 }
 
