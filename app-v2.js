@@ -18,6 +18,7 @@ const today = new Date();
 let tokenClient  = null;
 let accessToken  = null;
 let tokenExpiry  = 0;
+let isRenewing   = false;  // evita múltiples renovaciones simultáneas
 
 const TOKEN_KEY  = 'lst_access_token';
 const EXPIRY_KEY = 'lst_token_expiry';
@@ -91,11 +92,27 @@ function initOAuth() {
   });
 
   // Renueva silenciosamente el token 10 min antes de que expire
+  // prompt:'' es silencioso solo si Google tiene sesión activa en el navegador.
+  // El flag isRenewing evita que se acumulen múltiples intentos/popups.
   setInterval(() => {
-    if (accessToken && tokenExpiry - Date.now() < 10 * 60 * 1000) {
-      tokenClient.requestAccessToken({ prompt: '' });
-    }
-  }, 30 * 1000); // revisar cada 30s para no perder la ventana
+    if (isRenewing) return;                              // ya hay una renovación en curso
+    if (!accessToken) return;                            // sin sesión activa
+    if (tokenExpiry - Date.now() > 10 * 60 * 1000) return; // aún tiene más de 10 min
+
+    isRenewing = true;
+    const prevCb = tokenClient.callback;
+    tokenClient.callback = (response) => {
+      tokenClient.callback = prevCb;
+      isRenewing = false;
+      if (response.error) {
+        // Fallo silencioso — no abrir nada, simplemente esperar al próximo ciclo
+        // Solo si el token ya expiró del todo, dejar que ensureToken maneje el login
+        return;
+      }
+      saveToken(response.access_token, response.expires_in || 3600);
+    };
+    tokenClient.requestAccessToken({ prompt: '' });
+  }, 30 * 1000);
 }
 
 function signIn() {
