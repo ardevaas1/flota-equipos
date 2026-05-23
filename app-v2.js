@@ -838,6 +838,9 @@ function renderDashboard() {
       <span class="badge ${cls}">${e.diff >= 0 ? 'Faltan ' + formatNum(e.diff) : 'ATRASADA'}</span>
     </div>`;
   }).join('') || '<div class="empty">Sin datos de horómetro disponibles</div>';
+
+  // Actualizar layout desktop si está activo
+  if (typeof _desktopAfterLoad === 'function') _desktopAfterLoad();
 }
 
 // ── Equipos ───────────────────────────────────────────────────
