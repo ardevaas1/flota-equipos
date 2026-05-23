@@ -274,259 +274,360 @@ input, select, textarea { font-family: inherit; }
 
 /* ═══════════════════════════════════════════════════════════════
    LAYOUT DESKTOP  ≥ 900px
-   Sidebar fijo izquierda + contenido central + panel derecho
+   Sistema unificado: desktop-sidebar + desktop-main + desktop-detail
+   El layout móvil (#main, .nav, .pages) queda oculto en desktop.
    ═══════════════════════════════════════════════════════════════ */
+
+/* ── Elementos desktop ocultos por defecto (JS los muestra) ── */
+.desktop-sidebar,
+.desktop-main,
+.desktop-detail { display: none; }
 
 @media (min-width: 900px) {
 
-  /* ── Shell ── */
+  /* ── Shell: ocultar todo lo móvil ── */
+  #main  { display: none !important; }
+  .nav   { display: none !important; }
+
+  /* ── App container full viewport ── */
   #app {
     max-width: 100%;
     height: 100vh;
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    grid-template-rows: 100vh;
+    display: flex;
+    flex-direction: row;
     overflow: hidden;
+    position: relative;
   }
 
-  /* ── Sidebar ── */
-  .nav {
-    grid-column: 1;
-    grid-row: 1;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    border-top: none;
-    border-right: 1px solid #e8eaed;
-    padding: 0;
+  /* ══════════════════════════════════
+     SIDEBAR
+  ══════════════════════════════════ */
+  .desktop-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    height: 100vh;
     background: #fff;
-    gap: 0;
+    border-right: 1px solid #e8eaed;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
     z-index: 10;
   }
 
-  /* Logo en sidebar */
-  .nav::before {
-    content: '';
-    display: block;
-    height: 64px;
-    background: url('logo.png') center/contain no-repeat;
-    background-size: 44px;
+  .desktop-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 14px;
     border-bottom: 1px solid #e8eaed;
-    margin-bottom: 8px;
     flex-shrink: 0;
   }
+  .desktop-sidebar-header img {
+    width: 36px; height: 36px;
+    border-radius: 10px; object-fit: contain;
+  }
+  .desktop-sidebar-title {
+    font-size: 13px; font-weight: 700; color: #1a1a2e; line-height: 1.2;
+  }
+  .desktop-sidebar-sub {
+    font-size: 11px; color: #5a5f6e; margin-top: 1px;
+  }
 
-  .nav-item {
-    flex: none;
-    flex-direction: row;
+  /* Stats en sidebar */
+  .desktop-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid #e8eaed;
+    flex-shrink: 0;
+  }
+  .desktop-stat {
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .desktop-stat:hover { opacity: 0.8; }
+  .desktop-stat.green  { background: #e8f5e9; }
+  .desktop-stat.amber  { background: #fff8e1; }
+  .desktop-stat.red    { background: #ffebee; }
+  .desktop-stat.blue   { background: #e3f2fd; }
+  .desktop-stat-n {
+    font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1;
+  }
+  .desktop-stat-l {
+    font-size: 10px; color: #5a5f6e; margin-top: 3px; font-weight: 500;
+  }
+
+  /* Nav del sidebar */
+  .desktop-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+    overflow-y: auto;
+  }
+  .desktop-nav-item {
+    display: flex;
     align-items: center;
-    justify-content: flex-start;
     gap: 12px;
-    padding: 13px 20px;
+    padding: 11px 20px;
     border-radius: 10px;
     margin: 2px 10px;
     font-size: 14px;
     color: #5a5f6e;
+    font-weight: 500;
     transition: background 0.15s, color 0.15s;
+    position: relative;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
   }
-
-  .nav-item:hover { background: #f0f4f8; color: #1a1a2e; }
-  .nav-item.active { background: #e8f2fb; color: #4a8fc1; font-weight: 600; }
-
-  .nv-ic { font-size: 18px; margin-bottom: 0; }
-  .nv-lb { font-size: 14px; font-weight: 500; }
-
-  .nav-dot {
-    right: auto;
-    top: 50%;
-    transform: translateY(-50%);
+  .desktop-nav-item:hover  { background: #f0f4f8; color: #1a1a2e; }
+  .desktop-nav-item.active { background: #e8f2fb; color: #4a8fc1; font-weight: 600; }
+  .dn-ic { font-size: 18px; }
+  .dn-lb { font-size: 14px; }
+  .dn-dot {
+    width: 8px; height: 8px;
+    background: #c62828; border-radius: 50%;
+    border: 2px solid #fff;
     margin-left: auto;
   }
 
-  /* ── Main area ── */
-  .main {
-    grid-column: 2;
-    grid-row: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  /* ── Header ── */
-  .header {
-    padding: 0 24px;
-    height: 64px;
-    border-bottom: 1px solid #e8eaed;
+  /* Footer sidebar */
+  .desktop-sidebar-footer {
+    padding: 12px;
+    border-top: 1px solid #e8eaed;
     flex-shrink: 0;
   }
+  .desktop-refresh-btn {
+    width: 100%;
+    padding: 9px;
+    border-radius: 8px;
+    background: #f0f4f8;
+    color: #4a8fc1;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .desktop-refresh-btn:hover { background: #dce8f3; }
 
-  .header-logo { display: none; }
+  /* ══════════════════════════════════
+     PANEL CENTRAL (vistas)
+  ══════════════════════════════════ */
+  .desktop-main {
+    flex: 1;
+    height: 100vh;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f4f5f7;
+    min-width: 0;
+  }
 
-  .header-title { font-size: 18px; }
-  .header-sub   { font-size: 12px; }
+  .dt-page {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .dt-page[style*="flex"] { display: flex !important; }
 
-  /* ── Pages ── */
-  .pages {
+  .desktop-main-header {
+    padding: 20px 24px 0;
+    flex-shrink: 0;
+  }
+  .desktop-main-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+  }
+
+  /* Search en vista equipos */
+  .desktop-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid #e8eaed;
+    border-radius: 10px;
+    padding: 9px 14px;
+    margin-bottom: 10px;
+  }
+  .desktop-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1a1a2e;
+    background: transparent;
+  }
+  .desktop-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  /* Tabla de equipos */
+  .desktop-table-wrap {
     flex: 1;
     overflow-y: auto;
-    display: grid;
-    grid-template-columns: 1fr;
+    padding: 0 24px 24px;
+  }
+  .desktop-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e8eaed;
+    font-size: 13px;
+  }
+  .desktop-table thead tr {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e8eaed;
+  }
+  .desktop-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: #5a5f6e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .desktop-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+  }
+  .desktop-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .desktop-table tbody tr:hover { background: #f8f9fa; }
+  .desktop-table tbody tr.selected { background: #e8f2fb; }
+  .desktop-table tbody tr:last-child td { border-bottom: none; }
+  .dt-icon { width: 40px; text-align: center; font-size: 22px; }
+  .dt-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
+  .dt-sub  { font-size: 11px; color: #888; margin-top: 1px; }
+  .dt-plate {
+    background: #f0f4f8; color: #1a1a2e;
+    border-radius: 6px; padding: 3px 8px;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.5px; font-family: monospace;
   }
 
-  .page {
-    padding: 24px 28px 40px;
-    display: none;
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .page.active { display: block; }
-
-  /* ── Dashboard ── */
-  .stats-row {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 24px;
-  }
-
-  .stat { padding: 18px 10px; border-radius: 14px; }
-  .stat-n { font-size: 32px; }
-  .stat-l { font-size: 11px; }
-
-  /* ── Dashboard 2 columnas ── */
-  #page-dashboard .dash-cols {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  /* ── Equipos: tabla ── */
-  .search-area {
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
-  }
-
-  #equipos-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  /* Eventos row en detalle */
+  .desktop-evento-row {
+    display: flex;
     gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .desktop-evento-row:last-child { border-bottom: none; }
+
+  /* ── Sec labels ── */
+  .sec-label {
+    font-size: 11px; font-weight: 700; color: #5a5f6e;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 16px 0 8px;
   }
 
-  .card {
-    margin-bottom: 0;
-    border-radius: 10px;
-    padding: 14px 16px;
+  /* ══════════════════════════════════
+     PANEL DETALLE DERECHO
+  ══════════════════════════════════ */
+  .desktop-detail {
+    width: 340px;
+    flex-shrink: 0;
+    height: 100vh;
+    background: #fff;
+    border-left: 1px solid #e8eaed;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
   }
-
-  .card:hover {
-    box-shadow: 0 2px 12px rgba(74,143,193,0.12);
-    border-color: #c5dff0;
-    transform: translateY(-1px);
+  .desktop-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px;
+    border-bottom: 1px solid #e8eaed;
+    flex-shrink: 0;
+    min-height: 56px;
   }
-
-  /* ── Mantención / Eventos ── */
-  .mant-card {
-    border-radius: 10px;
-    padding: 13px 16px;
-    margin-bottom: 6px;
+  .desktop-detail-title {
+    font-size: 15px; font-weight: 700; color: #1a1a2e;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-
-  .mant-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    border-color: #c5dff0;
+  .desktop-detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
   }
-
-  /* Dos columnas en eventos */
-  #page-eventos .ev-cols {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+  .desktop-detail-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; color: #bbb; text-align: center; gap: 10px;
   }
+  .desktop-detail-empty-icon { font-size: 48px; }
 
-  /* ── Alertas: 3 columnas ── */
-  #page-alertas .alert-cols {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-
-  /* ── Panels como drawer lateral derecho ── */
+  /* ══════════════════════════════════
+     PANELS (drawer) — solo en desktop
+  ══════════════════════════════════ */
   .panel {
     position: fixed;
     top: 0; right: 0; bottom: 0;
     left: auto;
     width: 480px;
-    z-index: 100;
-    box-shadow: -4px 0 24px rgba(0,0,0,0.10);
+    z-index: 200;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.12);
     transform: translateX(100%);
     border-radius: 0;
   }
-
   .panel:not(.hidden) { transform: translateX(0); }
-
   .panel-bar {
     padding: 16px 20px;
-    padding-top: 16px; /* override safe-area */
-    height: 64px;
+    height: 60px;
     align-items: center;
   }
+  .panel-body { padding: 20px 24px 40px; }
 
-  .panel-body {
-    padding: 20px 24px 40px;
-  }
+  /* ── Toast sin nav bottom ── */
+  .toast { bottom: 28px; }
 
-  /* ── Ficha hero más grande ── */
-  .ficha-hero {
-    padding: 20px;
-    gap: 18px;
-  }
-
-  .ficha-hero-icon { font-size: 52px; width: 70px; height: 70px; }
-  .ficha-hero-name { font-size: 20px; }
-
-  /* ── Btn add ── */
+  /* ── Btn add desktop ── */
   .btn-add {
     width: auto;
-    padding: 11px 24px;
+    padding: 10px 22px;
     border-radius: 10px;
     font-size: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
-  /* ── Toast más abajo (sin nav bottom) ── */
-  .toast {
-    bottom: 28px;
-  }
-
-  /* ── Sec label ── */
-  .sec-label { font-size: 11px; margin: 20px 0 10px; }
-
-  /* ── Empty ── */
-  .empty { border-radius: 10px; }
-
-  /* ── Forms más anchos ── */
+  /* ── Forms ── */
   .form-group input,
   .form-group select,
   .form-group textarea { font-size: 14px; }
 
-}
+  /* ── Ficha hero ── */
+  .ficha-hero { padding: 16px; gap: 14px; }
+  .ficha-hero-icon { font-size: 40px; width: 56px; height: 56px; }
+  .ficha-hero-name { font-size: 16px; }
 
-/* ═══════════════════════════════════════════════════════════════
-   HELPERS DESKTOP — wrappers de columnas en el HTML
-   Se inyectan vía JS solo en desktop para no afectar móvil
-   ═══════════════════════════════════════════════════════════════ */
-
-@media (min-width: 900px) {
-
-  /* overlay al abrir panel */
+  /* ── Overlay panel ── */
   .panel-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.18);
-    z-index: 99;
+    z-index: 199;
     animation: fadeIn 0.2s ease;
   }
-
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
 }

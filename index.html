@@ -65,7 +65,7 @@
 <div id="app">
 
   <!-- ══ LAYOUT DESKTOP (visible solo ≥900px) ══ -->
-  <div class="desktop-sidebar" id="desktop-sidebar" style="display:none">
+  <div class="desktop-sidebar" id="desktop-sidebar">
     <div class="desktop-sidebar-header">
       <img src="logo.png" alt="LST">
       <div>
@@ -109,7 +109,7 @@
   </div>
 
   <!-- ══ PANEL CENTRAL ══ -->
-  <div class="desktop-main" id="desktop-main" style="display:none">
+  <div class="desktop-main" id="desktop-main">
 
     <!-- Vista: Equipos -->
     <div id="dt-page-equipos" class="dt-page">
@@ -145,7 +145,7 @@
     </div>
 
     <!-- Vista: Alertas -->
-    <div id="dt-page-alertas" class="dt-page" style="display:none">
+    <div id="dt-page-alertas" class="dt-page">
       <div class="desktop-main-header">
         <div class="desktop-main-title">Alertas de documentos</div>
       </div>
@@ -160,7 +160,7 @@
     </div>
 
     <!-- Vista: Eventos -->
-    <div id="dt-page-eventos" class="dt-page" style="display:none">
+    <div id="dt-page-eventos" class="dt-page">
       <div class="desktop-main-header">
         <div class="desktop-main-title">Eventos</div>
         <button class="btn-add" style="margin-bottom:14px" onclick="openEventoPanel(null)">+ Registrar evento</button>
@@ -176,7 +176,7 @@
   </div>
 
   <!-- ══ PANEL DETALLE DERECHO ══ -->
-  <div class="desktop-detail" id="desktop-detail" style="display:none">
+  <div class="desktop-detail" id="desktop-detail">
     <div class="desktop-detail-header">
       <div class="desktop-detail-title" id="dt-detail-title">Selecciona un equipo</div>
       <button class="pnl-action" id="dt-edit-btn" style="display:none" onclick="dtOpenEdit()">Editar</button>
@@ -534,10 +534,12 @@ let dtSelectedPatente = null;
 function dtInit() {
   if (!IS_DESKTOP()) return;
 
-  // Mostrar elementos desktop, ocultar .main móvil
-  document.getElementById('desktop-sidebar').style.display = 'flex';
-  document.getElementById('desktop-main').style.display    = 'flex';
-  document.getElementById('desktop-detail').style.display  = 'flex';
+  // El CSS maneja display vía @media; solo mostramos la página inicial
+  const firstPage = document.getElementById('dt-page-equipos');
+  if (firstPage && firstPage.style.display === 'none') {
+    firstPage.style.display = 'flex';
+    firstPage.style.flexDirection = 'column';
+  }
 
   dtUpdateStats();
   dtRenderEquipos();
@@ -573,10 +575,13 @@ function dtUpdateStats() {
 
 // Cambiar página desktop
 function dtShowPage(page, btn) {
-  document.querySelectorAll('.dt-page').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.dt-page').forEach(p => {
+    p.style.display = 'none';
+    p.style.flexDirection = '';
+  });
   document.querySelectorAll('.desktop-nav-item').forEach(b => b.classList.remove('active'));
   const el = document.getElementById('dt-page-' + page);
-  if (el) el.style.display = 'flex', el.style.flexDirection = 'column';
+  if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; }
   if (btn) btn.classList.add('active');
 
   if (page === 'alertas') dtRenderAlertas();
@@ -787,22 +792,15 @@ const _origRenderDashboard = window.renderDashboard;
 window.addEventListener('resize', () => {
   if (IS_DESKTOP()) {
     dtInit();
-  } else {
-    document.getElementById('desktop-sidebar').style.display = 'none';
-    document.getElementById('desktop-main').style.display    = 'none';
-    document.getElementById('desktop-detail').style.display  = 'none';
   }
 });
 
 // Inicializar al cargar si ya es desktop
 document.addEventListener('DOMContentLoaded', () => {
   if (IS_DESKTOP()) {
-    document.getElementById('desktop-sidebar').style.display = 'flex';
-    document.getElementById('desktop-main').style.display    = 'flex';
-    document.getElementById('desktop-detail').style.display  = 'flex';
-    // dt-page-equipos visible por defecto
-    document.getElementById('dt-page-equipos').style.display = 'flex';
-    document.getElementById('dt-page-equipos').style.flexDirection = 'column';
+    // Mostrar página equipos por defecto
+    const eq = document.getElementById('dt-page-equipos');
+    if (eq) { eq.style.display = 'flex'; eq.style.flexDirection = 'column'; }
   }
 });
 </script>
