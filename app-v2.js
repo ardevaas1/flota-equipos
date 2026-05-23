@@ -29,14 +29,23 @@ function saveToken(token, expiresIn) {
   try {
     localStorage.setItem(TOKEN_KEY,  token);
     localStorage.setItem(EXPIRY_KEY, tokenExpiry.toString());
+    // También en sessionStorage como respaldo
+    sessionStorage.setItem(TOKEN_KEY,  token);
+    sessionStorage.setItem(EXPIRY_KEY, tokenExpiry.toString());
   } catch(e) {}
 }
 
-// Carga token guardado si aún es válido
+// Carga token guardado si aún es válido (localStorage o sessionStorage)
 function loadSavedToken() {
   try {
-    const token  = localStorage.getItem(TOKEN_KEY);
-    const expiry = parseInt(localStorage.getItem(EXPIRY_KEY) || '0');
+    // Intentar localStorage primero
+    let token  = localStorage.getItem(TOKEN_KEY);
+    let expiry = parseInt(localStorage.getItem(EXPIRY_KEY) || '0');
+    // Fallback a sessionStorage
+    if (!token || expiry <= Date.now()) {
+      token  = sessionStorage.getItem(TOKEN_KEY);
+      expiry = parseInt(sessionStorage.getItem(EXPIRY_KEY) || '0');
+    }
     if (token && expiry > Date.now()) {
       accessToken = token;
       tokenExpiry = expiry;
@@ -81,12 +90,12 @@ function initOAuth() {
     },
   });
 
-  // Renueva silenciosamente el token 5 min antes de que expire
+  // Renueva silenciosamente el token 10 min antes de que expire
   setInterval(() => {
-    if (accessToken && tokenExpiry - Date.now() < 5 * 60 * 1000) {
+    if (accessToken && tokenExpiry - Date.now() < 10 * 60 * 1000) {
       tokenClient.requestAccessToken({ prompt: '' });
     }
-  }, 60 * 1000);
+  }, 30 * 1000); // revisar cada 30s para no perder la ventana
 }
 
 function signIn() {
@@ -108,15 +117,28 @@ function ensureToken() {
   return new Promise((resolve, reject) => {
     if (isTokenValid()) { resolve(); return; }
     if (!tokenClient) { reject(new Error('OAuth no iniciado')); return; }
-    // Intenta renovar silenciosamente (sin popup)
-    const prevCallback = tokenClient.callback;
-    tokenClient.callback = (response) => {
-      tokenClient.callback = prevCallback;
-      if (response.error) { reject(new Error(response.error)); return; }
-      saveToken(response.access_token, response.expires_in || 3600);
-      resolve();
-    };
-    tokenClient.requestAccessToken({ prompt: '' });
+    // Intenta renovar silenciosamente (sin popup), hasta 2 reintentos
+    let intentos = 0;
+    function intentarRenovar() {
+      intentos++;
+      const prevCallback = tokenClient.callback;
+      tokenClient.callback = (response) => {
+        tokenClient.callback = prevCallback;
+        if (response.error) {
+          if (intentos < 2 && response.error !== 'access_denied') {
+            // Reintento con pequeño delay
+            setTimeout(intentarRenovar, 1500);
+          } else {
+            reject(new Error(response.error));
+          }
+          return;
+        }
+        saveToken(response.access_token, response.expires_in || 3600);
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+    intentarRenovar();
   });
 }
 
@@ -1398,18 +1420,41 @@ function enterApp() {
     return;
   }
 
-  // Si ya hizo login antes, renueva silenciosamente
+  // Si ya hizo login antes, renueva silenciosamente con reintentos
   const hadLogin = localStorage.getItem('lst_had_login');
   if (hadLogin) {
-    setTimeout(() => {
+    let intentosInit = 0;
+    function intentarSilencioso() {
+      intentosInit++;
       if (tokenClient) {
+        const prevCb = tokenClient.callback;
+        tokenClient.callback = (response) => {
+          tokenClient.callback = prevCb;
+          if (response.error) {
+            if (intentosInit < 3 && response.error !== 'access_denied') {
+              // Reintento automático
+              setTimeout(intentarSilencioso, 2000);
+            } else {
+              // Solo ahora mostrar pantalla de login
+              document.getElementById('splash').classList.add('hidden');
+              document.getElementById('login-screen').classList.remove('hidden');
+            }
+            return;
+          }
+          saveToken(response.access_token, response.expires_in || 3600);
+          document.getElementById('login-screen').classList.add('hidden');
+          loadData();
+        };
         tokenClient.requestAccessToken({ prompt: '' });
+      } else if (intentosInit < 5) {
+        // tokenClient aún no está listo, esperar más
+        setTimeout(intentarSilencioso, 600);
       } else {
-        // Fallback: mostrar login Google solo si falla todo
         document.getElementById('splash').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
-    }, 800);
+    }
+    setTimeout(intentarSilencioso, 600);
     return;
   }
 
