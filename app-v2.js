@@ -1498,7 +1498,14 @@ function onDocFileSelected(input, labelId) {
   const label = document.getElementById(labelId);
   const file = input.files[0];
   if (file) {
-    label.textContent = '✅ ' + file.name;
+    // IMPORTANTE: NO usar label.textContent (destruye el <input> hijo del label)
+    // Actualizar solo el nodo de texto, manteniendo el input intacto
+    const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.textContent = '\u2705 ' + file.name + ' ';
+    } else {
+      label.insertBefore(document.createTextNode('\u2705 ' + file.name + ' '), label.firstChild);
+    }
     label.classList.add('selected');
     // Leer a base64 AHORA, antes de cualquier await o navegación
     const prefix = { 'soap-file':'SOAP', 'permiso-file':'PERMISO', 'revision-file':'REVISION' }[input.id];
@@ -1571,17 +1578,15 @@ function resetDocInputs() {
 
   configs.forEach(function(cfg) {
     var label = document.getElementById(cfg.labelId);
-    var input = document.getElementById(cfg.inputId);
-    if (!label || !input) return;
+    if (!label) return;
 
-    // Clonar el input y reemplazarlo — única forma 100% fiable en iOS/Safari
-    // de limpiar un file input (input.value='' es ignorado por el navegador)
-    var newInput = input.cloneNode(false);
-    label.innerHTML = '';
+    // Reconstruir el label completo con un input nuevo limpio
+    // (el input anterior puede haber sido destruido por textContent en onDocFileSelected)
     label.classList.remove('selected');
-    label.appendChild(document.createTextNode(cfg.text + ' '));
-    newInput.style.display = 'none';
-    label.appendChild(newInput);
+    label.innerHTML =
+      cfg.text + ' ' +
+      '<input type="file" id="' + cfg.inputId + '" accept="image/*,.pdf" ' +
+      'onchange="onDocFileSelected(this,\'' + cfg.labelId + '\')" style="display:none">';
   });
 }
 
