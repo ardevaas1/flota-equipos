@@ -1560,8 +1560,7 @@ async function uploadDocFiles(patente) {
 
 // Resetea los inputs de archivo del formulario de edición
 function resetDocInputs() {
-  // Solo limpiar memoria — NO tocar el DOM del label ni del input
-  // (el label contiene el input como hijo; textContent lo destruiría)
+  // Limpiar memoria
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
 
   const labels = {
@@ -1574,6 +1573,8 @@ function resetDocInputs() {
     const input = document.getElementById(cfg.inputId);
     if (!label || !input) return;
     label.classList.remove('selected');
+    // Limpiar el input de archivo (resetea la selección del archivo)
+    try { input.value = ''; } catch(e) {}
     // Actualizar solo el texto del primer nodo de texto, sin tocar el input hijo
     const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
     if (textNode) {
@@ -1617,6 +1618,10 @@ window.openPanel = function(id) {
 
 const _origClosePanel = closePanel;
 window.closePanel = function(id) {
+  // Al cerrar el panel de edición, siempre limpiar archivos capturados y labels
+  if (id === 'panel-edit') {
+    resetDocInputs();
+  }
   if (_panelStack.length && _panelStack[_panelStack.length - 1] === id) {
     _panelStack.pop();
     // go(-1) disparará popstate, que llama closePanel de nuevo → evitar loop
