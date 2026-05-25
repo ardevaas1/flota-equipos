@@ -1110,6 +1110,11 @@ function openEditPanel() {
   document.getElementById('edit-permiso').value   = e.permiso;
   document.getElementById('edit-revision').value  = e.revision;
   document.getElementById('edit-obs').value       = e.obs;
+
+  // Limpiar estado de archivos del equipo anterior
+  Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
+  resetDocInputs();
+
   openPanel('panel-edit');
 }
 
@@ -1135,8 +1140,9 @@ async function saveEquipo() {
   // Limpiar para el próximo uso
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
 
-  // Bloquear botón
+  // Evitar doble submit si el botón ya está deshabilitado
   const btn = document.getElementById('save-equipo-btn');
+  if (btn && btn.disabled) { console.warn('[SAVE] Ya hay un guardado en curso, ignorando.'); return; }
   const setBtnState = (disabled, text) => {
     if (btn) { btn.disabled = disabled; btn.textContent = text; }
   };
@@ -1554,15 +1560,26 @@ async function uploadDocFiles(patente) {
 
 // Resetea los inputs de archivo del formulario de edición
 function resetDocInputs() {
+  // Limpiar archivos en memoria
+  Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
+
   ['soap-file','permiso-file','revision-file'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = '';
+    if (el) {
+      el.value = '';
+      // Forzar reset real del input (necesario en algunos browsers)
+      try { el.type = 'text'; el.type = 'file'; } catch(e) {}
+    }
   });
+  const defaults = {
+    'soap-file-label':     '📎 Subir archivo SOAP',
+    'permiso-file-label':  '📎 Subir archivo Permiso',
+    'revision-file-label': '📎 Subir archivo Rev. Técnica'
+  };
   ['soap-file-label','permiso-file-label','revision-file-label'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.classList.remove('selected');
-      const defaults = { 'soap-file-label':'📎 Subir archivo SOAP', 'permiso-file-label':'📎 Subir archivo Permiso', 'revision-file-label':'📎 Subir archivo Rev. Técnica' };
       el.textContent = defaults[id];
     }
   });
