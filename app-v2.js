@@ -1563,25 +1563,25 @@ function resetDocInputs() {
   // Limpiar memoria
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
 
-  const labels = {
-    'soap-file-label':     { text: '📎 Subir archivo SOAP',    inputId: 'soap-file'     },
-    'permiso-file-label':  { text: '📎 Subir archivo Permiso', inputId: 'permiso-file'  },
-    'revision-file-label': { text: '📎 Subir archivo Rev. Técnica', inputId: 'revision-file' },
-  };
-  Object.entries(labels).forEach(([labelId, cfg]) => {
-    const label = document.getElementById(labelId);
-    const input = document.getElementById(cfg.inputId);
+  const configs = [
+    { labelId: 'soap-file-label',     inputId: 'soap-file',     text: '📎 Subir archivo SOAP'         },
+    { labelId: 'permiso-file-label',  inputId: 'permiso-file',  text: '📎 Subir archivo Permiso'      },
+    { labelId: 'revision-file-label', inputId: 'revision-file', text: '📎 Subir archivo Rev. Técnica' },
+  ];
+
+  configs.forEach(function(cfg) {
+    var label = document.getElementById(cfg.labelId);
+    var input = document.getElementById(cfg.inputId);
     if (!label || !input) return;
+
+    // Clonar el input y reemplazarlo — única forma 100% fiable en iOS/Safari
+    // de limpiar un file input (input.value='' es ignorado por el navegador)
+    var newInput = input.cloneNode(false);
+    label.innerHTML = '';
     label.classList.remove('selected');
-    // Limpiar el input de archivo (resetea la selección del archivo)
-    try { input.value = ''; } catch(e) {}
-    // Actualizar solo el texto del primer nodo de texto, sin tocar el input hijo
-    const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
-    if (textNode) {
-      textNode.textContent = cfg.text + ' ';
-    } else {
-      label.insertBefore(document.createTextNode(cfg.text + ' '), label.firstChild);
-    }
+    label.appendChild(document.createTextNode(cfg.text + ' '));
+    newInput.style.display = 'none';
+    label.appendChild(newInput);
   });
 }
 
