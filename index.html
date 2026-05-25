@@ -648,9 +648,9 @@ function dtSelectEquipo(patente) {
 
   // Calcular alertas de docs
   const docInfo = [
-    { key:'soap',    label:'SOAP'              },
-    { key:'permiso', label:'Permiso circ.'     },
-    { key:'revision',label:'Rev. técnica'      },
+    { key:'soap',    label:'SOAP',       prefix:'SOAP'     },
+    { key:'permiso', label:'Permiso circ.', prefix:'PERMISO' },
+    { key:'revision',label:'Rev. técnica',  prefix:'REVISION' },
   ].map(d => {
     const dias = diasRestantes(e[d.key]);
     const cls  = dias === null ? 'gray' : dias < 0 ? 'red' : dias < 60 ? 'amber' : 'green';
@@ -659,7 +659,7 @@ function dtSelectEquipo(patente) {
       <div><div class="doc-name">${d.label}</div><div class="doc-date">${e[d.key]||'—'}</div></div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="badge ${cls}">${txt}</span>
-        <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','${d.label.split(' ')[0].toUpperCase()}')">📂</button>
+        <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','${d.prefix}')">📂</button>
       </div>
     </div>`;
   }).join('');
