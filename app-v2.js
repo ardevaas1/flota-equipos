@@ -1560,18 +1560,26 @@ async function uploadDocFiles(patente) {
 
 // Resetea los inputs de archivo del formulario de edición
 function resetDocInputs() {
-  // Solo limpiar memoria y labels — NO tocar el DOM de los inputs
+  // Solo limpiar memoria — NO tocar el DOM del label ni del input
+  // (el label contiene el input como hijo; textContent lo destruiría)
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
-  const defaults = {
-    'soap-file-label':     '📎 Subir archivo SOAP',
-    'permiso-file-label':  '📎 Subir archivo Permiso',
-    'revision-file-label': '📎 Subir archivo Rev. Técnica'
+
+  const labels = {
+    'soap-file-label':     { text: '📎 Subir archivo SOAP',    inputId: 'soap-file'     },
+    'permiso-file-label':  { text: '📎 Subir archivo Permiso', inputId: 'permiso-file'  },
+    'revision-file-label': { text: '📎 Subir archivo Rev. Técnica', inputId: 'revision-file' },
   };
-  ['soap-file-label','permiso-file-label','revision-file-label'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.classList.remove('selected');
-      el.textContent = defaults[id];
+  Object.entries(labels).forEach(([labelId, cfg]) => {
+    const label = document.getElementById(labelId);
+    const input = document.getElementById(cfg.inputId);
+    if (!label || !input) return;
+    label.classList.remove('selected');
+    // Actualizar solo el texto del primer nodo de texto, sin tocar el input hijo
+    const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.textContent = cfg.text + ' ';
+    } else {
+      label.insertBefore(document.createTextNode(cfg.text + ' '), label.firstChild);
     }
   });
 }
