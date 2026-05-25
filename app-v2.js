@@ -1566,9 +1566,9 @@ function resetDocInputs() {
   ['soap-file','permiso-file','revision-file'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.value = '';
-      // Forzar reset real del input (necesario en algunos browsers)
-      try { el.type = 'text'; el.type = 'file'; } catch(e) {}
+      // Reemplazar el nodo por su propio clon — resetea value sin perder atributos ni listeners del HTML
+      const clone = el.cloneNode(true);
+      el.parentNode.replaceChild(clone, el);
     }
   });
   const defaults = {
