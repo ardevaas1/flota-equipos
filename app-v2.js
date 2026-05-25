@@ -1560,17 +1560,8 @@ async function uploadDocFiles(patente) {
 
 // Resetea los inputs de archivo del formulario de edición
 function resetDocInputs() {
-  // Limpiar archivos en memoria
+  // Solo limpiar memoria y labels — NO tocar el DOM de los inputs
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
-
-  ['soap-file','permiso-file','revision-file'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      // Reemplazar el nodo por su propio clon — resetea value sin perder atributos ni listeners del HTML
-      const clone = el.cloneNode(true);
-      el.parentNode.replaceChild(clone, el);
-    }
-  });
   const defaults = {
     'soap-file-label':     '📎 Subir archivo SOAP',
     'permiso-file-label':  '📎 Subir archivo Permiso',
