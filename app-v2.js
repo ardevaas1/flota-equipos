@@ -661,8 +661,7 @@ function openEventoPanel(patente) {
   document.getElementById('evento-horometro').value = '';
   document.getElementById('evento-proxima').value   = '';
   document.getElementById('evento-obs').value       = '';
-  document.getElementById('evento-foto').value      = '';
-  document.getElementById('evento-foto-label').textContent = '📷 Agregar foto (opcional)';
+  limpiarFotos();
   // Mostrar/ocultar campo próxima según tipo
   const tipoSel = document.getElementById('evento-tipo');
   const toggleProxima = () => {
@@ -684,7 +683,6 @@ async function saveEvento() {
   const fecha     = document.getElementById('evento-fecha').value;
   const tipo      = document.getElementById('evento-tipo').value;
   const obs       = document.getElementById('evento-obs').value;
-  const fotoFile  = document.getElementById('evento-foto').files[0];
   const proxima   = document.getElementById('evento-proxima')?.value || '';
 
   if (!patente || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
@@ -697,18 +695,70 @@ async function saveEvento() {
     const e = allEquipos.find(x => x.patente === patente);
     const nombreEquipo = e ? `${e.marca} ${e.modelo}` : patente;
 
-    // Sube foto a [PATENTE]/Eventos/
-    let fotoNombre = '';
-    if (fotoFile) {
-      try {
-        const uploaded = await uploadFile(fotoFile, patente, `EVT_${tipo.replace(/[\s\/]/g,'_')}`, 'Eventos');
-        fotoNombre = uploaded.name || '';
-        toast('Foto subida a Drive ✓');
-      } catch(uploadErr) {
-        toast('Error al subir foto: ' + uploadErr.message, 'error');
-        console.error('Upload error:', uploadErr);
+    // Subir todas las fotos desde memoria (_eventoFotos) a [PATENTE]/Eventos/
+    const fotosSubidas = [];
+    if (_eventoFotos.length > 0) {
+      await ensureToken();
+      let folderId = CONFIG.DRIVE_ROOT_FOLDER;
+      try { folderId = await getSubfolder(patente, 'Eventos'); } catch(fe) {
+        console.warn('[EVENTO] No se pudo obtener subcarpeta Eventos:', fe.message);
       }
+
+      const prefixBase = `EVT_${tipo.replace(/[\s\/]/g,'_')}`;
+      const fechaStr = new Date().toLocaleDateString('es-CL').replace(/\//g,'-');
+
+      for (let i = 0; i < _eventoFotos.length; i++) {
+        const foto = _eventoFotos[i];
+        if (btn) btn.textContent = `Subiendo foto ${i+1}/${_eventoFotos.length}...`;
+        toast(`Subiendo foto ${i+1} de ${_eventoFotos.length}...`);
+
+        try {
+          const ext      = foto.name.split('.').pop() || 'jpg';
+          const suffix   = _eventoFotos.length > 1 ? `_${i+1}` : '';
+          const fileName = `${prefixBase}${suffix}_${patente}_${fechaStr}.${ext}`;
+          const boundary = 'lst_ev_' + Date.now() + '_' + i;
+          const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+
+          const body = [
+            '--' + boundary,
+            'Content-Type: application/json; charset=UTF-8',
+            '',
+            metadata,
+            '--' + boundary,
+            'Content-Type: ' + foto.mimeType,
+            'Content-Transfer-Encoding: base64',
+            '',
+            foto.b64,
+            '--' + boundary + '--'
+          ].join('\r\n');
+
+          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + accessToken,
+              'Content-Type': 'multipart/related; boundary=' + boundary,
+            },
+            body,
+          });
+
+          if (!res.ok) {
+            const err = await res.text();
+            console.error('[EVENTO] Error foto', i+1, err);
+            toast(`Error foto ${i+1}: ${res.status}`, 'error');
+          } else {
+            const result = await res.json();
+            fotosSubidas.push(result.name || fileName);
+            console.log('[EVENTO] Foto subida OK:', result.name);
+          }
+        } catch(fotoErr) {
+          console.error('[EVENTO] Error subiendo foto', i+1, fotoErr);
+          toast(`Error foto ${i+1}: ${fotoErr.message}`, 'error');
+        }
+      }
+      if (fotosSubidas.length > 0) toast(`${fotosSubidas.length} foto(s) subida(s) a Drive ✓`);
     }
+
+    const fotoNombre = fotosSubidas.join(' | ');
 
     // A=FECHA_REG B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
     const fechaReg = new Date().toLocaleDateString('es-CL');
@@ -732,6 +782,7 @@ async function saveEvento() {
     }
 
     toast('Evento registrado ✓');
+    limpiarFotos();
     // Usar _origClosePanel para no disparar history.go(-1) que deja el panel colgado
     _origClosePanel('panel-evento');
     const idx = _panelStack.lastIndexOf('panel-evento');
@@ -746,9 +797,66 @@ async function saveEvento() {
   }
 }
 
+// ── Multi-foto en evento ───────────────────────────────────────
+// Fotos capturadas en memoria: array de { b64, name, size, mimeType, previewUrl }
+const _eventoFotos = [];
+
+function onFotosSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const nuevos = Array.from(input.files);
+  // Limpiar input para permitir seleccionar los mismos archivos de nuevo
+  input.value = '';
+
+  nuevos.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      _eventoFotos.push({
+        b64:        reader.result.split(',')[1],
+        name:       file.name,
+        size:       file.size,
+        mimeType:   file.type || 'image/jpeg',
+        previewUrl: reader.result,   // data URL para miniatura
+      });
+      renderFotoPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFotoPreview() {
+  const container = document.getElementById('evento-fotos-preview');
+  if (!container) return;
+
+  if (_eventoFotos.length === 0) {
+    container.innerHTML = '';
+    document.getElementById('evento-fotos-count').textContent = '';
+    return;
+  }
+
+  document.getElementById('evento-fotos-count').textContent =
+    `${_eventoFotos.length} foto${_eventoFotos.length > 1 ? 's' : ''} seleccionada${_eventoFotos.length > 1 ? 's' : ''}`;
+
+  container.innerHTML = _eventoFotos.map((f, i) => `
+    <div class="foto-thumb-wrap">
+      <img src="${f.previewUrl}" class="foto-thumb" alt="${f.name}">
+      <button class="foto-thumb-del" onclick="eliminarFoto(${i})" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+}
+
+function eliminarFoto(index) {
+  _eventoFotos.splice(index, 1);
+  renderFotoPreview();
+}
+
+function limpiarFotos() {
+  _eventoFotos.length = 0;
+  renderFotoPreview();
+}
+
+// Alias legacy para compatibilidad
 function onFotoSelected(input) {
-  const label = document.getElementById('evento-foto-label');
-  label.textContent = input.files[0] ? '✅ ' + input.files[0].name : '📷 Agregar foto (opcional)';
+  onFotosSelected(input);
 }
 
 // ── Cargar datos ──────────────────────────────────────────────

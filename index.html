@@ -59,6 +59,40 @@
       font-size: 12px; color: #cbd5e1; margin-top: 3px;
       white-space: pre-wrap; line-height: 1.4;
     }
+
+    /* ── Multi-foto ── */
+    .foto-add-row {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;
+    }
+    .foto-add-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1e293b; color: #94a3b8;
+      border: 1.5px dashed #334155; border-radius: 10px;
+      padding: 10px 14px; font-size: 13px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .foto-add-btn:active { background: #334155; color: #f1f5f9; }
+    .fotos-count {
+      font-size: 12px; color: #3b82f6; margin-top: 6px; min-height: 18px;
+    }
+    .fotos-preview {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+    }
+    .foto-thumb-wrap {
+      position: relative; width: 76px; height: 76px;
+    }
+    .foto-thumb {
+      width: 76px; height: 76px; object-fit: cover;
+      border-radius: 8px; border: 2px solid #334155;
+    }
+    .foto-thumb-del {
+      position: absolute; top: -6px; right: -6px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #ef4444; color: #fff; border: none;
+      font-size: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
   </style>
 </head>
 <body>
@@ -496,9 +530,19 @@
         <textarea id="evento-obs" placeholder="Detalle lo ocurrido o realizado..."></textarea>
       </div>
       <div class="form-group">
-        <label id="evento-foto-label">📷 Agregar foto (opcional)</label>
-        <input type="file" id="evento-foto" accept="image/*" capture="environment" onchange="onFotoSelected(this)" style="display:none">
-        <button type="button" onclick="document.getElementById('evento-foto').click()" class="action-btn" style="margin-top:0">Seleccionar foto</button>
+        <label>📷 Fotos (opcional — puede agregar varias)</label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir fotos del dispositivo
+            <input type="file" id="evento-foto" accept="image/*" multiple onchange="onFotosSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" id="evento-foto-camara" accept="image/*" capture="environment" multiple onchange="onFotosSelected(this)" style="display:none">
+          </label>
+        </div>
+        <div id="evento-fotos-count" class="fotos-count"></div>
+        <div id="evento-fotos-preview" class="fotos-preview"></div>
       </div>
     </div>
   </div>
