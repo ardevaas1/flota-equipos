@@ -1521,15 +1521,8 @@ const PINS_VALIDOS   = ['1234', '5678', '9012', '3456']; // Cambia estos PINs
 let pinIngresado = '';
 
 function initPin() {
-  document.getElementById('splash').classList.add('hidden');
-  document.getElementById('login-screen').classList.add('hidden');
-
-  // Si ya validó PIN en este dispositivo, entrar directo
-  if (localStorage.getItem(PIN_KEY) === 'true') {
-    enterApp();
-    return;
-  }
-  mostrarPantallaPIN();
+  // PIN eliminado — el acceso se controla solo por Google OAuth + rol en hoja USUARIOS
+  enterApp();
 }
 
 function mostrarPantallaPIN() {
