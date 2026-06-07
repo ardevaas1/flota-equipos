@@ -12,6 +12,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
   <style>
+    /* ── Modo Viewer (solo lectura) ── */
+    /* Oculta todos los controles de edición para usuarios viewer */
+    body.viewer-mode .pnl-action,
+    body.viewer-mode #save-equipo-btn,
+    body.viewer-mode .btn-add,
+    body.viewer-mode .action-btn,
+    body.viewer-mode #dt-edit-btn,
+    body.viewer-mode [onclick*="openEditPanel"],
+    body.viewer-mode [onclick*="openEventoPanel"],
+    body.viewer-mode [onclick*="openMantPanel"],
+    body.viewer-mode [onclick*="dtOpenEdit"] {
+      display: none !important;
+    }
+    /* Ocultar botón Editar en panel ficha */
+    body.viewer-mode #panel-ficha .pnl-action { display: none !important; }
+    /* El botón Volver sí debe verse */
+    body.viewer-mode .pnl-back { display: inline-flex !important; }
+    /* Indicador sutil de modo lectura en el header */
+    body.viewer-mode .header-sub::after {
+      content: ' · Solo lectura';
+      color: #64748b;
+      font-size: 10px;
+    }
+
     /* ── PIN Screen ── */
     #pin-screen {
       position: fixed; inset: 0; z-index: 9999;

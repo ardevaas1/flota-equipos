@@ -14,6 +14,13 @@ let driveFolders    = {};   // cache patente → folderId
 let driveSubfolders = {};   // cache patente/subfolder → folderId
 const today = new Date();
 
+// ── Roles de usuario ──────────────────────────────────────────
+let userRole  = null;   // 'admin' | 'viewer'
+let userEmail = null;
+
+const ROLE_KEY  = 'lst_user_role';
+const EMAIL_KEY = 'lst_user_email';
+
 // ── OAuth / Google Identity Services ─────────────────────────
 let tokenClient  = null;
 let accessToken  = null;
@@ -74,7 +81,7 @@ function initOAuth() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.CLIENT_ID,
     scope: CONFIG.SCOPES,
-    callback: (response) => {
+    callback: async (response) => {
       if (response.error) {
         document.getElementById('login-hint').textContent = 'Error: ' + response.error;
         clearToken();
@@ -85,6 +92,23 @@ function initOAuth() {
         localStorage.setItem('lst_had_login', '1');
         localStorage.setItem('lst_has_drive_scope', '1');
       } catch(e) {}
+
+      // Obtener email del usuario logueado
+      try {
+        const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        const info = await infoRes.json();
+        userEmail = (info.email || '').toLowerCase().trim();
+        try { localStorage.setItem(EMAIL_KEY, userEmail); } catch(e) {}
+      } catch(e) {
+        console.warn('[AUTH] No se pudo obtener email:', e.message);
+        userEmail = '';
+      }
+
+      // Verificar rol en hoja USUARIOS
+      await checkUserRole();
+
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash').classList.remove('hidden');
       loadData();
@@ -157,6 +181,45 @@ function ensureToken() {
     }
     intentarRenovar();
   });
+}
+
+// ── Control de roles ──────────────────────────────────────────
+// Busca el email en la hoja USUARIOS (col A=email, col B=rol).
+// Si está con rol 'admin' → admin. Cualquier otro caso → viewer.
+async function checkUserRole() {
+  try {
+    const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
+    const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(`'${sheet}'!A2:B100`)}`;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+    if (!res.ok) throw new Error('Sheet USUARIOS no disponible');
+    const data = await res.json();
+    const rows = data.values || [];
+    const match = rows.find(r => (r[0]||'').toLowerCase().trim() === userEmail);
+    if (match && (match[1]||'').toLowerCase().trim() === 'admin') {
+      userRole = 'admin';
+    } else {
+      userRole = 'viewer';
+    }
+  } catch(e) {
+    // Si la hoja no existe o hay error, cualquier email desconocido es viewer
+    console.warn('[ROLE] No se pudo leer USUARIOS, asignando viewer:', e.message);
+    userRole = 'viewer';
+  }
+  try {
+    localStorage.setItem(ROLE_KEY, userRole);
+    localStorage.setItem(EMAIL_KEY, userEmail || '');
+  } catch(e) {}
+  applyViewerMode();
+  console.log('[ROLE] Email:', userEmail, '→ Rol:', userRole);
+}
+
+// Aplica o quita la clase viewer-mode en el body
+function applyViewerMode() {
+  if (userRole === 'viewer') {
+    document.body.classList.add('viewer-mode');
+  } else {
+    document.body.classList.remove('viewer-mode');
+  }
 }
 
 function authHeader() {
@@ -1544,6 +1607,17 @@ function validarPin() {
 function enterApp() {
   document.getElementById('splash').classList.remove('hidden');
   initOAuth();
+
+  // Restaurar rol guardado mientras se renueva el token
+  try {
+    const savedRole  = localStorage.getItem(ROLE_KEY);
+    const savedEmail = localStorage.getItem(EMAIL_KEY);
+    if (savedRole) {
+      userRole  = savedRole;
+      userEmail = savedEmail || '';
+      applyViewerMode();
+    }
+  } catch(e) {}
 
   // Si hay token válido, carga directo
   if (loadSavedToken()) {
