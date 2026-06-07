@@ -93,29 +93,27 @@ function initOAuth() {
         localStorage.setItem('lst_has_drive_scope', '1');
       } catch(e) {}
 
-      // Obtener email — intentar userinfo v3, luego people API como respaldo
+      // Obtener email via tokeninfo — no requiere scope extra, siempre funciona
       userEmail = '';
       try {
-        const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { 'Authorization': 'Bearer ' + accessToken }
-        });
-        const info = await infoRes.json();
-        userEmail = (info.email || '').toLowerCase().trim();
+        const tiRes = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${accessToken}`);
+        const ti = await tiRes.json();
+        userEmail = (ti.email || '').toLowerCase().trim();
+        console.log('[AUTH] tokeninfo response:', ti);
       } catch(e) {
-        console.warn('[AUTH] userinfo falló:', e.message);
+        console.warn('[AUTH] tokeninfo falló:', e.message);
       }
 
-      // Respaldo: people API
+      // Respaldo: userinfo
       if (!userEmail) {
         try {
-          const pRes = await fetch('https://people.googleapis.com/v1/people/me?personFields=emailAddresses', {
+          const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
             headers: { 'Authorization': 'Bearer ' + accessToken }
           });
-          const pData = await pRes.json();
-          const emails = pData.emailAddresses || [];
-          userEmail = ((emails[0] || {}).value || '').toLowerCase().trim();
+          const info = await infoRes.json();
+          userEmail = (info.email || '').toLowerCase().trim();
         } catch(e) {
-          console.warn('[AUTH] people API falló:', e.message);
+          console.warn('[AUTH] userinfo falló:', e.message);
         }
       }
 
@@ -1657,6 +1655,12 @@ function enterApp() {
           }
           saveToken(response.access_token, response.expires_in || 3600);
           document.getElementById('login-screen').classList.add('hidden');
+          // Restaurar rol desde localStorage (ya fue verificado en login anterior)
+          try {
+            const savedRole  = localStorage.getItem(ROLE_KEY);
+            const savedEmail = localStorage.getItem(EMAIL_KEY);
+            if (savedRole) { userRole = savedRole; userEmail = savedEmail || ''; applyViewerMode(); }
+          } catch(e) {}
           loadData();
         };
         tokenClient.requestAccessToken({ prompt: '' });
