@@ -80,7 +80,7 @@ function initOAuth() {
   }
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.CLIENT_ID,
-    scope: CONFIG.SCOPES,
+    scope: CONFIG.SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
     callback: async (response) => {
       if (response.error) {
         document.getElementById('login-hint').textContent = 'Error: ' + response.error;
@@ -93,18 +93,34 @@ function initOAuth() {
         localStorage.setItem('lst_has_drive_scope', '1');
       } catch(e) {}
 
-      // Obtener email del usuario logueado
+      // Obtener email — intentar userinfo v3, luego people API como respaldo
+      userEmail = '';
       try {
         const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { 'Authorization': 'Bearer ' + accessToken }
         });
         const info = await infoRes.json();
         userEmail = (info.email || '').toLowerCase().trim();
-        try { localStorage.setItem(EMAIL_KEY, userEmail); } catch(e) {}
       } catch(e) {
-        console.warn('[AUTH] No se pudo obtener email:', e.message);
-        userEmail = '';
+        console.warn('[AUTH] userinfo falló:', e.message);
       }
+
+      // Respaldo: people API
+      if (!userEmail) {
+        try {
+          const pRes = await fetch('https://people.googleapis.com/v1/people/me?personFields=emailAddresses', {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
+          });
+          const pData = await pRes.json();
+          const emails = pData.emailAddresses || [];
+          userEmail = ((emails[0] || {}).value || '').toLowerCase().trim();
+        } catch(e) {
+          console.warn('[AUTH] people API falló:', e.message);
+        }
+      }
+
+      console.log('[AUTH] Email detectado:', userEmail || '(vacío)');
+      try { localStorage.setItem(EMAIL_KEY, userEmail); } catch(e) {}
 
       // Verificar rol en hoja USUARIOS
       await checkUserRole();
