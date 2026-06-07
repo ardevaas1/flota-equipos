@@ -130,41 +130,37 @@ function initOAuth() {
   });
 
   // Renueva silenciosamente el token 10 min antes de que expire
-  // prompt:'' es silencioso solo si Google tiene sesión activa en el navegador.
-  // El flag isRenewing evita que se acumulen múltiples intentos/popups.
+  // Usa login_hint con el email guardado para que GIS no muestre popup
   setInterval(() => {
-    if (isRenewing) return;                              // ya hay una renovación en curso
-    if (!accessToken) return;                            // sin sesión activa
-    if (tokenExpiry - Date.now() > 10 * 60 * 1000) return; // aún tiene más de 10 min
+    if (isRenewing) return;
+    if (!accessToken) return;
+    if (tokenExpiry - Date.now() > 10 * 60 * 1000) return;
 
     isRenewing = true;
     const prevCb = tokenClient.callback;
     tokenClient.callback = (response) => {
       tokenClient.callback = prevCb;
       isRenewing = false;
-      if (response.error) {
-        // Fallo silencioso — no abrir nada, simplemente esperar al próximo ciclo
-        // Solo si el token ya expiró del todo, dejar que ensureToken maneje el login
-        return;
-      }
+      if (response.error) { return; }
       saveToken(response.access_token, response.expires_in || 3600);
     };
-    tokenClient.requestAccessToken({ prompt: '' });
+    const hint = localStorage.getItem(EMAIL_KEY) || '';
+    tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
   }, 30 * 1000);
 }
 
 function signIn() {
   document.getElementById('login-hint').textContent = 'Conectando...';
   if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
-  const hadLogin = localStorage.getItem('lst_had_login');
-  // Primera vez: muestra pantalla de consentimiento con todos los permisos
-  // Veces siguientes: silencioso
-  // Forzar consent si no tenemos aún el scope drive
+  const hadLogin    = localStorage.getItem('lst_had_login');
   const hasAllScopes = localStorage.getItem('lst_has_drive_scope');
-  tokenClient.requestAccessToken({ 
-    prompt: (hadLogin && hasAllScopes) ? '' : 'consent',
-    include_granted_scopes: 'true'
-  });
+  const savedEmail  = localStorage.getItem(EMAIL_KEY) || '';
+  // Primera vez: consent para obtener todos los permisos
+  // Veces siguientes: silencioso con login_hint para evitar popup de cuenta
+  const opts = (hadLogin && hasAllScopes)
+    ? { prompt: '', login_hint: savedEmail }
+    : { prompt: 'consent', include_granted_scopes: 'true' };
+  tokenClient.requestAccessToken(opts);
 }
 
 // Asegura que haya token válido antes de llamar a la API
@@ -1626,14 +1622,17 @@ function enterApp() {
     }
   } catch(e) {}
 
-  // Si hay token válido, carga directo
+  // Si hay token válido en localStorage/sessionStorage, carga directo
   if (loadSavedToken()) {
     loadData();
     return;
   }
 
-  // Si ya hizo login antes, renueva silenciosamente con reintentos
+  // Si ya hizo login antes, renueva silenciosamente usando login_hint con el email guardado
+  // Esto evita el popup de selección de cuenta y funciona aunque no haya cookie de sesión
   const hadLogin = localStorage.getItem('lst_had_login');
+  const savedEmail = localStorage.getItem(EMAIL_KEY) || '';
+
   if (hadLogin) {
     let intentosInit = 0;
     function intentarSilencioso() {
@@ -1644,10 +1643,9 @@ function enterApp() {
           tokenClient.callback = prevCb;
           if (response.error) {
             if (intentosInit < 3 && response.error !== 'access_denied') {
-              // Reintento automático
               setTimeout(intentarSilencioso, 2000);
             } else {
-              // Solo ahora mostrar pantalla de login
+              // No se pudo renovar → mostrar login
               document.getElementById('splash').classList.add('hidden');
               document.getElementById('login-screen').classList.remove('hidden');
             }
@@ -1657,26 +1655,27 @@ function enterApp() {
           document.getElementById('login-screen').classList.add('hidden');
           // Restaurar rol desde localStorage (ya fue verificado en login anterior)
           try {
-            const savedRole  = localStorage.getItem(ROLE_KEY);
-            const savedEmail = localStorage.getItem(EMAIL_KEY);
-            if (savedRole) { userRole = savedRole; userEmail = savedEmail || ''; applyViewerMode(); }
+            const sr = localStorage.getItem(ROLE_KEY);
+            const se = localStorage.getItem(EMAIL_KEY);
+            if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); }
           } catch(e) {}
           loadData();
         };
-        tokenClient.requestAccessToken({ prompt: '' });
-      } else if (intentosInit < 5) {
-        // tokenClient aún no está listo, esperar más
-        setTimeout(intentarSilencioso, 600);
+        // login_hint le dice a GIS exactamente qué cuenta usar → sin popup
+        tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
+      } else if (intentosInit < 8) {
+        // tokenClient aún no está listo, esperar
+        setTimeout(intentarSilencioso, 500);
       } else {
         document.getElementById('splash').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
     }
-    setTimeout(intentarSilencioso, 600);
+    setTimeout(intentarSilencioso, 400);
     return;
   }
 
-  // Primera vez: OAuth con lstflota@gmail.com
+  // Primera vez: mostrar pantalla de login
   document.getElementById('splash').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
 }
