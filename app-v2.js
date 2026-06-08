@@ -933,10 +933,16 @@ function onFotoSelected(input) {
 }
 
 // ── Cargar datos ──────────────────────────────────────────────
-async function loadData() {
+async function loadData(background = false) {
   const btn = document.getElementById('refresh-btn');
   if (btn) btn.style.opacity = '0.4';
-  splash(10, 'Conectando con Google Sheets...');
+
+  // En modo background (refresh silencioso) no mostramos el splash grande
+  if (!background) {
+    splash(10, 'Conectando con Google Sheets...');
+  } else {
+    toast('Actualizando datos...');
+  }
 
   try {
     // Columnas A→W (índices 0→22)
@@ -945,7 +951,7 @@ async function loadData() {
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
     const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:T200`);
-    splash(70, 'Procesando equipos...');
+    if (!background) splash(70, 'Procesando equipos...');
 
     allEquipos = rows
       .filter(r => r[1] && r[1].toString().trim() && r[1].toString().trim().toUpperCase() !== 'EQUIPO')
@@ -973,18 +979,20 @@ async function loadData() {
         linkFicha:   r[19] || '',
       }));
 
-    splash(80, 'Cargando eventos...');
+    if (!background) splash(80, 'Cargando eventos...');
     await loadEventos();
 
-    splash(100, '¡Listo!');
+    if (!background) splash(100, '¡Listo!');
     renderDashboard();
     renderEquipos();
     renderAlertas();
     renderEventos();
-    setTimeout(() => {
-      hideSplash();
-      restoreState();
-    }, 300);
+    if (!background) {
+      setTimeout(() => {
+        hideSplash();
+        restoreState();
+      }, 300);
+    }
     toast('Datos actualizados ✓');
   } catch (e) {
     console.error(e);
@@ -1608,10 +1616,12 @@ function validarPin() {
 }
 
 function enterApp() {
-  document.getElementById('splash').classList.remove('hidden');
   initOAuth();
 
-  // Restaurar rol guardado mientras se renueva el token
+  // Estado base en el historial → el botón Back no saldrá de la app
+  history.replaceState({ lst: 'base' }, '');
+
+  // Restaurar rol guardado
   try {
     const savedRole  = localStorage.getItem(ROLE_KEY);
     const savedEmail = localStorage.getItem(EMAIL_KEY);
@@ -1622,18 +1632,23 @@ function enterApp() {
     }
   } catch(e) {}
 
-  // Si hay token válido en localStorage/sessionStorage, carga directo
+  const hadLogin   = localStorage.getItem('lst_had_login');
+  const savedEmail = localStorage.getItem(EMAIL_KEY) || '';
+
+  // ── Caso 1: token aún válido → splash normal + carga ──
   if (loadSavedToken()) {
+    document.getElementById('splash').classList.remove('hidden');
     loadData();
     return;
   }
 
-  // Si ya hizo login antes, renueva silenciosamente usando login_hint con el email guardado
-  // Esto evita el popup de selección de cuenta y funciona aunque no haya cookie de sesión
-  const hadLogin = localStorage.getItem('lst_had_login');
-  const savedEmail = localStorage.getItem(EMAIL_KEY) || '';
-
+  // ── Caso 2: ya hizo login antes → ir directo al main, renovar en background ──
+  // El usuario no ve ni splash ni login-screen al hacer refresh
   if (hadLogin) {
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+
     let intentosInit = 0;
     function intentarSilencioso() {
       intentosInit++;
@@ -1645,29 +1660,26 @@ function enterApp() {
             if (intentosInit < 3 && response.error !== 'access_denied') {
               setTimeout(intentarSilencioso, 2000);
             } else {
-              // No se pudo renovar → mostrar login
-              document.getElementById('splash').classList.add('hidden');
+              // Solo tras múltiples fallos ir al login
+              document.getElementById('main').classList.add('hidden');
               document.getElementById('login-screen').classList.remove('hidden');
             }
             return;
           }
           saveToken(response.access_token, response.expires_in || 3600);
-          document.getElementById('login-screen').classList.add('hidden');
-          // Restaurar rol desde localStorage (ya fue verificado en login anterior)
           try {
             const sr = localStorage.getItem(ROLE_KEY);
             const se = localStorage.getItem(EMAIL_KEY);
             if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); }
           } catch(e) {}
+          // Recargar datos frescos en background
           loadData();
         };
-        // login_hint le dice a GIS exactamente qué cuenta usar → sin popup
         tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
       } else if (intentosInit < 8) {
-        // tokenClient aún no está listo, esperar
         setTimeout(intentarSilencioso, 500);
       } else {
-        document.getElementById('splash').classList.add('hidden');
+        document.getElementById('main').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
     }
@@ -1675,7 +1687,7 @@ function enterApp() {
     return;
   }
 
-  // Primera vez: mostrar pantalla de login
+  // ── Caso 3: primera vez → mostrar login ──
   document.getElementById('splash').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
 }
@@ -1802,11 +1814,52 @@ async function testAppsScript() {
   }
 }
 
+// ── Interceptar refresh para no perder sesión ─────────────────
+// En móvil: bloquea el gesto pull-to-refresh del navegador.
+// En desktop: intercepta Ctrl+R / F5 y en vez de recargar llama loadData().
+// Esto evita que el token OAuth (en RAM) se pierda con cada refresh.
+
+// Bloquear pull-to-refresh en móvil (Chrome Android)
+let _touchStartY = 0;
+document.addEventListener('touchstart', (e) => {
+  _touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  // Solo bloquear si estamos en la app (no en login) y el scroll está al tope
+  const main = document.getElementById('main');
+  const inApp = main && !main.classList.contains('hidden');
+  if (!inApp) return;
+  const dy = e.touches[0].clientY - _touchStartY;
+  if (dy > 0 && window.scrollY === 0) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Interceptar Ctrl+R / F5 en desktop → recargar datos sin perder sesión
+document.addEventListener('keydown', (e) => {
+  const isRefresh = e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r');
+  if (!isRefresh) return;
+  const main = document.getElementById('main');
+  const inApp = main && !main.classList.contains('hidden');
+  if (!inApp) return;
+  e.preventDefault();
+  toast('Actualizando datos...');
+  loadData();
+});
+
 // ── Manejo del botón Back del navegador ──────────────────────
 // Cada vez que se abre un panel, empujamos un estado al historial.
 // Cuando el usuario presiona Back, cerramos el panel en vez de salir.
+// Un estado base ("app") queda siempre en el historial para que el primer
+// Back cierre el panel activo en vez de salir de la app.
 
 const _panelStack = [];
+
+// Empujar estado base al arrancar para "atrapar" el primer Back
+function _pushBaseState() {
+  history.replaceState({ lst: 'base' }, '');
+}
 
 const _origOpenPanel = openPanel;
 window.openPanel = function(id) {
@@ -1834,5 +1887,12 @@ window.addEventListener('popstate', (e) => {
   if (_panelStack.length > 0) {
     const id = _panelStack.pop();
     _origClosePanel(id);
+    // Si ya no quedan paneles, volver a empujar el estado base
+    if (_panelStack.length === 0) {
+      setTimeout(() => history.pushState({ lst: 'base' }, ''), 50);
+    }
+  } else {
+    // Sin paneles: re-empujar estado base para no salir de la app
+    setTimeout(() => history.pushState({ lst: 'base' }, ''), 50);
   }
 });
