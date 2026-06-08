@@ -7,6 +7,50 @@
 // ── Carpeta Drive exclusiva para fotos de Inventario & Containers ──
 const DRIVE_INV_FOLDER = '1VTFqBY-uF8vAapnsnnF2YvN8T5CUb52g';
 
+// ── Paneles secundarios de inventario (ocultan el FAB) ────────
+const INV_PANELES_SECUNDARIOS = [
+  'panel-inv-detalle','panel-inv-edit','panel-gen-evento',
+  'panel-cont-detalle','panel-cont-edit',
+  'panel-nuevo-inv','panel-nuevo-cont',
+];
+
+// Gestión de visibilidad del FAB según paneles abiertos
+function _invActualizarFab() {
+  const algunAbierto = INV_PANELES_SECUNDARIOS.some(id => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+  // FABs de inventario y containers
+  document.querySelectorAll('#mod-inventario .fab-btn, #mod-containers .fab-btn')
+    .forEach(fab => { fab.style.display = algunAbierto ? 'none' : ''; });
+}
+
+// Parchear openPanel y closePanel una sola vez al cargar
+(function _patchInvPanels() {
+  // Espera a que openPanel esté disponible (se define en app-v2.js)
+  const _patch = () => {
+    if (typeof openPanel !== 'function') { setTimeout(_patch, 50); return; }
+    if (window._invPanelPatched) return;
+    window._invPanelPatched = true;
+
+    const _origOpen  = openPanel;
+    const _origClose = typeof closePanel === 'function' ? closePanel : null;
+
+    window.openPanel = function(id) {
+      _origOpen(id);
+      if (INV_PANELES_SECUNDARIOS.includes(id)) _invActualizarFab();
+    };
+
+    if (_origClose) {
+      window.closePanel = function(id) {
+        _origClose(id);
+        if (INV_PANELES_SECUNDARIOS.includes(id)) setTimeout(_invActualizarFab, 50);
+      };
+    }
+  };
+  _patch();
+})();
+
 // ── Nombres de hojas (agregados a config.js via JS) ──────────
 const SHEET_GENERADORES  = 'GENERADORES';
 const SHEET_MAQ_MENOR    = 'MAQUINARIA MENOR';
@@ -612,7 +656,7 @@ async function invGuardar() {
     }
 
     toast('Guardado ✓');
-    _origClosePanel('panel-inv-edit');
+    _origClosePanel('panel-inv-edit'); setTimeout(_invActualizarFab, 50);
     const idx1 = _panelStack.lastIndexOf('panel-inv-edit');
     if (idx1 !== -1) _panelStack.splice(idx1, 1);
 
@@ -752,7 +796,7 @@ async function invGuardarEventoGen() {
 
     toast('Evento registrado ✓');
     _genEventoFotos = [];
-    _origClosePanel('panel-gen-evento');
+    _origClosePanel('panel-gen-evento'); setTimeout(_invActualizarFab, 50);
     const idx = _panelStack.lastIndexOf('panel-gen-evento');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -933,7 +977,7 @@ async function contGuardar() {
     }
 
     toast('Guardado ✓');
-    _origClosePanel('panel-cont-edit');
+    _origClosePanel('panel-cont-edit'); setTimeout(_invActualizarFab, 50);
     const idx = _panelStack.lastIndexOf('panel-cont-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -1078,7 +1122,7 @@ async function invGuardarNuevo() {
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
     toast('✓ Ítem agregado');
 
-    _origClosePanel('panel-nuevo-inv');
+    _origClosePanel('panel-nuevo-inv'); setTimeout(_invActualizarFab, 50);
     const idx = _panelStack.lastIndexOf('panel-nuevo-inv');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -1125,7 +1169,7 @@ async function contGuardarNuevo() {
     await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
 
-    _origClosePanel('panel-nuevo-cont');
+    _origClosePanel('panel-nuevo-cont'); setTimeout(_invActualizarFab, 50);
     const idx = _panelStack.lastIndexOf('panel-nuevo-cont');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
