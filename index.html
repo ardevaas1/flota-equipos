@@ -660,6 +660,8 @@
     <div class="pages" style="padding:0 14px 80px">
       <div id="inv-lista"></div>
     </div>
+    <!-- FAB agregar -->
+    <button class="fab-btn viewer-hidden" onclick="invAbrirNuevo()">＋</button>
   </div>
 
   <!-- ══ MÓDULO CONTAINERS ══ -->
@@ -692,6 +694,8 @@
     <div class="pages" style="padding:0 14px 80px">
       <div id="cont-lista"></div>
     </div>
+    <!-- FAB agregar -->
+    <button class="fab-btn viewer-hidden" onclick="contAbrirNuevo()">＋</button>
   </div>
 
   <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->
@@ -866,6 +870,118 @@
           <input type="file" accept="image/*" onchange="onContFotoSelected(this)" style="display:none">
         </label>
         <div id="cont-edit-foto-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Nuevo ítem Inventario ── -->
+  <div id="panel-nuevo-inv" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-nuevo-inv')">‹ Cancelar</button>
+      <span class="pnl-title">Agregar ítem</span>
+      <button class="pnl-action" onclick="invGuardarNuevo()">Agregar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="nuevo-modulo">
+      <input type="hidden" id="nuevo-num">
+
+      <div class="form-sec">Tipo de equipo</div>
+      <div class="form-group">
+        <label>Equipo *</label>
+        <select id="nuevo-equipo"></select>
+      </div>
+
+      <div class="form-sec">Descripción</div>
+      <div class="form-group">
+        <label>Marca</label>
+        <input type="text" id="nuevo-marca" placeholder="Ej: MAKITA, BOSCH, HONDA...">
+      </div>
+      <div class="form-group">
+        <label>Modelo</label>
+        <input type="text" id="nuevo-modelo" placeholder="Ej: HM0810T">
+      </div>
+
+      <div id="nuevo-codigo-row" class="form-group" style="display:none">
+        <label>Código</label>
+        <input type="text" id="nuevo-codigo" placeholder="Ej: GEN-06">
+      </div>
+      <div id="nuevo-potencia-row" class="form-group" style="display:none">
+        <label>Potencia (KVA)</label>
+        <input type="text" id="nuevo-potencia" placeholder="Ej: 100 KVA">
+      </div>
+
+      <div class="form-sec">Estado y ubicación</div>
+      <div class="form-group">
+        <label>Estado *</label>
+        <select id="nuevo-estado">
+          <option value="OPERATIVO">OPERATIVO</option>
+          <option value="OPERATIVO (CON OBSERVACIONES)">OPERATIVO (CON OBSERVACIONES)</option>
+          <option value="REVISAR">REVISAR</option>
+          <option value="EN REVISIÓN">EN REVISIÓN</option>
+          <option value="MALO">MALO</option>
+          <option value="NUEVO">NUEVO</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ubicación</label>
+        <input type="text" id="nuevo-ubicacion" placeholder="Ej: Colima, Freire, Andes...">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Nuevo Container ── -->
+  <div id="panel-nuevo-cont" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-nuevo-cont')">‹ Cancelar</button>
+      <span class="pnl-title">Agregar container</span>
+      <button class="pnl-action" onclick="contGuardarNuevo()">Agregar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="cont-nuevo-num">
+
+      <div class="form-sec">Tipo</div>
+      <div class="form-group">
+        <label>Tipo de módulo *</label>
+        <select id="cont-nuevo-tipo">
+          <option value="OFICINA">OFICINA</option>
+          <option value="BODEGA">BODEGA</option>
+          <option value="BAÑO">BAÑO</option>
+          <option value="OTRO">OTRO</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Medidas</label>
+        <select id="cont-nuevo-medidas">
+          <option value="6 METROS">6 METROS</option>
+          <option value="6 METROS (CORTADO)">6 METROS (CORTADO)</option>
+          <option value="12 METROS">12 METROS</option>
+          <option value="OTRO">OTRO</option>
+        </select>
+      </div>
+
+      <div class="form-sec">Estado y ubicación</div>
+      <div class="form-group">
+        <label>Estado de conservación *</label>
+        <select id="cont-nuevo-estado">
+          <option value="REGULAR">REGULAR</option>
+          <option value="BUENO">BUENO</option>
+          <option value="INCOMPLETO">INCOMPLETO</option>
+          <option value="MALO">MALO</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ubicación</label>
+        <input type="text" id="cont-nuevo-ubicacion" placeholder="Ej: Colima, Barros Arana...">
+      </div>
+
+      <div class="form-sec">Detalles opcionales</div>
+      <div class="form-group">
+        <label>Equipamiento interno</label>
+        <input type="text" id="cont-nuevo-equip" placeholder="Ej: A/C, Baños...">
+      </div>
+      <div class="form-group">
+        <label>Observaciones</label>
+        <textarea id="cont-nuevo-obs" placeholder="Notas, pendientes..."></textarea>
       </div>
     </div>
   </div>

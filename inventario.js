@@ -882,3 +882,134 @@ function volverAInicio() {
   document.getElementById('main').classList.add('hidden');
   document.getElementById('modulos-home').classList.remove('hidden');
 }
+
+// ══ AGREGAR NUEVO ÍTEM ══════════════════════════════════════
+
+// Tipos predefinidos por módulo (para el select de equipo)
+const TIPOS_MAQ_MENOR = ['SOPLADOR','VIBROAPISONADOR','ASPIRADORA','TURBOCALEFACTOR','COMPRESOR','HIDROLAVADORA','CORTADORA DE ASFALTO','MOTOBOMBA','BOMBA SUMERGIBLE','PLACA COMPACTADORA','BETONERA','UNIDAD MOTRIZ','RODILLO','OTRO'];
+const TIPOS_HERRAMIENTA = ['DEMOLEDOR 5 KILOS','DEMOLEDOR 10 KILOS','DEMOLEDOR 9 KILOS','ESMERIL 5"','ESMERIL 7"','TALADRO PERCUTOR','PISTOLA IMPACTO','PULIDORA HORMIGÓN','TEODOLITO','OTRO'];
+const TIPOS_GENERADOR = ['GENERADOR'];
+const TIPOS_CONTAINER = ['OFICINA','BODEGA','BAÑO','OTRO'];
+
+function invAbrirNuevo() {
+  const mod = invModulo;
+  const tipos = mod === 'generadores' ? TIPOS_GENERADOR
+              : mod === 'maqmenor'    ? TIPOS_MAQ_MENOR
+              : TIPOS_HERRAMIENTA;
+
+  // Poblar select de tipo
+  const sel = document.getElementById('nuevo-equipo');
+  sel.innerHTML = tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  // Mostrar/ocultar campo código (solo generadores)
+  document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
+  document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
+
+  // Limpiar campos
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-codigo','nuevo-potencia'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('nuevo-estado').value = 'OPERATIVO';
+  document.getElementById('nuevo-modulo').value = mod;
+
+  // Calcular número siguiente
+  const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const nextNum = datos.length > 0 ? Math.max(...datos.map(i => parseInt(i.num)||0)) + 1 : 1;
+  document.getElementById('nuevo-num').value = nextNum;
+
+  openPanel('panel-nuevo-inv');
+}
+
+async function invGuardarNuevo() {
+  const mod      = document.getElementById('nuevo-modulo').value;
+  const num      = document.getElementById('nuevo-num').value;
+  const equipo   = document.getElementById('nuevo-equipo').value;
+  const marca    = document.getElementById('nuevo-marca').value.trim().toUpperCase();
+  const modelo   = document.getElementById('nuevo-modelo').value.trim().toUpperCase();
+  const estado   = document.getElementById('nuevo-estado').value;
+  const ubicacion= document.getElementById('nuevo-ubicacion').value.trim().toUpperCase();
+  const codigo   = document.getElementById('nuevo-codigo').value.trim().toUpperCase();
+  const potencia = document.getElementById('nuevo-potencia').value.trim().toUpperCase();
+
+  if (!equipo || !estado) { toast('Completa los campos obligatorios', 'error'); return; }
+
+  const btn = document.querySelector('#panel-nuevo-inv .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    let sheetName, fila;
+    if (mod === 'generadores') {
+      // Cols: A=N° B=EQUIPO C=CODIGO D=MARCA E=MODELO F=AÑO G=COLOR H=POTENCIA I=ESTADO J=UBICACION N=OBS
+      sheetName = SHEET_GENERADORES;
+      fila = [num, equipo, codigo, marca, modelo, '', '', potencia, estado, ubicacion, '', '', '', ''];
+    } else if (mod === 'maqmenor') {
+      // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
+      sheetName = SHEET_MAQ_MENOR;
+      fila = [num, equipo, '', marca, modelo, '', '', estado, ubicacion, ''];
+    } else {
+      // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION
+      sheetName = SHEET_HERRAMIENTAS;
+      fila = [num, equipo, '', marca, modelo, '', '', estado, ubicacion, '', '', '', ''];
+    }
+
+    await appendSheet(`'${sheetName}'!A:Z`, [fila]);
+    toast('✓ Ítem agregado');
+
+    _origClosePanel('panel-nuevo-inv');
+    const idx = _panelStack.lastIndexOf('panel-nuevo-inv');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+    await loadInventario();
+    renderInvLista();
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+  }
+}
+
+// ── Nuevo Container ───────────────────────────────────────────
+function contAbrirNuevo() {
+  ['cont-nuevo-ubicacion','cont-nuevo-equip','cont-nuevo-obs'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('cont-nuevo-tipo').value   = 'OFICINA';
+  document.getElementById('cont-nuevo-estado').value = 'REGULAR';
+  document.getElementById('cont-nuevo-medidas').value= '6 METROS';
+
+  const nextNum = allContainers.length > 0 ? Math.max(...allContainers.map(i => parseInt(i.num)||0)) + 1 : 1;
+  document.getElementById('cont-nuevo-num').value = nextNum;
+
+  openPanel('panel-nuevo-cont');
+}
+
+async function contGuardarNuevo() {
+  const num      = document.getElementById('cont-nuevo-num').value;
+  const tipo     = document.getElementById('cont-nuevo-tipo').value;
+  const medidas  = document.getElementById('cont-nuevo-medidas').value.trim().toUpperCase();
+  const estado   = document.getElementById('cont-nuevo-estado').value;
+  const ubicacion= document.getElementById('cont-nuevo-ubicacion').value.trim().toUpperCase();
+  const equip    = document.getElementById('cont-nuevo-equip').value.trim();
+  const obs      = document.getElementById('cont-nuevo-obs').value.trim();
+
+  if (!tipo || !estado) { toast('Completa los campos obligatorios', 'error'); return; }
+
+  const btn = document.querySelector('#panel-nuevo-cont .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
+    const fila = [num, tipo, '', medidas, estado, '', ubicacion, '-', equip || '-', obs];
+    await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
+    toast('✓ Container agregado');
+
+    _origClosePanel('panel-nuevo-cont');
+    const idx = _panelStack.lastIndexOf('panel-nuevo-cont');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+    await loadInventario();
+    renderContainers();
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+  }
+}

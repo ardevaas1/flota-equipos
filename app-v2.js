@@ -1197,13 +1197,39 @@ function openFicha(patente) {
     </div>
 
     ${fichaBtn}
+    <a class="ficha-link-btn" onclick="abrirCarpetaDrive('${e.patente}')" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5">
+      📁 Abrir carpeta en Drive
+    </a>
     <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px">✏️ Editar información</button>
   `;
 
   openPanel('panel-ficha');
 }
 
-// ── Abrir documento desde Drive ──────────────────────────────
+// ── Abrir carpeta Drive de un equipo ─────────────────────────
+async function abrirCarpetaDrive(patente) {
+  toast('Buscando carpeta en Drive...');
+  try {
+    await ensureToken();
+    // Buscar carpeta con nombre igual a la patente dentro de DRIVE_ROOT_FOLDER
+    const q = `mimeType='application/vnd.google-apps.folder' and name='${patente}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      const folderId = data.files[0].id;
+      window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
+    } else {
+      // Carpeta no existe aún — abrir la raíz
+      toast('Carpeta no encontrada, abriendo carpeta raíz...', 'warn');
+      window.open(`https://drive.google.com/drive/folders/${CONFIG.DRIVE_ROOT_FOLDER}`, '_blank');
+    }
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
 async function openDocDrive(patente, prefix) {
   toast('Buscando documento en Drive...');
   try {
@@ -1825,22 +1851,61 @@ async function testAppsScript() {
 // ── Interceptar refresh para no perder sesión ─────────────────
 // En móvil: bloquea el gesto pull-to-refresh del navegador.
 // En desktop: intercepta Ctrl+R / F5 y en vez de recargar llama loadData().
-// Esto evita que el token OAuth (en RAM) se pierda con cada refresh.
 
-// Bloquear pull-to-refresh en móvil (Chrome Android)
+// Fix scroll Android Chrome: el problema es que overscroll-behavior
+// debe estar en el elemento que scrollea, no en body/html.
+// Además prevenimos pull-to-refresh solo cuando el dedo va hacia abajo
+// y el elemento scrolleable está al tope.
+document.addEventListener('DOMContentLoaded', () => {
+  // Aplicar overscroll-behavior: contain a todos los contenedores scrolleables
+  // Esto evita que el scroll "se pegue" al llegar al fondo
+  const style = document.createElement('style');
+  style.textContent = `
+    .panel-body, .pages, .panel, .ficha-body {
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    body, html {
+      overscroll-behavior-y: none;
+    }
+  `;
+  document.head.appendChild(style);
+});
+
 let _touchStartY = 0;
+let _touchTarget  = null;
+
 document.addEventListener('touchstart', (e) => {
   _touchStartY = e.touches[0].clientY;
+  _touchTarget  = e.target;
 }, { passive: true });
 
 document.addEventListener('touchmove', (e) => {
-  // Solo bloquear si estamos en la app (no en login) y el scroll está al tope
-  const main = document.getElementById('main');
-  const inApp = main && !main.classList.contains('hidden');
-  if (!inApp) return;
+  // Solo bloquear pull-to-refresh, nunca bloquear scroll normal dentro de paneles
   const dy = e.touches[0].clientY - _touchStartY;
-  if (dy > 0 && window.scrollY === 0) {
-    e.preventDefault();
+
+  // Si el dedo va hacia abajo (dy > 0), verificar si el elemento que scrollea
+  // está en el tope — en ese caso bloquear el pull-to-refresh
+  if (dy > 0) {
+    // Buscar el ancestro scrolleable más cercano
+    let el = _touchTarget;
+    let scrollable = null;
+    while (el && el !== document.body) {
+      const st = window.getComputedStyle(el);
+      const overflow = st.overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight) {
+        scrollable = el;
+        break;
+      }
+      el = el.parentElement;
+    }
+    // Solo bloquear si no hay elemento scrolleable (o está en el tope y es el window)
+    if (!scrollable && window.scrollY === 0) {
+      e.preventDefault();
+    } else if (scrollable && scrollable.scrollTop === 0) {
+      e.preventDefault();
+    }
+    // Si scrollable.scrollTop > 0, dejar pasar (el usuario está scrolleando hacia arriba)
   }
 }, { passive: false });
 
@@ -1848,8 +1913,7 @@ document.addEventListener('touchmove', (e) => {
 document.addEventListener('keydown', (e) => {
   const isRefresh = e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r');
   if (!isRefresh) return;
-  const main = document.getElementById('main');
-  const inApp = main && !main.classList.contains('hidden');
+  const inApp = !document.getElementById('login-screen') || document.getElementById('login-screen').classList.contains('hidden');
   if (!inApp) return;
   e.preventDefault();
   toast('Actualizando datos...');

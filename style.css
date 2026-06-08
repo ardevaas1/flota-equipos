@@ -685,3 +685,20 @@ input, select, textarea { font-family: inherit; }
 .inv-stat.amber .inv-stat-n { color: #e65100; }
 .inv-stat.red   .inv-stat-n { color: #c62828; }
 .inv-stat.blue  .inv-stat-n { color: #1565c0; }
+
+/* ══ FAB BUTTON ══ */
+.fab-btn {
+  position: fixed;
+  bottom: 24px; right: 20px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: #4a8fc1;
+  color: #fff;
+  font-size: 28px; line-height: 1;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(74,143,193,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 80;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.fab-btn:active { transform: scale(0.93); box-shadow: 0 2px 6px rgba(74,143,193,0.3); }
