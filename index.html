@@ -585,12 +585,298 @@
     </div>
   </div>
 
+  <!-- ══ PANTALLA INICIO MÓDULOS ══ -->
+  <div id="modulos-home" class="modulos-home hidden">
+    <div class="modulos-header">
+      <img src="logo.png" class="modulos-logo" alt="LST">
+      <div class="modulos-title">Constructora LST</div>
+      <div class="modulos-sub">Gestión de Recursos</div>
+    </div>
+    <div class="modulos-lista">
+      <div class="modulo-card" onclick="irAModulo('flota')">
+        <div class="modulo-icon">🚛</div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Flota &amp; Maquinaria</div>
+          <div class="modulo-desc">Vehículos y maquinaria pesada</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
+      <div class="modulo-card" onclick="irAModulo('generadores')">
+        <div class="modulo-icon">⚡</div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Inventario</div>
+          <div class="modulo-desc">Generadores · Maq. Menor · Herramientas</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
+      <div class="modulo-card" onclick="irAModulo('containers')">
+        <div class="modulo-icon">📦</div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Containers</div>
+          <div class="modulo-desc">Módulos, oficinas y bodegas</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:16px 0">
+      <button class="header-btn" onclick="loadData()" style="margin:0 auto;display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:13px;background:#f0f4f8;color:#4a8fc1">↻ Actualizar datos</button>
+    </div>
+  </div>
+
+  <!-- ══ MÓDULO INVENTARIO ══ -->
+  <div id="mod-inventario" class="main hidden">
+    <header class="header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+      <div class="header-center">
+        <div class="header-title" id="inv-titulo">Inventario</div>
+        <div class="header-sub">Constructora LST</div>
+      </div>
+      <button class="header-btn" onclick="loadData()" id="inv-refresh-btn">↻</button>
+    </header>
+
+    <!-- Tabs -->
+    <div class="inv-tabs">
+      <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')">⚡ Generadores</button>
+      <button class="inv-tab" id="inv-tab-maqmenor" onclick="invSetModulo('maqmenor')">🔧 Maq. Menor</button>
+      <button class="inv-tab" id="inv-tab-herramientas" onclick="invSetModulo('herramientas')">🛠️ Herramientas</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="inv-stats">
+      <div class="inv-stat green"><div class="inv-stat-n" id="inv-stat-op">—</div><div class="inv-stat-l">Operativos</div></div>
+      <div class="inv-stat amber"><div class="inv-stat-n" id="inv-stat-rev">—</div><div class="inv-stat-l">Revisar</div></div>
+      <div class="inv-stat red"><div class="inv-stat-n" id="inv-stat-mal">—</div><div class="inv-stat-l">Malos</div></div>
+    </div>
+
+    <!-- Búsqueda -->
+    <div style="padding:0 14px 8px">
+      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+        <span class="search-ic">🔍</span>
+        <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="renderInvLista()" style="flex:1;border:none;outline:none;font-size:14px">
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div class="pages" style="padding:0 14px 80px">
+      <div id="inv-lista"></div>
+    </div>
+  </div>
+
+  <!-- ══ MÓDULO CONTAINERS ══ -->
+  <div id="mod-containers" class="main hidden">
+    <header class="header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+      <div class="header-center">
+        <div class="header-title">Containers</div>
+        <div class="header-sub">Constructora LST</div>
+      </div>
+      <button class="header-btn" onclick="loadData()">↻</button>
+    </header>
+
+    <!-- Stats -->
+    <div class="inv-stats">
+      <div class="inv-stat blue"><div class="inv-stat-n" id="cont-stat-total">—</div><div class="inv-stat-l">Total</div></div>
+      <div class="inv-stat amber"><div class="inv-stat-n" id="cont-stat-bodega">—</div><div class="inv-stat-l">Bodegas</div></div>
+      <div class="inv-stat green"><div class="inv-stat-n" id="cont-stat-oficina">—</div><div class="inv-stat-l">Oficinas</div></div>
+    </div>
+
+    <!-- Búsqueda -->
+    <div style="padding:0 14px 8px">
+      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+        <span class="search-ic">🔍</span>
+        <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="renderContainers()" style="flex:1;border:none;outline:none;font-size:14px">
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div class="pages" style="padding:0 14px 80px">
+      <div id="cont-lista"></div>
+    </div>
+  </div>
+
+  <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->
+  <div id="mod-flota" class="hidden">
+    <!-- El #main ya existe y se maneja por app-v2.js -->
+  </div>
+
+  <!-- ── Panel: Detalle Inventario ── -->
+  <div id="panel-inv-detalle" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-inv-detalle')">‹ Volver</button>
+      <span class="pnl-title">Detalle</span>
+      <span></span>
+    </div>
+    <div class="panel-body" id="inv-detalle-body"></div>
+  </div>
+
+  <!-- ── Panel: Editar Inventario ── -->
+  <div id="panel-inv-edit" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-inv-edit')">‹ Cancelar</button>
+      <span class="pnl-title">Editar</span>
+      <button class="pnl-action" onclick="invGuardar()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="inv-edit-row">
+      <input type="hidden" id="inv-edit-modulo">
+
+      <div class="form-sec">Estado operativo</div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="inv-edit-estado">
+          <option value="OPERATIVO">OPERATIVO</option>
+          <option value="OPERATIVO (CON OBSERVACIONES)">OPERATIVO (CON OBSERVACIONES)</option>
+          <option value="EN REVISIÓN">EN REVISIÓN</option>
+          <option value="REVISAR">REVISAR</option>
+          <option value="MALO">MALO</option>
+          <option value="MALA">MALA</option>
+          <option value="NUEVO">NUEVO</option>
+        </select>
+      </div>
+
+      <div class="form-sec">Ubicación</div>
+      <div class="form-group">
+        <label>Ubicación actual</label>
+        <input type="text" id="inv-edit-ubicacion" placeholder="Ej: Colima, Freire, Andes...">
+      </div>
+
+      <div class="form-sec">Observaciones</div>
+      <div class="form-group">
+        <label>Observaciones</label>
+        <textarea id="inv-edit-obs" placeholder="Fallas, pendientes, notas..."></textarea>
+      </div>
+
+      <div class="form-sec">Foto de referencia</div>
+      <div class="form-group">
+        <label class="doc-file-label" style="width:100%;justify-content:center">
+          📷 Cambiar foto de referencia
+          <input type="file" accept="image/*" onchange="onInvFotoSelected(this)" style="display:none">
+        </label>
+        <div id="inv-edit-foto-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Evento Generador ── -->
+  <div id="panel-gen-evento" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-gen-evento')">‹ Cancelar</button>
+      <span class="pnl-title">Registrar evento</span>
+      <button class="pnl-action" onclick="invGuardarEventoGen()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="gen-evento-codigo">
+      <div class="form-group">
+        <label>Generador</label>
+        <div id="gen-evento-nombre" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+      </div>
+      <div class="form-group">
+        <label>Tipo de evento</label>
+        <select id="gen-evento-tipo">
+          <option value="Mantención preventiva">🔧 Mantención preventiva</option>
+          <option value="Reparación">🔨 Reparación</option>
+          <option value="Falla">⚠️ Falla</option>
+          <option value="Inspección">📋 Inspección</option>
+          <option value="Otro">🔩 Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha del evento</label>
+        <input type="date" id="gen-evento-fecha">
+      </div>
+      <div class="form-group">
+        <label>Horómetro actual (horas)</label>
+        <input type="number" id="gen-evento-horometro" placeholder="Ej: 12500">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea id="gen-evento-obs" placeholder="Detalle lo ocurrido o realizado..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>📷 Fotos (opcional)</label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir fotos
+            <input type="file" accept="image/*" multiple onchange="onGenEventoFotosSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onGenEventoFotosSelected(this)" style="display:none">
+          </label>
+        </div>
+        <div id="gen-evento-fotos-count" class="fotos-count"></div>
+        <div id="gen-evento-fotos-preview" class="fotos-preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Detalle Container ── -->
+  <div id="panel-cont-detalle" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-cont-detalle')">‹ Volver</button>
+      <span class="pnl-title">Container</span>
+      <span></span>
+    </div>
+    <div class="panel-body" id="cont-detalle-body"></div>
+  </div>
+
+  <!-- ── Panel: Editar Container ── -->
+  <div id="panel-cont-edit" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-cont-edit')">‹ Cancelar</button>
+      <span class="pnl-title">Editar container</span>
+      <button class="pnl-action" onclick="contGuardar()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="cont-edit-row">
+
+      <div class="form-sec">Estado de conservación</div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="cont-edit-estado">
+          <option value="REGULAR">REGULAR</option>
+          <option value="BUENO">BUENO</option>
+          <option value="INCOMPLETO">INCOMPLETO</option>
+          <option value="MALO">MALO</option>
+        </select>
+      </div>
+
+      <div class="form-sec">Ubicación</div>
+      <div class="form-group">
+        <label>Ubicación actual</label>
+        <input type="text" id="cont-edit-ubicacion" placeholder="Ej: Colima, Barros Arana...">
+      </div>
+
+      <div class="form-sec">Equipamiento</div>
+      <div class="form-group">
+        <label>Equipamiento interno</label>
+        <input type="text" id="cont-edit-equip" placeholder="Ej: A/C, Baños...">
+      </div>
+
+      <div class="form-sec">Observaciones</div>
+      <div class="form-group">
+        <label>Observaciones</label>
+        <textarea id="cont-edit-obs" placeholder="Notas, pendientes..."></textarea>
+      </div>
+
+      <div class="form-sec">Foto de referencia</div>
+      <div class="form-group">
+        <label class="doc-file-label" style="width:100%;justify-content:center">
+          📷 Cambiar foto de referencia
+          <input type="file" accept="image/*" onchange="onContFotoSelected(this)" style="display:none">
+        </label>
+        <div id="cont-edit-foto-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 </div>
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="config.js"></script>
 <script src="app-v2.js"></script>
+<script src="inventario.js"></script>
 <script>
 // ══ DESKTOP LAYOUT JS ════════════════════════════════════════════
 

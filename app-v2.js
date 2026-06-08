@@ -422,7 +422,8 @@ function hideSplash() {
   el.style.transition = 'opacity 0.4s';
   setTimeout(() => {
     el.classList.add('hidden');
-    document.getElementById('main').classList.remove('hidden');
+    // Mostrar pantalla de módulos en vez de ir directo al main
+    document.getElementById('modulos-home').classList.remove('hidden');
   }, 400);
 }
 
@@ -982,11 +983,17 @@ async function loadData(background = false) {
     if (!background) splash(80, 'Cargando eventos...');
     await loadEventos();
 
+    if (!background) splash(90, 'Cargando inventario...');
+    await loadInventario();
+
     if (!background) splash(100, '¡Listo!');
     renderDashboard();
     renderEquipos();
     renderAlertas();
     renderEventos();
+    // Refrescar vistas de inventario/containers si están visibles
+    if (typeof renderInvLista === 'function') renderInvLista();
+    if (typeof renderContainers === 'function') renderContainers();
     if (!background) {
       setTimeout(() => {
         hideSplash();
@@ -1642,12 +1649,11 @@ function enterApp() {
     return;
   }
 
-  // ── Caso 2: ya hizo login antes → ir directo al main, renovar en background ──
-  // El usuario no ve ni splash ni login-screen al hacer refresh
+  // ── Caso 2: ya hizo login antes → ir directo a módulos, renovar en background ──
   if (hadLogin) {
     document.getElementById('splash').classList.add('hidden');
     document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main').classList.remove('hidden');
+    document.getElementById('modulos-home').classList.remove('hidden');
 
     let intentosInit = 0;
     function intentarSilencioso() {
@@ -1661,6 +1667,7 @@ function enterApp() {
               setTimeout(intentarSilencioso, 2000);
             } else {
               // Solo tras múltiples fallos ir al login
+              document.getElementById('modulos-home').classList.add('hidden');
               document.getElementById('main').classList.add('hidden');
               document.getElementById('login-screen').classList.remove('hidden');
             }
@@ -1679,6 +1686,7 @@ function enterApp() {
       } else if (intentosInit < 8) {
         setTimeout(intentarSilencioso, 500);
       } else {
+        document.getElementById('modulos-home').classList.add('hidden');
         document.getElementById('main').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }

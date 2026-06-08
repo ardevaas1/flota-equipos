@@ -631,3 +631,57 @@ input, select, textarea { font-family: inherit; }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
 }
+
+/* ══ PANTALLA MÓDULOS ══ */
+.modulos-home {
+  position: fixed; inset: 0; z-index: 100;
+  background: #f4f5f7;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.modulos-header {
+  background: #fff; border-bottom: 1px solid #e8eaed;
+  padding: 24px 20px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.modulos-logo { height: 52px; width: auto; object-fit: contain; margin-bottom: 4px; }
+.modulos-title { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+.modulos-sub { font-size: 12px; color: #5a5f6e; }
+.modulos-lista { padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.modulo-card {
+  background: #fff; border-radius: 16px; border: 1px solid #e8eaed;
+  padding: 18px 16px; display: flex; align-items: center; gap: 14px;
+  cursor: pointer; transition: box-shadow 0.15s, transform 0.1s;
+}
+.modulo-card:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.modulo-icon { font-size: 32px; flex-shrink: 0; width: 48px; text-align: center; }
+.modulo-info { flex: 1; }
+.modulo-nombre { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+.modulo-desc { font-size: 12px; color: #777; margin-top: 3px; }
+.modulo-arrow { font-size: 22px; color: #ccc; flex-shrink: 0; }
+
+/* ══ INVENTARIO TABS ══ */
+.inv-tabs {
+  display: flex; gap: 0; background: #fff; border-bottom: 1px solid #e8eaed;
+  overflow-x: auto; flex-shrink: 0;
+}
+.inv-tabs::-webkit-scrollbar { display: none; }
+.inv-tab {
+  padding: 10px 14px; font-size: 13px; font-weight: 600; color: #888;
+  white-space: nowrap; border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.inv-tab.active { color: #4a8fc1; border-bottom-color: #4a8fc1; }
+
+/* ══ INVENTARIO STATS ══ */
+.inv-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  padding: 12px 14px 4px; flex-shrink: 0;
+}
+.inv-stat { background: #fff; border-radius: 10px; padding: 10px 6px; text-align: center; border: 1px solid #e8eaed; }
+.inv-stat-n { font-size: 22px; font-weight: 700; line-height: 1; }
+.inv-stat-l { font-size: 10px; color: #888; margin-top: 3px; font-weight: 500; }
+.inv-stat.green .inv-stat-n { color: #2e7d32; }
+.inv-stat.amber .inv-stat-n { color: #e65100; }
+.inv-stat.red   .inv-stat-n { color: #c62828; }
+.inv-stat.blue  .inv-stat-n { color: #1565c0; }
