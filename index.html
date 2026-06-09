@@ -625,7 +625,57 @@
 
   <!-- ══ MÓDULO INVENTARIO ══ -->
   <div id="mod-inventario" class="main hidden">
-    <header class="header">
+
+    <!-- SIDEBAR DESKTOP (oculto en móvil via JS) -->
+    <div class="inv-desktop-sidebar" id="inv-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top">
+        <img src="logo.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Inventario</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div class="inv-desktop-stats" id="inv-desktop-stats-wrap">
+        <div class="inv-desktop-stat green">
+          <div class="inv-desktop-stat-n" id="inv-dt-stat-op">—</div>
+          <div class="inv-desktop-stat-l">Operativos</div>
+        </div>
+        <div class="inv-desktop-stat amber">
+          <div class="inv-desktop-stat-n" id="inv-dt-stat-rev">—</div>
+          <div class="inv-desktop-stat-l">Revisar</div>
+        </div>
+        <div class="inv-desktop-stat red" style="grid-column:1/-1">
+          <div class="inv-desktop-stat-n" id="inv-dt-stat-mal">—</div>
+          <div class="inv-desktop-stat-l">Malos</div>
+        </div>
+      </div>
+      <div class="inv-desktop-tabs">
+        <button class="inv-desktop-tab active" id="inv-dt-tab-generadores" onclick="invSetModulo('generadores')">⚡ Generadores</button>
+        <button class="inv-desktop-tab" id="inv-dt-tab-maqmenor"    onclick="invSetModulo('maqmenor')">🔧 Maq. Menor</button>
+        <button class="inv-desktop-tab" id="inv-dt-tab-herramientas" onclick="invSetModulo('herramientas')">🛠️ Herramientas</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="inv-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title" id="inv-dt-titulo">Generadores</div>
+        <div class="inv-desktop-search">
+          <span>🔍</span>
+          <input type="text" id="inv-dt-search" placeholder="Buscar equipo, marca, ubicación..." oninput="invSyncSearch()">
+        </div>
+      </div>
+      <div class="inv-desktop-list">
+        <div id="inv-dt-lista"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL (oculto en desktop) -->
+    <header class="header" id="inv-mobile-header">
       <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
       <div class="header-center">
         <div class="header-title" id="inv-titulo">Inventario</div>
@@ -633,40 +683,82 @@
       </div>
       <button class="header-btn" onclick="loadData()" id="inv-refresh-btn">↻</button>
     </header>
-
-    <!-- Tabs -->
-    <div class="inv-tabs">
+    <div class="inv-tabs" id="inv-mobile-tabs">
       <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')">⚡ Generadores</button>
       <button class="inv-tab" id="inv-tab-maqmenor" onclick="invSetModulo('maqmenor')">🔧 Maq. Menor</button>
       <button class="inv-tab" id="inv-tab-herramientas" onclick="invSetModulo('herramientas')">🛠️ Herramientas</button>
     </div>
-
-    <!-- Stats -->
-    <div class="inv-stats">
+    <div class="inv-stats" id="inv-mobile-stats">
       <div class="inv-stat green"><div class="inv-stat-n" id="inv-stat-op">—</div><div class="inv-stat-l">Operativos</div></div>
       <div class="inv-stat amber"><div class="inv-stat-n" id="inv-stat-rev">—</div><div class="inv-stat-l">Revisar</div></div>
       <div class="inv-stat red"><div class="inv-stat-n" id="inv-stat-mal">—</div><div class="inv-stat-l">Malos</div></div>
     </div>
-
-    <!-- Búsqueda -->
-    <div style="padding:0 14px 8px">
+    <div style="padding:0 14px 8px" id="inv-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
         <span class="search-ic">🔍</span>
         <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="renderInvLista()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
     </div>
-
-    <!-- Lista -->
-    <div class="pages" style="padding:0 14px 80px">
+    <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
       <div id="inv-lista"></div>
     </div>
+
     <!-- FAB agregar -->
     <button class="fab-btn viewer-hidden" onclick="invAbrirNuevo()">＋</button>
   </div>
 
   <!-- ══ MÓDULO CONTAINERS ══ -->
   <div id="mod-containers" class="main hidden">
-    <header class="header">
+
+    <!-- SIDEBAR DESKTOP -->
+    <div class="inv-desktop-sidebar" id="cont-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top">
+        <img src="logo.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Containers</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div class="inv-desktop-stats cols-1" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="inv-desktop-stat blue">
+          <div class="inv-desktop-stat-n" id="cont-dt-stat-total">—</div>
+          <div class="inv-desktop-stat-l">Total</div>
+        </div>
+        <div class="inv-desktop-stat amber">
+          <div class="inv-desktop-stat-n" id="cont-dt-stat-bodega">—</div>
+          <div class="inv-desktop-stat-l">Bodegas</div>
+        </div>
+        <div class="inv-desktop-stat green">
+          <div class="inv-desktop-stat-n" id="cont-dt-stat-oficina">—</div>
+          <div class="inv-desktop-stat-l">Oficinas</div>
+        </div>
+      </div>
+      <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
+        <div style="padding:0 20px;font-size:11px;font-weight:700;color:#5a5f6e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
+        <button class="inv-desktop-tab active" style="cursor:default">📦 Todos los containers</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="cont-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title">Containers</div>
+        <div class="inv-desktop-search">
+          <span>🔍</span>
+          <input type="text" id="cont-dt-search" placeholder="Buscar tipo, ubicación..." oninput="contSyncSearch()">
+        </div>
+      </div>
+      <div class="inv-desktop-list">
+        <div id="cont-dt-lista"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL -->
+    <header class="header" id="cont-mobile-header">
       <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
       <div class="header-center">
         <div class="header-title">Containers</div>
@@ -674,26 +766,21 @@
       </div>
       <button class="header-btn" onclick="loadData()">↻</button>
     </header>
-
-    <!-- Stats -->
-    <div class="inv-stats">
+    <div class="inv-stats" id="cont-mobile-stats">
       <div class="inv-stat blue"><div class="inv-stat-n" id="cont-stat-total">—</div><div class="inv-stat-l">Total</div></div>
       <div class="inv-stat amber"><div class="inv-stat-n" id="cont-stat-bodega">—</div><div class="inv-stat-l">Bodegas</div></div>
       <div class="inv-stat green"><div class="inv-stat-n" id="cont-stat-oficina">—</div><div class="inv-stat-l">Oficinas</div></div>
     </div>
-
-    <!-- Búsqueda -->
-    <div style="padding:0 14px 8px">
+    <div style="padding:0 14px 8px" id="cont-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
         <span class="search-ic">🔍</span>
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="renderContainers()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
     </div>
-
-    <!-- Lista -->
-    <div class="pages" style="padding:0 14px 80px">
+    <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
       <div id="cont-lista"></div>
     </div>
+
     <!-- FAB agregar -->
     <button class="fab-btn viewer-hidden" onclick="contAbrirNuevo()">＋</button>
   </div>

@@ -14,42 +14,25 @@ const INV_PANELES_SECUNDARIOS = [
   'panel-nuevo-inv','panel-nuevo-cont',
 ];
 
-// Gestión de visibilidad del FAB según paneles abiertos
+// Actualiza visibilidad del FAB según si hay algún panel secundario visible
 function _invActualizarFab() {
   const algunAbierto = INV_PANELES_SECUNDARIOS.some(id => {
     const el = document.getElementById(id);
     return el && !el.classList.contains('hidden');
   });
-  // FABs de inventario y containers
   document.querySelectorAll('#mod-inventario .fab-btn, #mod-containers .fab-btn')
     .forEach(fab => { fab.style.display = algunAbierto ? 'none' : ''; });
 }
 
-// Parchear openPanel y closePanel una sola vez al cargar
-(function _patchInvPanels() {
-  // Espera a que openPanel esté disponible (se define en app-v2.js)
-  const _patch = () => {
-    if (typeof openPanel !== 'function') { setTimeout(_patch, 50); return; }
-    if (window._invPanelPatched) return;
-    window._invPanelPatched = true;
-
-    const _origOpen  = openPanel;
-    const _origClose = typeof closePanel === 'function' ? closePanel : null;
-
-    window.openPanel = function(id) {
-      _origOpen(id);
-      if (INV_PANELES_SECUNDARIOS.includes(id)) _invActualizarFab();
-    };
-
-    if (_origClose) {
-      window.closePanel = function(id) {
-        _origClose(id);
-        if (INV_PANELES_SECUNDARIOS.includes(id)) setTimeout(_invActualizarFab, 50);
-      };
-    }
-  };
-  _patch();
-})();
+// MutationObserver: detecta cambios de clase en los paneles y actualiza FAB
+// automáticamente sin importar qué función cierre el panel
+document.addEventListener('DOMContentLoaded', function() {
+  const observer = new MutationObserver(_invActualizarFab);
+  INV_PANELES_SECUNDARIOS.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+});
 
 // ── Nombres de hojas (agregados a config.js via JS) ──────────
 const SHEET_GENERADORES  = 'GENERADORES';
@@ -267,10 +250,7 @@ function renderInvLista() {
     return (item.equipo+item.marca+item.modelo+item.ubicacion+item.estado+item.codigo+'').toLowerCase().includes(txt);
   });
 
-  const lista = document.getElementById('inv-lista');
-  if (!lista) return;
-
-  lista.innerHTML = filtrados.map(item => {
+  const html = filtrados.map(item => {
     const cls   = invEstadoColor(item.estado);
     const icon  = invIcono(item.equipo);
     const titulo = [item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo;
@@ -289,14 +269,19 @@ function renderInvLista() {
     </div>`;
   }).join('') || '<div class="empty">Sin resultados</div>';
 
-  // Actualizar stats
+  const lista   = document.getElementById('inv-lista');
+  const listaDt = document.getElementById('inv-dt-lista');
+  if (lista)   lista.innerHTML   = html;
+  if (listaDt) listaDt.innerHTML = html;
+
+  // Actualizar stats móvil y desktop
   const op  = datos.filter(i => (i.estado||'').toLowerCase().includes('operativ') || (i.estado||'').toLowerCase() === 'nuevo').length;
   const rev = datos.filter(i => (i.estado||'').toLowerCase().includes('revis')).length;
   const mal = datos.filter(i => (i.estado||'').toLowerCase().includes('mal')).length;
   const el = id => document.getElementById(id);
-  if (el('inv-stat-op'))  el('inv-stat-op').textContent  = op;
-  if (el('inv-stat-rev')) el('inv-stat-rev').textContent = rev;
-  if (el('inv-stat-mal')) el('inv-stat-mal').textContent = mal;
+  ['inv-stat-op','inv-dt-stat-op'].forEach(id   => { if (el(id)) el(id).textContent = op; });
+  ['inv-stat-rev','inv-dt-stat-rev'].forEach(id  => { if (el(id)) el(id).textContent = rev; });
+  ['inv-stat-mal','inv-dt-stat-mal'].forEach(id  => { if (el(id)) el(id).textContent = mal; });
 }
 
 // ── Detalle ítem inventario ───────────────────────────────────
@@ -656,7 +641,7 @@ async function invGuardar() {
     }
 
     toast('Guardado ✓');
-    _origClosePanel('panel-inv-edit'); setTimeout(_invActualizarFab, 50);
+    _origClosePanel('panel-inv-edit'); 
     const idx1 = _panelStack.lastIndexOf('panel-inv-edit');
     if (idx1 !== -1) _panelStack.splice(idx1, 1);
 
@@ -796,7 +781,7 @@ async function invGuardarEventoGen() {
 
     toast('Evento registrado ✓');
     _genEventoFotos = [];
-    _origClosePanel('panel-gen-evento'); setTimeout(_invActualizarFab, 50);
+    _origClosePanel('panel-gen-evento'); 
     const idx = _panelStack.lastIndexOf('panel-gen-evento');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -824,10 +809,7 @@ function renderContainers() {
     return (c.tipo+c.ubicacion+c.estado+c.obs+'').toLowerCase().includes(txt);
   });
 
-  const lista = document.getElementById('cont-lista');
-  if (!lista) return;
-
-  lista.innerHTML = filtrados.map(c => {
+  const html = filtrados.map(c => {
     const icon = invIcono(c.tipo);
     const cls  = c.estado === 'REGULAR' ? 'amber' : c.estado === 'INCOMPLETO' ? 'red' : 'green';
     return `<div class="card" onclick="contAbrirDetalle(${c.rowIndex})">
@@ -844,14 +826,19 @@ function renderContainers() {
     </div>`;
   }).join('') || '<div class="empty">Sin resultados</div>';
 
-  // Stats containers
-  const total = allContainers.length;
+  const lista   = document.getElementById('cont-lista');
+  const listaDt = document.getElementById('cont-dt-lista');
+  if (lista)   lista.innerHTML   = html;
+  if (listaDt) listaDt.innerHTML = html;
+
+  // Stats móvil y desktop
+  const total   = allContainers.length;
   const bodegas  = allContainers.filter(c => c.tipo.toLowerCase().includes('bodega')).length;
   const oficinas = allContainers.filter(c => c.tipo.toLowerCase().includes('oficina')).length;
   const el = id => document.getElementById(id);
-  if (el('cont-stat-total'))   el('cont-stat-total').textContent   = total;
-  if (el('cont-stat-bodega'))  el('cont-stat-bodega').textContent  = bodegas;
-  if (el('cont-stat-oficina')) el('cont-stat-oficina').textContent = oficinas;
+  ['cont-stat-total','cont-dt-stat-total'].forEach(id     => { if (el(id)) el(id).textContent = total; });
+  ['cont-stat-bodega','cont-dt-stat-bodega'].forEach(id   => { if (el(id)) el(id).textContent = bodegas; });
+  ['cont-stat-oficina','cont-dt-stat-oficina'].forEach(id => { if (el(id)) el(id).textContent = oficinas; });
 }
 
 function contAbrirDetalle(rowIndex) {
@@ -977,7 +964,7 @@ async function contGuardar() {
     }
 
     toast('Guardado ✓');
-    _origClosePanel('panel-cont-edit'); setTimeout(_invActualizarFab, 50);
+    _origClosePanel('panel-cont-edit'); 
     const idx = _panelStack.lastIndexOf('panel-cont-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -994,18 +981,15 @@ async function contGuardar() {
 
 // ── Navegación módulos ────────────────────────────────────────
 function irAModulo(modulo) {
-  // Ocultar pantalla de inicio de módulos
   const homeEl = document.getElementById('modulos-home');
   if (homeEl) homeEl.classList.add('hidden');
 
-  // Mostrar el módulo correcto
   document.getElementById('mod-inventario').classList.add('hidden');
   document.getElementById('mod-containers').classList.add('hidden');
   document.getElementById('mod-flota').classList.add('hidden');
 
   if (modulo === 'flota') {
     document.getElementById('main').classList.remove('hidden');
-    // Agregar botón volver al header de flota si no existe
     const hdr = document.querySelector('#main .header');
     if (hdr && !document.getElementById('flota-back-btn')) {
       const backBtn = document.createElement('button');
@@ -1021,25 +1005,85 @@ function irAModulo(modulo) {
     }
   } else if (modulo === 'containers') {
     document.getElementById('mod-containers').classList.remove('hidden');
+    _invActivarDesktop('containers');
     renderContainers();
   } else {
-    // inventario (generadores / maqmenor / herramientas)
     document.getElementById('mod-inventario').classList.remove('hidden');
+    _invActivarDesktop('inventario');
     invSetModulo(modulo === 'generadores' ? 'generadores' : modulo === 'maqmenor' ? 'maqmenor' : 'herramientas');
   }
 
   history.pushState({ modulo }, '');
 }
 
+// Activa el layout desktop o móvil según el ancho de ventana
+function _invActivarDesktop(tipo) {
+  const esDesktop = window.innerWidth >= 900;
+  if (tipo === 'inventario') {
+    const sidebar  = document.getElementById('inv-desktop-sidebar');
+    const content  = document.getElementById('inv-desktop-content');
+    const mHdr     = document.getElementById('inv-mobile-header');
+    const mTabs    = document.getElementById('inv-mobile-tabs');
+    const mStats   = document.getElementById('inv-mobile-stats');
+    const mSearch  = document.getElementById('inv-mobile-search');
+    const mList    = document.getElementById('inv-mobile-list');
+    if (sidebar)  sidebar.style.display  = esDesktop ? 'flex'  : 'none';
+    if (content)  content.style.display  = esDesktop ? 'flex'  : 'none';
+    if (mHdr)     mHdr.style.display     = esDesktop ? 'none'  : '';
+    if (mTabs)    mTabs.style.display    = esDesktop ? 'none'  : '';
+    if (mStats)   mStats.style.display   = esDesktop ? 'none'  : '';
+    if (mSearch)  mSearch.style.display  = esDesktop ? 'none'  : '';
+    if (mList)    mList.style.display    = esDesktop ? 'none'  : '';
+  } else {
+    const sidebar  = document.getElementById('cont-desktop-sidebar');
+    const content  = document.getElementById('cont-desktop-content');
+    const mHdr     = document.getElementById('cont-mobile-header');
+    const mStats   = document.getElementById('cont-mobile-stats');
+    const mSearch  = document.getElementById('cont-mobile-search');
+    const mList    = document.getElementById('cont-mobile-list');
+    if (sidebar)  sidebar.style.display  = esDesktop ? 'flex'  : 'none';
+    if (content)  content.style.display  = esDesktop ? 'flex'  : 'none';
+    if (mHdr)     mHdr.style.display     = esDesktop ? 'none'  : '';
+    if (mStats)   mStats.style.display   = esDesktop ? 'none'  : '';
+    if (mSearch)  mSearch.style.display  = esDesktop ? 'none'  : '';
+    if (mList)    mList.style.display    = esDesktop ? 'none'  : '';
+  }
+}
+
 function invSetModulo(mod) {
   invModulo = mod;
+  // Tabs móvil
   document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
   const tabEl = document.getElementById('inv-tab-' + mod);
   if (tabEl) tabEl.classList.add('active');
-  document.getElementById('inv-titulo').textContent =
-    mod === 'generadores' ? 'Generadores' :
-    mod === 'maqmenor'    ? 'Maq. Menor' : 'Herramientas';
+  // Tabs desktop
+  document.querySelectorAll('.inv-desktop-tab').forEach(t => t.classList.remove('active'));
+  const dtTab = document.getElementById('inv-dt-tab-' + mod);
+  if (dtTab) dtTab.classList.add('active');
+
+  const nombre = mod === 'generadores' ? 'Generadores' : mod === 'maqmenor' ? 'Maq. Menor' : 'Herramientas';
+  const tituloMob = document.getElementById('inv-titulo');
+  const tituloDt  = document.getElementById('inv-dt-titulo');
+  if (tituloMob) tituloMob.textContent = nombre;
+  if (tituloDt)  tituloDt.textContent  = nombre;
+
   renderInvLista();
+}
+
+// Sincronizar búsqueda desktop → móvil (renderInvLista lee inv-search)
+function invSyncSearch() {
+  const dtInput  = document.getElementById('inv-dt-search');
+  const mobInput = document.getElementById('inv-search');
+  if (dtInput && mobInput) mobInput.value = dtInput.value;
+  renderInvLista();
+}
+
+// Sincronizar búsqueda desktop → móvil para containers
+function contSyncSearch() {
+  const dtInput  = document.getElementById('cont-dt-search');
+  const mobInput = document.getElementById('cont-search');
+  if (dtInput && mobInput) mobInput.value = dtInput.value;
+  renderContainers();
 }
 
 function volverAInicio() {
@@ -1122,7 +1166,7 @@ async function invGuardarNuevo() {
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
     toast('✓ Ítem agregado');
 
-    _origClosePanel('panel-nuevo-inv'); setTimeout(_invActualizarFab, 50);
+    _origClosePanel('panel-nuevo-inv'); 
     const idx = _panelStack.lastIndexOf('panel-nuevo-inv');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();
@@ -1169,7 +1213,7 @@ async function contGuardarNuevo() {
     await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
 
-    _origClosePanel('panel-nuevo-cont'); setTimeout(_invActualizarFab, 50);
+    _origClosePanel('panel-nuevo-cont'); 
     const idx = _panelStack.lastIndexOf('panel-nuevo-cont');
     if (idx !== -1) _panelStack.splice(idx, 1);
     await loadInventario();

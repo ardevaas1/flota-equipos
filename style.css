@@ -630,6 +630,170 @@ input, select, textarea { font-family: inherit; }
   }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
+  /* ══════════════════════════════════
+     MÓDULOS INVENTARIO & CONTAINERS — DESKTOP
+     Layout: sidebar izquierda fija + área central scrollable
+  ══════════════════════════════════ */
+
+  /* En desktop los módulos toman todo el viewport como el #app de flota */
+  #mod-inventario,
+  #mod-containers {
+    position: fixed;
+    inset: 0;
+    max-width: 100%;
+    flex-direction: row !important;
+    overflow: hidden;
+    background: #f4f5f7;
+  }
+
+  /* Sidebar izquierda de inventario/containers */
+  #mod-inventario .header,
+  #mod-containers .header {
+    width: 220px;
+    flex-shrink: 0;
+    height: 100vh;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    border-bottom: none;
+    border-right: 1px solid #e8eaed;
+    padding: 0;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  /* Header top dentro del sidebar */
+  #mod-inventario .header > *,
+  #mod-containers .header > * { display: none; }
+
+  /* Reemplazamos el header móvil con pseudo-sidebar via un wrapper */
+  .inv-desktop-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    height: 100vh;
+    background: #fff;
+    border-right: 1px solid #e8eaed;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .inv-desktop-sidebar-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 14px;
+    border-bottom: 1px solid #e8eaed;
+    flex-shrink: 0;
+  }
+  .inv-desktop-sidebar-top img {
+    width: 36px; height: 36px; border-radius: 10px; object-fit: contain;
+  }
+  .inv-desktop-sidebar-title {
+    font-size: 13px; font-weight: 700; color: #1a1a2e; line-height: 1.2;
+  }
+  .inv-desktop-sidebar-sub {
+    font-size: 11px; color: #5a5f6e; margin-top: 1px;
+  }
+  .inv-desktop-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid #e8eaed;
+    flex-shrink: 0;
+  }
+  /* Para containers con 3 stats usamos 1 columna */
+  .inv-desktop-stats.cols-1 {
+    grid-template-columns: 1fr;
+  }
+  .inv-desktop-stat {
+    border-radius: 10px; padding: 10px 8px;
+    text-align: center;
+  }
+  .inv-desktop-stat.green { background: #e8f5e9; }
+  .inv-desktop-stat.amber { background: #fff8e1; }
+  .inv-desktop-stat.red   { background: #ffebee; }
+  .inv-desktop-stat.blue  { background: #e3f2fd; }
+  .inv-desktop-stat-n { font-size: 20px; font-weight: 700; color: #1a1a2e; line-height: 1; }
+  .inv-desktop-stat-l { font-size: 10px; color: #5a5f6e; margin-top: 3px; font-weight: 500; }
+
+  .inv-desktop-tabs {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .inv-desktop-tab {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 20px; border-radius: 10px; margin: 2px 10px;
+    font-size: 14px; color: #5a5f6e; font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    background: none; border: none; cursor: pointer; text-align: left;
+  }
+  .inv-desktop-tab:hover  { background: #f0f4f8; color: #1a1a2e; }
+  .inv-desktop-tab.active { background: #e8f2fb; color: #4a8fc1; font-weight: 600; }
+
+  .inv-desktop-sidebar-footer {
+    padding: 12px; border-top: 1px solid #e8eaed; flex-shrink: 0;
+  }
+
+  /* Área central: búsqueda + lista */
+  .inv-desktop-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .inv-desktop-content-header {
+    padding: 20px 24px 12px;
+    flex-shrink: 0;
+    background: #f4f5f7;
+    border-bottom: 1px solid #e8eaed;
+  }
+  .inv-desktop-content-title {
+    font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px;
+  }
+  .inv-desktop-search {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1.5px solid #e8eaed;
+    border-radius: 10px; padding: 9px 14px;
+  }
+  .inv-desktop-search input {
+    flex: 1; border: none; outline: none;
+    font-size: 14px; font-family: inherit;
+    color: #1a1a2e; background: transparent;
+  }
+  .inv-desktop-list {
+    flex: 1; overflow-y: auto;
+    padding: 16px 24px 24px;
+  }
+
+  /* FAB en desktop: esquina inferior derecha del área central */
+  #mod-inventario .fab-btn,
+  #mod-containers .fab-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 90;
+  }
+
+  /* Ocultar elementos móviles que no aplican en desktop */
+  #mod-inventario .inv-tabs,
+  #mod-inventario .inv-stats,
+  #mod-inventario .pages,
+  #mod-inventario > .header,
+  #mod-containers .inv-stats,
+  #mod-containers .pages,
+  #mod-containers > .header {
+    display: none !important;
+  }
+
+  /* El header móvil se oculta; los módulos usan sidebar propio */
+  #mod-inventario > header,
+  #mod-containers > header { display: none !important; }
+
 }
 
 /* ══ PANTALLA MÓDULOS ══ */
