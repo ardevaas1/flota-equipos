@@ -163,7 +163,6 @@
     </nav>
     <div class="desktop-sidebar-footer">
       <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
-      <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
     </div>
   </div>
 
@@ -1344,20 +1343,7 @@ function _desktopAfterLoad() {
 }
 
 // Parchear renderDashboard para que también actualice desktop
-// renderDashboard() se llama siempre al final de loadData() en app-v2.js
 const _origRenderDashboard = window.renderDashboard;
-if (typeof renderDashboard === 'function') {
-  const _realRenderDashboard = renderDashboard;
-  window.renderDashboard = function() {
-    _realRenderDashboard.apply(this, arguments);
-    if (IS_DESKTOP()) {
-      dtUpdateStats();
-      dtRenderEquipos();
-      dtRenderAlertas();
-      dtRenderEventos();
-    }
-  };
-}
 
 // Escuchar resize
 window.addEventListener('resize', () => {
@@ -1372,21 +1358,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostrar página equipos por defecto
     const eq = document.getElementById('dt-page-equipos');
     if (eq) { eq.style.display = 'flex'; eq.style.flexDirection = 'column'; }
-  }
-
-  // Observar cuando el módulo Flota (#main) se hace visible para re-disparar dtInit
-  // Esto cubre el caso de volver desde modulos-home en desktop
-  const mainEl = document.getElementById('main');
-  if (mainEl) {
-    new MutationObserver(() => {
-      if (IS_DESKTOP() && !mainEl.classList.contains('hidden')) {
-        dtInit();
-        dtUpdateStats();
-        dtRenderEquipos();
-        dtRenderAlertas();
-        dtRenderEventos();
-      }
-    }).observe(mainEl, { attributes: true, attributeFilter: ['class'] });
   }
 });
 </script>

@@ -984,7 +984,7 @@ async function loadData(background = false) {
     await loadEventos();
 
     if (!background) splash(90, 'Cargando inventario...');
-    if (typeof loadInventario === 'function') await loadInventario();
+    await loadInventario();
 
     if (!background) splash(100, '¡Listo!');
     renderDashboard();
