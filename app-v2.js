@@ -974,7 +974,7 @@ async function loadData(background = false) {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:T200`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:V200`);
     if (!background) splash(70, 'Procesando equipos...');
 
     allEquipos = rows
@@ -1001,6 +1001,7 @@ async function loadData(background = false) {
         revision:    parsearFecha(r[17] || ''),
         obs:         r[18] || '',
         linkFicha:   r[19] || '',
+        fotoRef:     r[21] || '',
       }));
 
     if (!background) splash(80, 'Cargando eventos...');
@@ -1184,6 +1185,11 @@ function openFicha(patente) {
       ${field('Color', e.color)}
     </div>
 
+    ${e.fotoRef ? `
+    <div class="ficha-section" style="padding:0;overflow:hidden;border-radius:14px;cursor:pointer" onclick="abrirFotoRefModal('${e.patente}')">
+      <img src="${e.fotoRef}" alt="Foto de referencia" style="width:100%;max-height:220px;object-fit:cover;display:block;border-radius:14px">
+    </div>` : ''}
+
     <div class="ficha-section">
       <div class="ficha-sec-title">Horómetro / Odómetro</div>
       ${field('Actual', formatNum(e.horometro) + (e.mantCada ? ' · Cada ' + e.mantCada : ''))}
@@ -1360,11 +1366,96 @@ function openEditPanel() {
   document.getElementById('edit-revision').value  = e.revision;
   document.getElementById('edit-obs').value       = e.obs;
 
+  // Cargar foto de referencia actual si existe
+  _editFotoRef = null;
+  const prevImg  = document.getElementById('edit-foto-ref-img');
+  const prevWrap = document.getElementById('edit-foto-ref-preview');
+  const removeBtn = document.getElementById('edit-foto-ref-remove');
+  const infoEl   = document.getElementById('edit-foto-ref-info');
+  if (e.fotoRef) {
+    prevImg.src = e.fotoRef;
+    prevWrap.style.display = 'block';
+    removeBtn.style.display = 'block';
+    infoEl.textContent = 'Foto actual guardada';
+  } else {
+    prevImg.src = '';
+    prevWrap.style.display = 'none';
+    removeBtn.style.display = 'none';
+    infoEl.textContent = '';
+  }
+
   // Limpiar estado de archivos del equipo anterior
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
   resetDocInputs();
 
   openPanel('panel-edit');
+}
+
+// ── Foto de referencia de equipo ─────────────────────────────
+let _editFotoRef = null; // null = sin cambios, 'QUITAR' = borrar, string base64 = nueva foto
+
+function onFotoRefSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Reducir a máx 400px para no saturar la celda del sheet
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const b64 = canvas.toDataURL('image/jpeg', 0.75);
+      _editFotoRef = b64;
+      // Mostrar preview
+      const prevImg  = document.getElementById('edit-foto-ref-img');
+      const prevWrap = document.getElementById('edit-foto-ref-preview');
+      const removeBtn = document.getElementById('edit-foto-ref-remove');
+      const infoEl   = document.getElementById('edit-foto-ref-info');
+      prevImg.src = b64;
+      prevWrap.style.display = 'block';
+      removeBtn.style.display = 'block';
+      const kb = Math.round(b64.length * 0.75 / 1024);
+      infoEl.textContent = `Nueva foto · ${w}×${h}px · ~${kb} KB`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = ''; // reset para permitir reseleccionar
+}
+
+function quitarFotoRef() {
+  _editFotoRef = 'QUITAR';
+  document.getElementById('edit-foto-ref-img').src = '';
+  document.getElementById('edit-foto-ref-preview').style.display = 'none';
+  document.getElementById('edit-foto-ref-remove').style.display = 'none';
+  document.getElementById('edit-foto-ref-info').textContent = 'Foto eliminada al guardar';
+}
+
+// Modal foto referencia a pantalla completa
+function abrirFotoRefModal(patente) {
+  const eq = allEquipos.find(e => e.patente === patente);
+  if (!eq || !eq.fotoRef) return;
+  let modal = document.getElementById('foto-ref-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'foto-ref-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
+    modal.innerHTML = `
+      <button onclick="document.getElementById('foto-ref-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
+      <img id="foto-ref-modal-img" src="" style="max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px">
+    `;
+    modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+    document.body.appendChild(modal);
+  }
+  document.getElementById('foto-ref-modal-img').src = eq.fotoRef;
+  modal.style.display = 'flex';
 }
 
 async function saveEquipo() {
@@ -1401,6 +1492,10 @@ async function saveEquipo() {
     // 1. Guardar todos los campos en Sheets
     toast('Guardando datos...');
     console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
+
+    // Si hay nueva foto de referencia o se quitó, incluirla en el guardado
+    const fotoRefVal = _editFotoRef === 'QUITAR' ? '' : (_editFotoRef || currentEquipo?.fotoRef || '');
+
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
@@ -1411,6 +1506,7 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!V${row}`, [[fotoRefVal]]),
     ]);
     console.log('[SAVE] Sheet OK');
 
@@ -1479,6 +1575,7 @@ async function saveEquipo() {
     // Usamos _origClosePanel directamente para NO disparar history.go(-1),
     // que causaría un popstate que vuelve a cerrar el panel y rompe el flujo.
     resetDocInputs();
+    _editFotoRef = null;
     setBtnState(false, 'Guardar');
     _origClosePanel('panel-edit');
     // Limpiar el stack de paneles para que el botón Back no quede desincronizado
