@@ -1175,6 +1175,10 @@ function dtRenderEquipos() {
       (dtCurrentFilter === 'det' && e.estado === 'det') ||
       (dtCurrentFilter === 'rep' && e.estadoRaw?.toLowerCase().includes('reparaci'));
     return matchQ && matchF;
+  }).sort((a, b) => {
+    const cmp = (a.equipo||'').localeCompare(b.equipo||'', 'es');
+    if (cmp !== 0) return cmp;
+    return ((a.marca||'') + (a.modelo||'')).localeCompare((b.marca||'') + (b.modelo||''), 'es');
   });
 
   const tbody = document.getElementById('dt-equipos-tbody');

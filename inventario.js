@@ -248,6 +248,10 @@ function renderInvLista() {
   const filtrados = datos.filter(item => {
     if (!txt) return true;
     return (item.equipo+item.marca+item.modelo+item.ubicacion+item.estado+item.codigo+'').toLowerCase().includes(txt);
+  }).sort((a, b) => {
+    const tA = ([a.marca, a.modelo].filter(Boolean).join(' ') || a.equipo).toLowerCase();
+    const tB = ([b.marca, b.modelo].filter(Boolean).join(' ') || b.equipo).toLowerCase();
+    return tA.localeCompare(tB, 'es');
   });
 
   const html = filtrados.map(item => {
@@ -807,6 +811,10 @@ function renderContainers() {
   const filtrados = allContainers.filter(c => {
     if (!txt) return true;
     return (c.tipo+c.ubicacion+c.estado+c.obs+'').toLowerCase().includes(txt);
+  }).sort((a, b) => {
+    const cmp = (a.tipo||'').localeCompare(b.tipo||'', 'es');
+    if (cmp !== 0) return cmp;
+    return (parseInt(a.num)||0) - (parseInt(b.num)||0);
   });
 
   const html = filtrados.map(c => {

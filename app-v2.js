@@ -1118,6 +1118,10 @@ function renderEquipos() {
       e.patente.toLowerCase().includes(txt) ||
       e.ubicacion.toLowerCase().includes(txt);
     return matchF && matchT;
+  }).sort((a, b) => {
+    const cmp = (a.equipo||'').localeCompare(b.equipo||'', 'es');
+    if (cmp !== 0) return cmp;
+    return ((a.marca||'') + (a.modelo||'')).localeCompare((b.marca||'') + (b.modelo||''), 'es');
   });
 
   document.getElementById('equipos-list').innerHTML = filtered.map(e => `
