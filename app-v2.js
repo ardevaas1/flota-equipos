@@ -371,10 +371,33 @@ function iconoEquipo(tipo) {
   return svgs.default;
 }
 
+// Convierte serial Excel (ej: 46185) o string dd/mm/yyyy → string "dd/mm/yyyy"
+// Si ya es un string de fecha válido, lo devuelve tal cual.
+function parsearFecha(valor) {
+  if (!valor && valor !== 0) return '';
+  const s = valor.toString().trim();
+  if (!s || s === '-' || s.toLowerCase() === 'falta' || s.toLowerCase() === 'sin dato') return s;
+  // ¿Es un número puro? → Serial de Excel
+  if (/^\d{4,6}$/.test(s)) {
+    const serial = parseInt(s, 10);
+    // Excel epoch: 1 = 1 ene 1900, con el bug del año bisiesto 1900 (por eso -1)
+    const msDesde1900 = (serial - 1) * 86400000;
+    const fecha = new Date(Date.UTC(1900, 0, 1) + msDesde1900);
+    // Corrección del bug de Excel (considera 1900 bisiesto)
+    if (serial >= 60) fecha.setUTCDate(fecha.getUTCDate() - 1);
+    const d = String(fecha.getUTCDate()).padStart(2, '0');
+    const m = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const y = fecha.getUTCFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  // Ya es dd/mm/yyyy u otro formato texto → devolver tal cual
+  return s;
+}
+
 function diasRestantes(fechaStr) {
   if (!fechaStr) return null;
-  const s = fechaStr.toString().trim().toLowerCase();
-  if (!s || s === '-' || s === 'falta' || s === 'foto' || s === 'sin dato') return null;
+  const s = parsearFecha(fechaStr.toString().trim());
+  if (!s || s === '-' || s.toLowerCase() === 'falta' || s.toLowerCase() === 'sin dato') return null;
   const parts = s.split('/');
   if (parts.length === 3) {
     const d = new Date(+parts[2], +parts[1] - 1, +parts[0]);
@@ -623,13 +646,13 @@ async function loadEventos() {
       .filter(r => r[0] || r[1])
       .map((r, i) => ({
         rowIndex:      i + 2,
-        fechaRegistro: r[0] || '',
+        fechaRegistro: parsearFecha(r[0] || ''),
         patente:       r[1] || '',
         equipo:        r[2] || '',
         horometro:     r[3] || '',
         tipo:          r[4] || 'Mantención preventiva',
         descripcion:   r[5] || '',
-        fechaEvento:   r[6] || r[0] || '',
+        fechaEvento:   parsearFecha(r[6] || r[0] || ''),
         foto:          r[7] || '',
       }))
       .sort((a, b) => {
@@ -973,9 +996,9 @@ async function loadData(background = false) {
         proxMant:    r[12] || '',
         ultMant:     r[13] || '',
         mantCada:    r[14] || '',
-        soap:        r[15] || '',
-        permiso:     r[16] || '',
-        revision:    r[17] || '',
+        soap:        parsearFecha(r[15] || ''),
+        permiso:     parsearFecha(r[16] || ''),
+        revision:    parsearFecha(r[17] || ''),
         obs:         r[18] || '',
         linkFicha:   r[19] || '',
       }));
