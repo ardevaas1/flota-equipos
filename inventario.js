@@ -249,9 +249,9 @@ function renderInvLista() {
     if (!txt) return true;
     return (item.equipo+item.marca+item.modelo+item.ubicacion+item.estado+item.codigo+'').toLowerCase().includes(txt);
   }).sort((a, b) => {
-    const tA = ([a.marca, a.modelo].filter(Boolean).join(' ') || a.equipo).toLowerCase();
-    const tB = ([b.marca, b.modelo].filter(Boolean).join(' ') || b.equipo).toLowerCase();
-    return tA.localeCompare(tB, 'es');
+    const cmp = (a.equipo||'').localeCompare(b.equipo||'', 'es');
+    if (cmp !== 0) return cmp;
+    return ((a.marca||'') + (a.modelo||'')).localeCompare((b.marca||'') + (b.modelo||''), 'es');
   });
 
   const html = filtrados.map(item => {
