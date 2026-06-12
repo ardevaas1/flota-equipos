@@ -308,11 +308,13 @@ input, select, textarea { font-family: inherit; }
     height: 100vh;
     background: #fff;
     border-right: 1px solid #e8eaed;
-    display: flex !important;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
     z-index: 10;
   }
+  .desktop-sidebar.dt-oculto,
+  .desktop-main.dt-oculto { display: none !important; }
 
   .desktop-sidebar-header {
     display: flex;
@@ -423,7 +425,7 @@ input, select, textarea { font-family: inherit; }
   .desktop-main {
     flex: 1;
     height: 100vh;
-    display: flex !important;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
     background: #f4f5f7;

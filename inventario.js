@@ -980,6 +980,21 @@ async function contGuardar() {
 }
 
 // ── Navegación módulos ────────────────────────────────────────
+// Muestra u oculta el sidebar de Flota (solo en desktop)
+function _setDesktopSidebarFlota(visible) {
+  const esDesktop = window.innerWidth >= 900;
+  if (!esDesktop) return;
+  const s = document.getElementById('desktop-sidebar');
+  const m = document.getElementById('desktop-main');
+  if (visible) {
+    if (s) s.classList.remove('dt-oculto');
+    if (m) m.classList.remove('dt-oculto');
+  } else {
+    if (s) s.classList.add('dt-oculto');
+    if (m) m.classList.add('dt-oculto');
+  }
+}
+
 function irAModulo(modulo) {
   const homeEl = document.getElementById('modulos-home');
   if (homeEl) homeEl.classList.add('hidden');
@@ -989,6 +1004,8 @@ function irAModulo(modulo) {
   document.getElementById('mod-flota').classList.add('hidden');
 
   if (modulo === 'flota') {
+    // Flota usa su propio sidebar desktop nativo
+    _setDesktopSidebarFlota(true);
     document.getElementById('main').classList.remove('hidden');
     const hdr = document.querySelector('#main .header');
     if (hdr && !document.getElementById('flota-back-btn')) {
@@ -1004,10 +1021,14 @@ function irAModulo(modulo) {
       hdr.insertBefore(backBtn, hdr.firstChild);
     }
   } else if (modulo === 'containers') {
+    // Ocultar sidebar de Flota para que no se superponga
+    _setDesktopSidebarFlota(false);
     document.getElementById('mod-containers').classList.remove('hidden');
     _invActivarDesktop('containers');
     renderContainers();
   } else {
+    // Inventario (generadores, maqmenor, herramientas)
+    _setDesktopSidebarFlota(false);
     document.getElementById('mod-inventario').classList.remove('hidden');
     _invActivarDesktop('inventario');
     invSetModulo(modulo === 'generadores' ? 'generadores' : modulo === 'maqmenor' ? 'maqmenor' : 'herramientas');
@@ -1091,6 +1112,11 @@ function volverAInicio() {
   document.getElementById('mod-containers').classList.add('hidden');
   document.getElementById('mod-flota').classList.add('hidden');
   document.getElementById('main').classList.add('hidden');
+  // Ocultar sidebar de Flota para que no quede sobre la home
+  const s = document.getElementById('desktop-sidebar');
+  const m = document.getElementById('desktop-main');
+  if (s) s.classList.add('dt-oculto');
+  if (m) m.classList.add('dt-oculto');
   document.getElementById('modulos-home').classList.remove('hidden');
 }
 

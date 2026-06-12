@@ -123,7 +123,7 @@
 <div id="app">
 
   <!-- ══ LAYOUT DESKTOP (visible solo ≥900px) ══ -->
-  <div class="desktop-sidebar" id="desktop-sidebar">
+  <div class="desktop-sidebar dt-oculto" id="desktop-sidebar">
     <div class="desktop-sidebar-header">
       <img src="logo.png" alt="LST">
       <div>
@@ -163,11 +163,12 @@
     </nav>
     <div class="desktop-sidebar-footer">
       <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+      <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
     </div>
   </div>
 
   <!-- ══ PANEL CENTRAL ══ -->
-  <div class="desktop-main" id="desktop-main">
+  <div class="desktop-main dt-oculto" id="desktop-main">
 
     <!-- Vista: Equipos -->
     <div id="dt-page-equipos" class="dt-page">
