@@ -109,9 +109,10 @@ function invIcono(equipo) {
 //      I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT N=OBS O=IMAGEN
 function parseGeneradores(rows) {
   return rows
-    .filter(r => r[0] && !isNaN(parseInt(r[0])))
-    .map((r, i) => ({
-      rowIndex:  i + 3, // datos desde fila 3 (2 filas de header)
+    .map((r, i) => ({ r, rowIndex: i + 3 }))   // rowIndex real ANTES de filtrar
+    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .map(({ r, rowIndex }) => ({
+      rowIndex,
       num:       r[0]  || '',
       equipo:    r[1]  || 'GENERADOR',
       codigo:    r[2]  || '',
@@ -133,9 +134,10 @@ function parseGeneradores(rows) {
 // Maq. Menor: Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
 function parseMaqMenor(rows) {
   return rows
-    .filter(r => r[0] && !isNaN(parseInt(r[0])))
-    .map((r, i) => ({
-      rowIndex:  i + 3,
+    .map((r, i) => ({ r, rowIndex: i + 3 }))
+    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .map(({ r, rowIndex }) => ({
+      rowIndex,
       num:       r[0] || '',
       equipo:    r[1] || '',
       foto:      r[2] || '',
@@ -152,9 +154,10 @@ function parseMaqMenor(rows) {
 // Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA
 function parseHerramientas(rows) {
   return rows
-    .filter(r => r[0] && !isNaN(parseInt(r[0])))
-    .map((r, i) => ({
-      rowIndex:  i + 3,
+    .map((r, i) => ({ r, rowIndex: i + 3 }))
+    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .map(({ r, rowIndex }) => ({
+      rowIndex,
       num:       r[0]  || '',
       equipo:    r[1]  || '',
       registro:  r[2]  || '',
@@ -174,9 +177,10 @@ function parseHerramientas(rows) {
 // Containers: Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
 function parseContainers(rows) {
   return rows
-    .filter(r => r[0] && !isNaN(parseInt(r[0])))
-    .map((r, i) => ({
-      rowIndex:     i + 2,
+    .map((r, i) => ({ r, rowIndex: i + 2 }))
+    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .map(({ r, rowIndex }) => ({
+      rowIndex,
       num:          r[0] || '',
       tipo:         r[1] || '',
       foto:         r[2] || '',
@@ -380,6 +384,9 @@ function invAbrirDetalle(modulo, rowIndex) {
     ${secEventos}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
+    <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
+      📁 Ver fotos en Drive
+    </a>
   `;
 
   openPanel('panel-inv-detalle');
@@ -502,6 +509,43 @@ function invCerrarFotoModal() {
   document.body.style.overflow = '';
 }
 
+// Abre la carpeta Drive del ítem actual (HOJA/CODIGO/)
+async function invAbrirCarpetaDrive() {
+  if (!invItem) return;
+  toast('Buscando carpeta en Drive...');
+  try {
+    await ensureToken();
+    const codigo = invItem.codigo || invItem.num || '';
+    const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
+                    : invItem._modulo === 'maqmenor'    ? SHEET_MAQ_MENOR
+                    : SHEET_HERRAMIENTAS;
+
+    // Buscar carpeta de la hoja dentro de DRIVE_INV_FOLDER
+    const q1 = encodeURIComponent(`'${DRIVE_INV_FOLDER}' in parents and name='${sheetName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const r1  = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q1}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + accessToken } });
+    const d1  = await r1.json();
+    if (!d1.files || !d1.files.length) {
+      // Carpeta de hoja no existe aún → abrir carpeta raíz de inventario
+      window.open(`https://drive.google.com/drive/folders/${DRIVE_INV_FOLDER}`, '_blank');
+      return;
+    }
+    const sheetFolderId = d1.files[0].id;
+
+    // Buscar subcarpeta del código dentro de la carpeta de la hoja
+    const q2 = encodeURIComponent(`'${sheetFolderId}' in parents and name='${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const r2  = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q2}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + accessToken } });
+    const d2  = await r2.json();
+    if (d2.files && d2.files.length) {
+      window.open(`https://drive.google.com/drive/folders/${d2.files[0].id}`, '_blank');
+    } else {
+      // Subcarpeta no existe aún → abrir carpeta de la hoja
+      window.open(`https://drive.google.com/drive/folders/${sheetFolderId}`, '_blank');
+    }
+  } catch(e) {
+    toast('Error abriendo Drive: ' + e.message, 'error');
+  }
+}
+
 // ── Panel editar ítem inventario ──────────────────────────────
 function invAbrirEditar() {
   if (!invItem) return;
@@ -597,12 +641,15 @@ async function invGuardar() {
       if (btn) btn.textContent = 'Subiendo foto...';
       toast('Subiendo foto de referencia...');
       try {
-        // Usar carpeta exclusiva de Inventario & Containers
+        const codigo = invItem.codigo || invItem.num || row;
+        // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO] /
         let folderId = DRIVE_INV_FOLDER;
-        try { folderId = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER); } catch(fe) {}
+        try {
+          const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder(codigo, sheetFolder);
+        } catch(fe) { console.warn('[INV FOTO] Carpeta fallback:', fe.message); }
 
         const ext      = _invFotoRef.name.split('.').pop() || 'jpg';
-        const codigo   = invItem.codigo || invItem.num || row;
         const fileName = `REF_${codigo}_${sheetName.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
         const boundary = 'lst_inv_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
