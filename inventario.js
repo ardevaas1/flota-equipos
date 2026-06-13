@@ -1240,8 +1240,8 @@ function invAbrirNuevo() {
   const sel = document.getElementById('nuevo-equipo');
   sel.innerHTML = tipos.map(t => `<option value="${t}">${t}</option>`).join('');
 
-  // Mostrar campo código siempre (ahora aplica a todos los módulos)
-  document.getElementById('nuevo-codigo-row').style.display = '';
+  // Código solo para generadores; maq. menor y herramientas no lo tienen en el sheet
+  document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
 
   // Limpiar campos
@@ -1279,8 +1279,8 @@ async function invGuardarNuevo() {
   const modelo   = document.getElementById('nuevo-modelo').value.trim().toUpperCase();
   const estado   = document.getElementById('nuevo-estado').value;
   const ubicacion= document.getElementById('nuevo-ubicacion').value.trim().toUpperCase();
-  const codigo   = document.getElementById('nuevo-codigo').value.trim().toUpperCase();
-  const potencia = document.getElementById('nuevo-potencia').value.trim().toUpperCase();
+  const codigo   = mod === 'generadores' ? document.getElementById('nuevo-codigo').value.trim().toUpperCase() : '';
+  const potencia = mod === 'generadores' ? document.getElementById('nuevo-potencia').value.trim().toUpperCase() : '';
 
   if (!equipo || !estado) { toast('Completa los campos obligatorios', 'error'); return; }
 
