@@ -1183,6 +1183,53 @@ const TIPOS_HERRAMIENTA = ['DEMOLEDOR 5 KILOS','DEMOLEDOR 10 KILOS','DEMOLEDOR 9
 const TIPOS_GENERADOR = ['GENERADOR'];
 const TIPOS_CONTAINER = ['OFICINA','BODEGA','BAÑO','OTRO'];
 
+// Prefijos de código por tipo de equipo (se pueden extender)
+const PREFIJOS_TIPO = {
+  // Generadores
+  'GENERADOR': 'GEN',
+  // Maq. Menor
+  'SOPLADOR': 'SPL', 'VIBROAPISONADOR': 'VIB', 'ASPIRADORA': 'ASP',
+  'TURBOCALEFACTOR': 'TCA', 'COMPRESOR': 'CMP', 'HIDROLAVADORA': 'HID',
+  'CORTADORA DE ASFALTO': 'CAS', 'MOTOBOMBA': 'MTB', 'BOMBA SUMERGIBLE': 'BSM',
+  'PLACA COMPACTADORA': 'PLC', 'BETONERA': 'BET', 'UNIDAD MOTRIZ': 'UMO',
+  'RODILLO': 'ROD',
+  // Herramientas
+  'DEMOLEDOR 5 KILOS': 'DM5', 'DEMOLEDOR 10 KILOS': 'D10', 'DEMOLEDOR 9 KILOS': 'DM9',
+  'ESMERIL 5"': 'ES5', 'ESMERIL 7"': 'ES7', 'TALADRO PERCUTOR': 'TAL',
+  'PISTOLA IMPACTO': 'PST', 'PULIDORA HORMIGÓN': 'PUL', 'TEODOLITO': 'TEO',
+  'OTRO': 'OTR',
+};
+
+// Calcula el siguiente código para un tipo dado, buscando en TODOS los ítems del sistema
+function _nextCodigo(tipo, _datosIgnorado) {
+  // Prefijo: usar tabla o generar desde el nombre evitando colisiones
+  let prefijo = PREFIJOS_TIPO[tipo];
+  if (!prefijo) {
+    // Generar prefijo de 3 letras desde palabras clave del nombre
+    const palabras = tipo.replace(/[^A-Z0-9 ]/gi, '').toUpperCase().split(' ').filter(Boolean);
+    if (palabras.length >= 2) {
+      // Iniciales de las primeras 3 palabras
+      prefijo = palabras.slice(0, 3).map(p => p[0]).join('');
+      if (prefijo.length < 3) prefijo = (palabras[0].slice(0, 3 - prefijo.length + 1) + prefijo.slice(1)).slice(0, 3);
+    } else {
+      prefijo = (palabras[0] || 'OTR').slice(0, 3);
+    }
+    prefijo = prefijo.padEnd(3, 'X').slice(0, 3);
+  }
+
+  // Buscar en TODOS los ítems del sistema (generadores + maqmenor + herramientas + containers)
+  const todosCodigos = [
+    ...allGeneradores, ...allMaqMenor, ...allHerramientas, ...allContainers
+  ].map(i => (i.codigo || '').toString().trim().toUpperCase());
+
+  const re   = new RegExp(`^${prefijo}-(\\d+)$`, 'i');
+  const nums = todosCodigos
+    .map(c => { const m = c.match(re); return m ? parseInt(m[1]) : 0; })
+    .filter(n => n > 0);
+  const siguiente = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return `${prefijo}-${String(siguiente).padStart(2, '0')}`;
+}
+
 function invAbrirNuevo() {
   const mod = invModulo;
   const tipos = mod === 'generadores' ? TIPOS_GENERADOR
@@ -1193,23 +1240,35 @@ function invAbrirNuevo() {
   const sel = document.getElementById('nuevo-equipo');
   sel.innerHTML = tipos.map(t => `<option value="${t}">${t}</option>`).join('');
 
-  // Mostrar/ocultar campo código (solo generadores)
-  document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
+  // Mostrar campo código siempre (ahora aplica a todos los módulos)
+  document.getElementById('nuevo-codigo-row').style.display = '';
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
 
   // Limpiar campos
-  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-codigo','nuevo-potencia'].forEach(id => {
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('nuevo-estado').value = 'OPERATIVO';
   document.getElementById('nuevo-modulo').value = mod;
 
-  // Calcular número siguiente
+  // Calcular número correlativo siguiente
   const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
   const nextNum = datos.length > 0 ? Math.max(...datos.map(i => parseInt(i.num)||0)) + 1 : 1;
   document.getElementById('nuevo-num').value = nextNum;
 
+  // Autocompletar código según el primer tipo disponible
+  _actualizarCodigoAuto();
+
   openPanel('panel-nuevo-inv');
+}
+
+// Se llama al cambiar el tipo en el select — recalcula el código sugerido
+function _actualizarCodigoAuto() {
+  const mod   = document.getElementById('nuevo-modulo').value;
+  const tipo  = document.getElementById('nuevo-equipo').value;
+  const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const codigoEl = document.getElementById('nuevo-codigo');
+  if (codigoEl) codigoEl.value = _nextCodigo(tipo, datos);
 }
 
 async function invGuardarNuevo() {
