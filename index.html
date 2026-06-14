@@ -507,6 +507,19 @@
         <textarea id="edit-obs" placeholder="Fallas, pendientes, notas..."></textarea>
       </div>
 
+      <div class="form-sec">Foto de referencia</div>
+      <div class="form-group">
+        <div id="edit-foto-ref-preview" style="display:none;margin-bottom:8px">
+          <img id="edit-foto-ref-img" src="" alt="Foto de referencia" style="width:100%;border-radius:10px;max-height:220px;object-fit:cover;">
+        </div>
+        <div id="edit-foto-ref-info" style="font-size:12px;color:#888;margin-bottom:8px"></div>
+        <label class="doc-file-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          📷 Seleccionar foto de referencia
+          <input type="file" accept="image/*" onchange="onFotoRefSelected(this)" style="display:none">
+        </label>
+        <button id="edit-foto-ref-remove" onclick="quitarFotoRef()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto</button>
+      </div>
+
       <div class="form-sec">Diagnóstico</div>
       <button class="action-btn" onclick="testAppsScript()" style="background:#6B7280;margin-bottom:8px">
         🔌 Probar conexión Drive
