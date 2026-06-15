@@ -1001,7 +1001,15 @@ async function loadData(background = false) {
         revision:    parsearFecha(r[17] || ''),
         obs:         r[18] || '',
         linkFicha:   r[19] || '',
-        fotoRef:     r[21] || '',
+        estadoDoc:   r[20] || '',
+        fotoRef:     (() => {
+          const u = r[21] || '';
+          if (!u) return '';
+          // Convertir URL antigua uc?export=view al formato thumbnail que sí carga en <img>
+          const m = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+          if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`;
+          return u;
+        })(),
       }));
 
     if (!background) splash(80, 'Cargando eventos...');
@@ -1174,6 +1182,7 @@ function openFicha(patente) {
         <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}" style="margin-top:6px;display:inline-block">
           ${ESTADO_LABEL[e.estado]||e.estado}
         </span>
+        ${e.estadoDoc ? `<span class="badge gray" style="margin-top:4px;display:inline-block">${e.estadoDoc}</span>` : ''}
       </div>
     </div>
 
