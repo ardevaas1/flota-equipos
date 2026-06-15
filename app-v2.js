@@ -1368,6 +1368,7 @@ function openEditPanel() {
 
   // Cargar foto de referencia actual si existe
   _editFotoRef = null;
+  _editFotoRefFile = null;
   const prevImg  = document.getElementById('edit-foto-ref-img');
   const prevWrap = document.getElementById('edit-foto-ref-preview');
   const removeBtn = document.getElementById('edit-foto-ref-remove');
@@ -1391,47 +1392,37 @@ function openEditPanel() {
   openPanel('panel-edit');
 }
 
-// ── Foto de referencia de equipo ─────────────────────────────
-let _editFotoRef = null; // null = sin cambios, 'QUITAR' = borrar, string base64 = nueva foto
+// ── Foto de referencia de equipo (Drive) ─────────────────────
+// null = sin cambios, 'QUITAR' = borrar, File = nueva foto a subir
+let _editFotoRef = null;
+let _editFotoRefFile = null; // File object para subir a Drive
 
 function onFotoRefSelected(input) {
   const file = input.files[0];
   if (!file) return;
+  _editFotoRefFile = file;
+  _editFotoRef = 'NUEVA'; // marca que hay foto nueva pendiente de subir
+
+  // Preview local inmediato
   const reader = new FileReader();
   reader.onload = ev => {
-    // Reducir a máx 400px para no saturar la celda del sheet
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 400;
-      let w = img.width, h = img.height;
-      if (w > MAX || h > MAX) {
-        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-        else       { w = Math.round(w * MAX / h); h = MAX; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const b64 = canvas.toDataURL('image/jpeg', 0.75);
-      _editFotoRef = b64;
-      // Mostrar preview
-      const prevImg  = document.getElementById('edit-foto-ref-img');
-      const prevWrap = document.getElementById('edit-foto-ref-preview');
-      const removeBtn = document.getElementById('edit-foto-ref-remove');
-      const infoEl   = document.getElementById('edit-foto-ref-info');
-      prevImg.src = b64;
-      prevWrap.style.display = 'block';
-      removeBtn.style.display = 'block';
-      const kb = Math.round(b64.length * 0.75 / 1024);
-      infoEl.textContent = `Nueva foto · ${w}×${h}px · ~${kb} KB`;
-    };
-    img.src = ev.target.result;
+    const prevImg   = document.getElementById('edit-foto-ref-img');
+    const prevWrap  = document.getElementById('edit-foto-ref-preview');
+    const removeBtn = document.getElementById('edit-foto-ref-remove');
+    const infoEl    = document.getElementById('edit-foto-ref-info');
+    prevImg.src = ev.target.result;
+    prevWrap.style.display  = 'block';
+    removeBtn.style.display = 'block';
+    const kb = Math.round(file.size / 1024);
+    infoEl.textContent = `Nueva foto · ${file.name} · ${kb} KB · se subirá a Drive al guardar`;
   };
   reader.readAsDataURL(file);
-  input.value = ''; // reset para permitir reseleccionar
+  input.value = '';
 }
 
 function quitarFotoRef() {
   _editFotoRef = 'QUITAR';
+  _editFotoRefFile = null;
   document.getElementById('edit-foto-ref-img').src = '';
   document.getElementById('edit-foto-ref-preview').style.display = 'none';
   document.getElementById('edit-foto-ref-remove').style.display = 'none';
@@ -1493,8 +1484,59 @@ async function saveEquipo() {
     toast('Guardando datos...');
     console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
 
-    // Si hay nueva foto de referencia o se quitó, incluirla en el guardado
-    const fotoRefVal = _editFotoRef === 'QUITAR' ? '' : (_editFotoRef || currentEquipo?.fotoRef || '');
+    // Determinar URL final de foto de referencia (Drive)
+    let fotoRefVal = currentEquipo?.fotoRef || '';
+    if (_editFotoRef === 'QUITAR') {
+      fotoRefVal = '';
+    } else if (_editFotoRef === 'NUEVA' && _editFotoRefFile) {
+      toast('Subiendo foto de referencia a Drive...');
+      try {
+        await ensureToken();
+        const fotoFolderId = await getSubfolder(patente, 'FotoRef');
+        const ext = _editFotoRefFile.name.split('.').pop();
+        const fileName = `FOTOREF_${patente}.${ext}`;
+        const mimeType = _editFotoRefFile.type || 'image/jpeg';
+        const b64 = await new Promise((res, rej) => {
+          const rd = new FileReader();
+          rd.onload = () => res(rd.result.split(',')[1]);
+          rd.onerror = rej;
+          rd.readAsDataURL(_editFotoRefFile);
+        });
+        const boundary = 'lst_boundary_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [fotoFolderId] });
+        const body = [
+          '--' + boundary,
+          'Content-Type: application/json; charset=UTF-8',
+          '',
+          metadata,
+          '--' + boundary,
+          'Content-Type: ' + mimeType,
+          'Content-Transfer-Encoding: base64',
+          '',
+          b64,
+          '--' + boundary + '--'
+        ].join('\r\n');
+        const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+          body,
+        });
+        if (!uploadRes.ok) throw new Error('Drive upload ' + uploadRes.status);
+        const fileData = await uploadRes.json();
+        // Hacer público para mostrar como <img>
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`, {
+          method: 'POST',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+        });
+        fotoRefVal = `https://drive.google.com/uc?export=view&id=${fileData.id}`;
+        console.log('[FOTOREF] Subida OK:', fotoRefVal);
+      } catch(fe) {
+        console.error('[FOTOREF] Error subiendo foto:', fe);
+        toast('\u26a0\ufe0f No se pudo subir la foto de referencia');
+        fotoRefVal = currentEquipo?.fotoRef || '';
+      }
+    }
 
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
@@ -1576,6 +1618,7 @@ async function saveEquipo() {
     // que causaría un popstate que vuelve a cerrar el panel y rompe el flujo.
     resetDocInputs();
     _editFotoRef = null;
+  _editFotoRefFile = null;
     setBtnState(false, 'Guardar');
     _origClosePanel('panel-edit');
     // Limpiar el stack de paneles para que el botón Back no quede desincronizado
