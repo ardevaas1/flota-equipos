@@ -974,7 +974,7 @@ async function loadData(background = false) {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:U200`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:V200`);
     if (!background) splash(70, 'Procesando equipos...');
 
     allEquipos = rows
@@ -1001,7 +1001,7 @@ async function loadData(background = false) {
         revision:    parsearFecha(r[17] || ''),
         obs:         r[18] || '',
         linkFicha:   r[19] || '',
-        fotoRef:     r[20] || '',
+        fotoRef:     r[21] || '',
       }));
 
     if (!background) splash(80, 'Cargando eventos...');
@@ -1529,7 +1529,7 @@ async function saveEquipo() {
           headers: { ...authHeader(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: 'reader', type: 'anyone' }),
         });
-        fotoRefVal = `https://drive.google.com/uc?export=view&id=${fileData.id}`;
+        fotoRefVal = `https://drive.google.com/thumbnail?id=${fileData.id}&sz=w800`;
         console.log('[FOTOREF] Subida OK:', fotoRefVal);
       } catch(fe) {
         console.error('[FOTOREF] Error subiendo foto:', fe);
@@ -1548,7 +1548,7 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!U${row}`, [[fotoRefVal]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!V${row}`, [[fotoRefVal]]),
     ]);
     console.log('[SAVE] Sheet OK');
 
