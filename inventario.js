@@ -567,16 +567,53 @@ function invAbrirEditar() {
   document.getElementById('inv-edit-ubicacion').value = item.ubicacion || '';
   document.getElementById('inv-edit-obs').value        = item.obs || '';
 
-  // Limpiar foto previa
+  // Limpiar foto nueva pendiente
   _invFotoRef = null;
-  document.getElementById('inv-edit-foto-preview').innerHTML = '';
-  document.getElementById('inv-edit-foto-preview').style.display = 'none';
+  _invFotoQuitar = false;
+  const prevNew = document.getElementById('inv-edit-foto-preview');
+  const prevImg = document.getElementById('inv-edit-foto-preview-img');
+  if (prevNew) { prevNew.style.display = 'none'; }
+  if (prevImg) prevImg.src = '';
+
+  // Mostrar foto actual si existe
+  const fotoActual = item.foto || '';
+  const actWrap = document.getElementById('inv-edit-foto-actual');
+  const actImg  = document.getElementById('inv-edit-foto-actual-img');
+  const actInfo = document.getElementById('inv-edit-foto-actual-info');
+  const remBtn  = document.getElementById('inv-edit-foto-remove');
+  if (fotoActual && actWrap && actImg) {
+    // Construir URL thumbnail si es un file ID de Drive o nombre de archivo
+    const fotoUrl = fotoActual.startsWith('http')
+      ? fotoActual
+      : `https://drive.google.com/thumbnail?id=${fotoActual}&sz=w400`;
+    actImg.src = fotoUrl;
+    actImg.onerror = () => { actWrap.style.display = 'none'; };
+    actWrap.style.display = 'block';
+    if (actInfo) actInfo.textContent = 'Foto actual guardada';
+    if (remBtn) remBtn.style.display = 'block';
+  } else {
+    if (actWrap) actWrap.style.display = 'none';
+    if (remBtn) remBtn.style.display = 'none';
+  }
 
   openPanel('panel-inv-edit');
 }
 
 // Foto de referencia para edición inventario
 let _invFotoRef = null;
+let _invFotoQuitar = false;
+
+function quitarInvFoto() {
+  _invFotoQuitar = true;
+  _invFotoRef = null;
+  const actWrap = document.getElementById('inv-edit-foto-actual');
+  const remBtn  = document.getElementById('inv-edit-foto-remove');
+  if (actWrap) actWrap.style.display = 'none';
+  if (remBtn) remBtn.style.display = 'none';
+  const prevNew = document.getElementById('inv-edit-foto-preview');
+  if (prevNew) prevNew.style.display = 'none';
+  toast('Foto se eliminará al guardar');
+}
 
 function onInvFotoSelected(input) {
   if (!input.files || !input.files.length) return;
@@ -584,16 +621,19 @@ function onInvFotoSelected(input) {
   const reader = new FileReader();
   reader.onload = () => {
     _invFotoRef = {
-      b64:      reader.result.split(',')[1],
-      name:     file.name,
-      mimeType: file.type || 'image/jpeg',
+      b64:        reader.result.split(',')[1],
+      name:       file.name,
+      mimeType:   file.type || 'image/jpeg',
       previewUrl: reader.result,
     };
-    const prev = document.getElementById('inv-edit-foto-preview');
-    prev.style.display = 'block';
-    prev.innerHTML = `<div class="foto-thumb-wrap" style="margin-top:8px">
-      <img src="${reader.result}" class="foto-thumb" style="width:100%;height:auto;max-height:180px;object-fit:cover">
-    </div>`;
+    _invFotoQuitar = false;
+    const prevWrap = document.getElementById('inv-edit-foto-preview');
+    const prevImg  = document.getElementById('inv-edit-foto-preview-img');
+    if (prevImg) prevImg.src = reader.result;
+    if (prevWrap) prevWrap.style.display = 'block';
+    // Ocultar foto actual mientras hay nueva seleccionada
+    const actWrap = document.getElementById('inv-edit-foto-actual');
+    if (actWrap) actWrap.style.display = 'none';
   };
   reader.readAsDataURL(file);
   input.value = '';
@@ -635,6 +675,12 @@ async function invGuardar() {
       writeSheet(`'${sheetName}'!${colUbic}${row}`,   [[ubic]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
     ]);
+
+    // Quitar foto si se marcó
+    if (_invFotoQuitar) {
+      await writeSheet(`'${sheetName}'!${colFoto}${row}`, [['']] );
+      _invFotoQuitar = false;
+    }
 
     // Subir foto de referencia si hay una nueva
     if (_invFotoRef) {
@@ -1230,6 +1276,41 @@ function _nextCodigo(tipo, _datosIgnorado) {
   return `${prefijo}-${String(siguiente).padStart(2, '0')}`;
 }
 
+// Mostrar input personalizado cuando se elige OTRO
+function _onNuevoEquipoChange() {
+  const val = document.getElementById('nuevo-equipo').value;
+  const row = document.getElementById('nuevo-equipo-otro-row');
+  if (row) row.style.display = val === 'OTRO' ? '' : 'none';
+  _actualizarCodigoAuto();
+}
+
+// Foto de referencia en nuevo ítem
+let _nuevoInvFoto = null;
+
+function onNuevoInvFotoSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    _nuevoInvFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg', previewUrl: reader.result };
+    const img  = document.getElementById('nuevo-foto-img');
+    const prev = document.getElementById('nuevo-foto-preview');
+    const rem  = document.getElementById('nuevo-foto-remove');
+    img.src = reader.result;
+    prev.style.display = 'block';
+    rem.style.display  = 'block';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function quitarNuevoInvFoto() {
+  _nuevoInvFoto = null;
+  document.getElementById('nuevo-foto-img').src = '';
+  document.getElementById('nuevo-foto-preview').style.display = 'none';
+  document.getElementById('nuevo-foto-remove').style.display = 'none';
+}
+
 function invAbrirNuevo() {
   const mod = invModulo;
   const tipos = mod === 'generadores' ? TIPOS_GENERADOR
@@ -1245,10 +1326,14 @@ function invAbrirNuevo() {
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
 
   // Limpiar campos
-  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia'].forEach(id => {
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('nuevo-estado').value = 'OPERATIVO';
+  // Reset campo OTRO y foto
+  const otroRow = document.getElementById('nuevo-equipo-otro-row');
+  if (otroRow) otroRow.style.display = 'none';
+  quitarNuevoInvFoto();
   document.getElementById('nuevo-modulo').value = mod;
 
   // Calcular número correlativo siguiente
@@ -1274,7 +1359,9 @@ function _actualizarCodigoAuto() {
 async function invGuardarNuevo() {
   const mod      = document.getElementById('nuevo-modulo').value;
   const num      = document.getElementById('nuevo-num').value;
-  const equipo   = document.getElementById('nuevo-equipo').value;
+  const equipoSel = document.getElementById('nuevo-equipo').value;
+  const equipoOtro = document.getElementById('nuevo-equipo-otro')?.value.trim().toUpperCase();
+  const equipo   = (equipoSel === 'OTRO' && equipoOtro) ? equipoOtro : equipoSel;
   const marca    = document.getElementById('nuevo-marca').value.trim().toUpperCase();
   const modelo   = document.getElementById('nuevo-modelo').value.trim().toUpperCase();
   const estado   = document.getElementById('nuevo-estado').value;
@@ -1305,6 +1392,40 @@ async function invGuardarNuevo() {
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
     toast('✓ Ítem agregado');
+
+    // Subir foto de referencia si se seleccionó
+    if (_nuevoInvFoto) {
+      toast('Subiendo foto de referencia...');
+      try {
+        // Obtener rowIndex del nuevo ítem (última fila del sheet)
+        const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+        const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
+        const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || num) : num;
+        let folderId = DRIVE_INV_FOLDER;
+        try {
+          const sf = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder(String(codigoFoto), sf);
+        } catch(fe) { console.warn('[NUEVO FOTO] carpeta fallback'); }
+        const ext = _nuevoInvFoto.name.split('.').pop() || 'jpg';
+        const fileName = `REF_${codigoFoto}_${sheetName.replace(/ /g,'_')}.${ext}`;
+        const boundary = 'lst_inv_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_nuevoInvFoto.mimeType,'Content-Transfer-Encoding: base64','',_nuevoInvFoto.b64,'--'+boundary+'--'].join('\r\n');
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+          body,
+        });
+        if (res.ok) {
+          const result = await res.json();
+          // Determinar columna de foto y fila real
+          const colFotoNuevo = mod === 'generadores' ? 'O' : 'C';
+          await writeSheet(`'${sheetName}'!${colFotoNuevo}${newRow}`, [[result.name]]);
+          toast('Foto subida ✓');
+        }
+      } catch(fe) { console.error('[NUEVO FOTO]', fe); }
+      _nuevoInvFoto = null;
+    }
 
     _origClosePanel('panel-nuevo-inv'); 
     const idx = _panelStack.lastIndexOf('panel-nuevo-inv');
