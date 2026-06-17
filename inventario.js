@@ -400,9 +400,25 @@ function invAbrirDetalle(modulo, rowIndex) {
 // ── Miniatura: busca el archivo en Drive y carga la imagen ─────
 async function invCargarMiniatura(fileName, thumbId) {
   const el = document.getElementById(thumbId);
-  if (!el) return;
+  if (!el || !fileName) return;
+
+  // Si es URL directa (http/https), mostrar sin buscar en Drive
+  if (fileName.startsWith('http')) {
+    const m = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const imgUrl = m
+      ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`
+      : fileName;
+    el.style.position = 'relative';
+    el.innerHTML = `<img src="${imgUrl}" alt="Foto"
+      style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
+      onclick="invAbrirFotoModalUrl('${imgUrl}')"
+      onerror="this.parentElement.innerHTML='<span style=\\'color:#64748b;font-size:12px;padding:12px\\'>📷 Sin imagen</span>'">
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff">🔍 Ver</div>`;
+    el._driveImgUrl = imgUrl;
+    return;
+  }
+
   try {
-    // Buscar el archivo en Drive por nombre exacto
     const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
     const res = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,thumbnailLink,webContentLink)&pageSize=1`,
@@ -418,15 +434,12 @@ async function invCargarMiniatura(fileName, thumbId) {
     const imgUrl = file.thumbnailLink
       ? file.thumbnailLink.replace('=s220', '=s800')
       : `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
-
+    el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
       style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
       onclick="invAbrirFotoModal('${fileName}')"
       onerror="this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px>📷 ${fileName}</span>'">
       <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff">🔍 Ver</div>`;
-    el.style.position = 'relative';
-
-    // Guardar URL para el modal
     el._driveImgUrl = imgUrl;
     el._driveFileId = file.id;
   } catch(e) {
@@ -434,6 +447,26 @@ async function invCargarMiniatura(fileName, thumbId) {
     el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px">📷 ${fileName}</span>`;
   }
 }
+
+// Modal simple para URLs directas
+function invAbrirFotoModalUrl(imgUrl) {
+  let modal = document.getElementById('foto-modal-overlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'foto-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+    modal.innerHTML = `
+      <button onclick="invCerrarFotoModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;border-radius:50%;width:40px;height:40px;font-size:22px;color:#fff;cursor:pointer">✕</button>
+      <img id="foto-modal-img" src="" alt="Foto" style="max-width:100%;max-height:88vh;object-fit:contain;border-radius:12px">
+    `;
+    modal.addEventListener('click', e => { if (e.target === modal) invCerrarFotoModal(); });
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  const img = document.getElementById('foto-modal-img');
+  if (img) img.src = imgUrl;
+}
+
 
 // ── Modal foto pantalla completa ───────────────────────────────
 async function invAbrirFotoModal(fileName) {
