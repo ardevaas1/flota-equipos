@@ -404,9 +404,12 @@ async function invCargarMiniatura(fileName, thumbId) {
 
   // Si es URL directa (http/https), mostrar sin buscar en Drive
   if (fileName.startsWith('http')) {
-    const m = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    const imgUrl = m
-      ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`
+    // Soporta /file/d/ID/view  y  ?id=ID  y  &id=ID
+    const mPath  = fileName.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    const mQuery = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const fileId = (mPath && mPath[1]) || (mQuery && mQuery[1]);
+    const imgUrl = fileId
+      ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
       : fileName;
     el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto"
@@ -472,9 +475,11 @@ function invAbrirFotoModalUrl(imgUrl) {
 async function invAbrirFotoModal(fileName) {
   // Si recibe URL directa, delegar a invAbrirFotoModalUrl
   if (fileName && fileName.startsWith('http')) {
-    const m = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    const url = m
-      ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1600`
+    const mPath  = fileName.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    const mQuery = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const fileId = (mPath && mPath[1]) || (mQuery && mQuery[1]);
+    const url = fileId
+      ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`
       : fileName;
     invAbrirFotoModalUrl(url);
     return;
