@@ -374,7 +374,7 @@ function invAbrirDetalle(modulo, rowIndex) {
     ${imgSrc ? `
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
-      <div style="padding:8px 0" onclick="invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')">
+      <div style="padding:8px 0" onclick="${imgSrc.startsWith('http') ? `invAbrirFotoModalUrl('${imgSrc.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')` }">
         <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;min-height:60px;display:flex;align-items:center;justify-content:center">
           <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
         </div>
@@ -470,6 +470,16 @@ function invAbrirFotoModalUrl(imgUrl) {
 
 // ── Modal foto pantalla completa ───────────────────────────────
 async function invAbrirFotoModal(fileName) {
+  // Si recibe URL directa, delegar a invAbrirFotoModalUrl
+  if (fileName && fileName.startsWith('http')) {
+    const m = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const url = m
+      ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1600`
+      : fileName;
+    invAbrirFotoModalUrl(url);
+    return;
+  }
+
   // Crear modal si no existe
   let modal = document.getElementById('foto-modal-overlay');
   if (!modal) {
@@ -1006,7 +1016,7 @@ function contAbrirDetalle(rowIndex) {
     ${c.foto?`
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
-      <div style="padding:8px 0" onclick="invAbrirFotoModal('${c.foto.replace(/'/g,"\\'")}')">
+      <div style="padding:8px 0" onclick="${c.foto.startsWith('http') ? `invAbrirFotoModalUrl('${c.foto.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${c.foto.replace(/'/g,"\\'")}')` }">
         <div id="cont-foto-thumb-${c.rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;min-height:60px;display:flex;align-items:center;justify-content:center">
           <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
         </div>
