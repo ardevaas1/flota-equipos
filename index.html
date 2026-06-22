@@ -317,6 +317,10 @@
             <div class="stat-n" id="stat-docs">—</div>
             <div class="stat-l">Docs venc.</div>
           </div>
+          <div class="stat blue" onclick="abrirMovimientosPendientes()">
+            <div class="stat-n" id="stat-movs-pend">—</div>
+            <div class="stat-l">📦 Movim. pend.</div>
+          </div>
         </div>
         <div class="dash-cols">
           <div>
@@ -870,10 +874,92 @@
     </div>
   </div>
 
+  <!-- ── Panel: Mover equipo (Inventario/Containers) ── -->
+  <div id="panel-mover" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-mover')">‹ Cancelar</button>
+      <span class="pnl-title">Registrar movimiento</span>
+      <button class="pnl-action" onclick="invGuardarMovimiento()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="mov-tipo-equipo">
+      <input type="hidden" id="mov-codigo-equipo">
+      <input type="hidden" id="mov-row-index">
+      <div class="form-group">
+        <label>Equipo</label>
+        <div id="mov-nombre-equipo" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+      </div>
+      <div class="form-group">
+        <label>Origen</label>
+        <input type="text" id="mov-origen" placeholder="Ej: Bodega Colima">
+      </div>
+      <div class="form-group">
+        <label>Destino</label>
+        <input type="text" id="mov-destino" placeholder="Ej: Obra Las Encinas">
+      </div>
+      <div class="form-group">
+        <label>Fecha movimiento</label>
+        <input type="date" id="mov-fecha">
+      </div>
+      <div class="form-group">
+        <label>Quién autoriza</label>
+        <input type="text" id="mov-autoriza" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label>Quién traslada</label>
+        <input type="text" id="mov-traslada" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label>Observaciones de salida</label>
+        <textarea id="mov-obs-salida" placeholder="Estado del equipo, motivo del traslado, etc."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Movimientos pendientes (confirmar recepción) ── -->
+  <div id="panel-movs-pendientes" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-movs-pendientes')">‹ Volver</button>
+      <span class="pnl-title">Movimientos pendientes</span>
+    </div>
+    <div class="panel-body" id="movs-pendientes-lista">
+    </div>
+  </div>
+
+  <!-- ── Panel: Confirmar recepción ── -->
+  <div id="panel-mov-recibir" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-mov-recibir')">‹ Cancelar</button>
+      <span class="pnl-title">Confirmar recepción</span>
+      <button class="pnl-action" onclick="guardarRecepcionMov()">Confirmar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="recibir-id-mov">
+      <input type="hidden" id="recibir-row-index">
+      <div class="form-group">
+        <label>Equipo</label>
+        <div id="recibir-nombre-equipo" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+      </div>
+      <div class="form-group">
+        <label>Destino</label>
+        <div id="recibir-destino" style="font-size:14px;color:#475569;padding:4px 0"></div>
+      </div>
+      <div class="form-group">
+        <label>Quién recibe</label>
+        <input type="text" id="recibir-recibe" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label>Observaciones de recepción</label>
+        <textarea id="recibir-obs" placeholder="¿Llegó OK? ¿Con daño? ¿Incompleto?"></textarea>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Panel: Evento Generador ── -->
   <div id="panel-gen-evento" class="panel hidden">
     <div class="panel-bar">
       <button class="pnl-back" onclick="closePanel('panel-gen-evento')">‹ Cancelar</button>
+
       <span class="pnl-title">Registrar evento</span>
       <button class="pnl-action" onclick="invGuardarEventoGen()">Guardar</button>
     </div>

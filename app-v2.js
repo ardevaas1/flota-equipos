@@ -858,8 +858,8 @@ async function saveEvento() {
     const fotoNombre = fotosSubidas.join(' | ');
 
     // A=FECHA_REG B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
-    const fechaReg = new Date().toLocaleDateString('es-CL');
-    const fechaFmt = fecha.split('-').reverse().join('/');
+    const fechaReg = "'" + new Date().toLocaleDateString('es-CL');
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
     await appendSheet(`'${CONFIG.SHEET_MANTENCIONES}'!A:H`, [[
       fechaReg, patente, nombreEquipo, horometro, tipo, obs, fechaFmt, fotoNombre
     ]]);
@@ -1017,6 +1017,7 @@ async function loadData(background = false) {
 
     if (!background) splash(90, 'Cargando inventario...');
     await loadInventario();
+    if (typeof loadMovimientos === 'function') { try { await loadMovimientos(); } catch(e) {} }
 
     if (!background) splash(100, '¡Listo!');
     renderDashboard();
@@ -1056,6 +1057,15 @@ function renderDashboard() {
   }));
   document.getElementById('stat-docs').textContent = docsVenc;
   document.getElementById('nav-dot').style.display = docsVenc > 0 ? 'block' : 'none';
+
+  // Movimientos pendientes
+  if (typeof loadMovimientos === 'function') {
+    loadMovimientos().then(() => {
+      const pend = (typeof allMovimientos !== 'undefined' ? allMovimientos : []).filter(m => m.estado !== 'RECIBIDO').length;
+      const elMov = document.getElementById('stat-movs-pend');
+      if (elMov) elMov.textContent = pend;
+    }).catch(() => {});
+  }
 
   // Alertas urgentes
   const alertas = [];
@@ -1242,6 +1252,8 @@ function openFicha(patente) {
     <a class="ficha-link-btn" onclick="abrirCarpetaDrive('${e.patente}')" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5">
       📁 Abrir carpeta en Drive
     </a>
+    ${typeof _renderHistorialMovimientos === 'function' ? _renderHistorialMovimientos(e.patente) : ''}
+    <button class="action-btn" onclick="abrirMoverFlota('${e.patente}')" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px">✏️ Editar información</button>
   `;
 

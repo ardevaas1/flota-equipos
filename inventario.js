@@ -40,6 +40,7 @@ const SHEET_MAQ_MENOR    = 'MAQUINARIA MENOR';
 const SHEET_HERRAMIENTAS = 'HERRAMIENTAS';
 const SHEET_CONTAINERS   = 'CONTENEDORES';
 const SHEET_GEN_EVENTOS  = 'MANTENCIONES_GEN'; // hoja de eventos generadores
+const SHEET_MOVIMIENTOS  = 'MOVIMIENTOS'; // hoja de movimientos entre obras/bodega
 
 // ── Datos en memoria ─────────────────────────────────────────
 let allGeneradores  = [];
@@ -383,6 +384,9 @@ function invAbrirDetalle(modulo, rowIndex) {
 
     ${secEventos}
 
+    ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex))}
+
+    <button class="action-btn" onclick="abrirMoverInv()" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
       📁 Ver fotos en Drive
@@ -906,8 +910,8 @@ async function invGuardarEventoGen() {
       }
     }
 
-    const fechaReg = new Date().toLocaleDateString('es-CL');
-    const fechaFmt = fecha.split('-').reverse().join('/');
+    const fechaReg = "'" + new Date().toLocaleDateString('es-CL');
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
     const gen = allGeneradores.find(g => g.codigo === codigo);
     const nombreGen = gen ? [gen.marca, gen.modelo].filter(Boolean).join(' ') || gen.equipo : codigo;
 
@@ -1028,6 +1032,9 @@ function contAbrirDetalle(rowIndex) {
       </div>
     </div>`:''}
 
+    ${_renderHistorialMovimientos(String(c.num || c.rowIndex))}
+
+    <button class="action-btn" onclick="abrirMoverCont()" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="contAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
   `;
 
@@ -1531,5 +1538,258 @@ async function contGuardarNuevo() {
     toast('Error: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+  }
+}
+
+// ============================================
+// MOVIMIENTOS — Traslados entre obras/bodega
+// Hoja MOVIMIENTOS: A=ID B=FECHA_SALIDA C=TIPO_EQUIPO D=CODIGO_EQUIPO
+//   E=NOMBRE_EQUIPO F=ORIGEN G=DESTINO H=AUTORIZA I=TRASLADA J=OBS_SALIDA
+//   K=ESTADO L=FECHA_RECEPCION M=RECIBE N=OBS_RECEPCION O=REGISTRADO_POR
+// ============================================
+
+let allMovimientos = [];
+let _movPendienteActual = null; // item temporal mientras se llena el form de mover
+
+// Renderiza el historial de movimientos de un equipo (por código) para insertar en su ficha
+function _renderHistorialMovimientos(codigoEquipo) {
+  const hist = (allMovimientos || [])
+    .filter(m => m.codigoEquipo === codigoEquipo)
+    .sort((a,b) => b.rowIndex - a.rowIndex)
+    .slice(0, 8);
+
+  if (hist.length === 0) {
+    return `
+    <div class="ficha-section">
+      <div class="ficha-sec-title">Historial de movimientos</div>
+      <div class="empty">Sin movimientos registrados</div>
+    </div>`;
+  }
+
+  return `
+    <div class="ficha-section">
+      <div class="ficha-sec-title">Historial de movimientos</div>
+      ${hist.map(m => `
+        <div class="evento-card-mini">
+          <div class="evento-tipo-icon">${m.estado === 'RECIBIDO' ? '✅' : '🚚'}</div>
+          <div class="mant-body">
+            <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
+            <div class="mant-meta">${m.fechaSalida}${m.estado !== 'RECIBIDO' ? ' · En tránsito' : ' · Recibido '+m.fechaRecepcion}</div>
+            ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
+            ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// Carga todos los movimientos (se usa para historial y pendientes)
+async function loadMovimientos() {
+  try {
+    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:O2000`);
+    allMovimientos = (rows || []).map((r, i) => ({
+      rowIndex: i + 2,
+      id: r[0] || '',
+      fechaSalida: r[1] || '',
+      tipoEquipo: r[2] || '',
+      codigoEquipo: r[3] || '',
+      nombreEquipo: r[4] || '',
+      origen: r[5] || '',
+      destino: r[6] || '',
+      autoriza: r[7] || '',
+      traslada: r[8] || '',
+      obsSalida: r[9] || '',
+      estado: r[10] || 'EN_TRANSITO',
+      fechaRecepcion: r[11] || '',
+      recibe: r[12] || '',
+      obsRecepcion: r[13] || '',
+      registradoPor: r[14] || '',
+    }));
+  } catch (e) {
+    console.warn('[MOV] Hoja MOVIMIENTOS no encontrada, se creará al guardar el primer movimiento');
+    allMovimientos = [];
+  }
+}
+
+// ── Abrir panel "Mover" desde Inventario (Generadores/MaqMenor/Herramientas) ──
+function abrirMoverInv() {
+  if (!invItem) return;
+  const nombre = [invItem.marca, invItem.modelo].filter(Boolean).join(' ') || invItem.equipo;
+  _abrirPanelMover({
+    tipoEquipo: invItem._modulo === 'generadores' ? 'Generador'
+              : invItem._modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
+    codigoEquipo: invItem.codigo || String(invItem.rowIndex),
+    nombreEquipo: nombre,
+    ubicacionActual: invItem.ubicacion || '',
+    rowIndex: invItem.rowIndex,
+    onGuardar: 'inv',
+  });
+}
+
+// ── Abrir panel "Mover" desde Containers ──
+function abrirMoverCont() {
+  if (!contItem) return;
+  _abrirPanelMover({
+    tipoEquipo: 'Container',
+    codigoEquipo: String(contItem.num || contItem.rowIndex),
+    nombreEquipo: contItem.tipo || 'Container',
+    ubicacionActual: contItem.ubicacion || '',
+    rowIndex: contItem.rowIndex,
+    onGuardar: 'cont',
+  });
+}
+
+function _abrirPanelMover(data) {
+  _movPendienteActual = data;
+  document.getElementById('mov-tipo-equipo').value = data.tipoEquipo;
+  document.getElementById('mov-codigo-equipo').value = data.codigoEquipo;
+  document.getElementById('mov-row-index').value = data.rowIndex;
+  document.getElementById('mov-nombre-equipo').textContent = `${data.tipoEquipo} — ${data.nombreEquipo}`;
+  document.getElementById('mov-origen').value = data.ubicacionActual || '';
+  document.getElementById('mov-destino').value = '';
+  document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mov-autoriza').value = '';
+  document.getElementById('mov-traslada').value = '';
+  document.getElementById('mov-obs-salida').value = '';
+  openPanel('panel-mover');
+}
+
+async function invGuardarMovimiento() {
+  const tipoEquipo   = document.getElementById('mov-tipo-equipo').value;
+  const codigoEquipo = document.getElementById('mov-codigo-equipo').value;
+  const rowIndex     = document.getElementById('mov-row-index').value;
+  const nombreEquipo = _movPendienteActual ? _movPendienteActual.nombreEquipo : '';
+  const origen   = document.getElementById('mov-origen').value.trim();
+  const destino  = document.getElementById('mov-destino').value.trim();
+  const fecha    = document.getElementById('mov-fecha').value;
+  const autoriza = document.getElementById('mov-autoriza').value.trim();
+  const traslada = document.getElementById('mov-traslada').value.trim();
+  const obs      = document.getElementById('mov-obs-salida').value.trim();
+
+  if (!destino || !fecha) { toast('Completa destino y fecha', 'error'); return; }
+
+  const btn = document.querySelector('#panel-mover .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
+    const idMov = 'MOV-' + Date.now();
+    const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
+
+    // A=ID B=FECHA_SALIDA C=TIPO D=CODIGO E=NOMBRE F=ORIGEN G=DESTINO H=AUTORIZA
+    // I=TRASLADA J=OBS_SALIDA K=ESTADO L=FECHA_RECEP M=RECIBE N=OBS_RECEP O=REGISTRADO_POR
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:O`, [[
+      idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreEquipo,
+      origen, destino, autoriza, traslada, obs,
+      'EN_TRANSITO', '', '', '', registradoPor
+    ]]);
+
+    // Actualizar ubicación actual del equipo de inmediato
+    if (_movPendienteActual && _movPendienteActual.onGuardar === 'inv' && invItem) {
+      let col = null;
+      if (invItem._modulo === 'generadores') col = 'J';
+      else if (invItem._modulo === 'maqmenor') col = 'I';
+      else if (invItem._modulo === 'herramientas') col = 'I';
+      const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
+                       : invItem._modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+      if (col) await writeSheet(`'${sheetName}'!${col}${rowIndex}`, [[destino]]);
+    } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'cont') {
+      await writeSheet(`'${SHEET_CONTAINERS}'!G${rowIndex}`, [[destino]]);
+    } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'flota') {
+      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${rowIndex}`, [[destino]]);
+    }
+
+    toast('✓ Movimiento registrado — pendiente de recepción');
+    _origClosePanel('panel-mover');
+    const idx = _panelStack.lastIndexOf('panel-mover');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+
+    await loadInventario();
+    await loadMovimientos();
+    if (_movPendienteActual && _movPendienteActual.onGuardar === 'cont') renderContainers();
+    if (_movPendienteActual && _movPendienteActual.onGuardar === 'flota' && typeof loadData === 'function') {
+      await loadData(true);
+    }
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}
+
+// ── Abrir Flota (Maquinaria) — definida aquí porque reutiliza panel-mover ──
+function abrirMoverFlota(patente) {
+  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(x => x.patente === patente);
+  if (!eq) return;
+  _abrirPanelMover({
+    tipoEquipo: 'Maquinaria',
+    codigoEquipo: eq.patente,
+    nombreEquipo: [eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo,
+    ubicacionActual: eq.ubicacion || '',
+    rowIndex: eq.rowIndex,
+    onGuardar: 'flota',
+  });
+}
+
+// ── Movimientos pendientes (confirmar recepción) ──
+async function abrirMovimientosPendientes() {
+  await loadMovimientos();
+  const pendientes = allMovimientos.filter(m => m.estado !== 'RECIBIDO').sort((a,b) => b.rowIndex - a.rowIndex);
+  const cont = document.getElementById('movs-pendientes-lista');
+  if (pendientes.length === 0) {
+    cont.innerHTML = '<div class="empty">No hay movimientos pendientes de recepción 🎉</div>';
+  } else {
+    cont.innerHTML = pendientes.map(m => `
+      <div class="evento-card-mini" style="cursor:pointer" onclick="abrirConfirmarRecepcion(${m.rowIndex})">
+        <div class="evento-tipo-icon">🚚</div>
+        <div class="mant-body">
+          <div class="mant-title">${m.tipoEquipo} — ${m.nombreEquipo}</div>
+          <div class="mant-meta">${m.origen||'—'} → ${m.destino||'—'} · ${m.fechaSalida}</div>
+          ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+  openPanel('panel-movs-pendientes');
+}
+
+function abrirConfirmarRecepcion(rowIndex) {
+  const m = allMovimientos.find(x => x.rowIndex === rowIndex);
+  if (!m) return;
+  document.getElementById('recibir-id-mov').value = m.id;
+  document.getElementById('recibir-row-index').value = m.rowIndex;
+  document.getElementById('recibir-nombre-equipo').textContent = `${m.tipoEquipo} — ${m.nombreEquipo}`;
+  document.getElementById('recibir-destino').textContent = `Destino: ${m.destino}`;
+  document.getElementById('recibir-recibe').value = '';
+  document.getElementById('recibir-obs').value = '';
+  openPanel('panel-mov-recibir');
+}
+
+async function guardarRecepcionMov() {
+  const rowIndex = document.getElementById('recibir-row-index').value;
+  const recibe   = document.getElementById('recibir-recibe').value.trim();
+  const obs      = document.getElementById('recibir-obs').value.trim();
+
+  if (!recibe) { toast('Indica quién recibe', 'error'); return; }
+
+  const btn = document.querySelector('#panel-mov-recibir .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    const fechaRecepFmt = "'" + new Date().toLocaleDateString('es-CL');
+    // K=ESTADO L=FECHA_RECEP M=RECIBE N=OBS_RECEP
+    await writeSheet(`'${SHEET_MOVIMIENTOS}'!K${rowIndex}:N${rowIndex}`, [[
+      'RECIBIDO', fechaRecepFmt, recibe, obs
+    ]]);
+
+    toast('✓ Recepción confirmada');
+    _origClosePanel('panel-mov-recibir');
+    let idx = _panelStack.lastIndexOf('panel-mov-recibir');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+
+    await loadMovimientos();
+    await abrirMovimientosPendientes();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
   }
 }
