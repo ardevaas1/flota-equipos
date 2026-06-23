@@ -1571,10 +1571,10 @@ function _renderHistorialMovimientos(codigoEquipo) {
       <div class="ficha-sec-title">Historial de movimientos</div>
       ${hist.map(m => `
         <div class="evento-card-mini">
-          <div class="evento-tipo-icon">${m.estado === 'RECIBIDO' ? '✅' : '🚚'}</div>
+          <div class="evento-tipo-icon">🚚</div>
           <div class="mant-body">
             <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
-            <div class="mant-meta">${m.fechaSalida}${m.estado !== 'RECIBIDO' ? ' · En tránsito' : ' · Recibido '+m.fechaRecepcion}</div>
+            <div class="mant-meta">${m.fechaSalida}</div>
             ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
             ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
           </div>
@@ -1582,10 +1582,10 @@ function _renderHistorialMovimientos(codigoEquipo) {
     </div>`;
 }
 
-// Carga todos los movimientos (se usa para historial y pendientes)
+// Carga todos los movimientos (se usa para historial)
 async function loadMovimientos() {
   try {
-    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:O2000`);
+    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:K2000`);
     allMovimientos = (rows || []).map((r, i) => ({
       rowIndex: i + 2,
       id: r[0] || '',
@@ -1598,11 +1598,7 @@ async function loadMovimientos() {
       autoriza: r[7] || '',
       traslada: r[8] || '',
       obsSalida: r[9] || '',
-      estado: r[10] || 'EN_TRANSITO',
-      fechaRecepcion: r[11] || '',
-      recibe: r[12] || '',
-      obsRecepcion: r[13] || '',
-      registradoPor: r[14] || '',
+      registradoPor: r[10] || '',
     }));
   } catch (e) {
     console.warn('[MOV] Hoja MOVIMIENTOS no encontrada, se creará al guardar el primer movimiento');
@@ -1676,11 +1672,11 @@ async function invGuardarMovimiento() {
     const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
 
     // A=ID B=FECHA_SALIDA C=TIPO D=CODIGO E=NOMBRE F=ORIGEN G=DESTINO H=AUTORIZA
-    // I=TRASLADA J=OBS_SALIDA K=ESTADO L=FECHA_RECEP M=RECIBE N=OBS_RECEP O=REGISTRADO_POR
-    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:O`, [[
+    // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:K`, [[
       idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreEquipo,
       origen, destino, autoriza, traslada, obs,
-      'EN_TRANSITO', '', '', '', registradoPor
+      registradoPor
     ]]);
 
     // Actualizar ubicación actual del equipo de inmediato
@@ -1698,7 +1694,7 @@ async function invGuardarMovimiento() {
       await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${rowIndex}`, [[destino]]);
     }
 
-    toast('✓ Movimiento registrado — pendiente de recepción');
+    toast('✓ Movimiento registrado');
     _origClosePanel('panel-mover');
     const idx = _panelStack.lastIndexOf('panel-mover');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -1730,66 +1726,3 @@ function abrirMoverFlota(patente) {
   });
 }
 
-// ── Movimientos pendientes (confirmar recepción) ──
-async function abrirMovimientosPendientes() {
-  await loadMovimientos();
-  const pendientes = allMovimientos.filter(m => m.estado !== 'RECIBIDO').sort((a,b) => b.rowIndex - a.rowIndex);
-  const cont = document.getElementById('movs-pendientes-lista');
-  if (pendientes.length === 0) {
-    cont.innerHTML = '<div class="empty">No hay movimientos pendientes de recepción 🎉</div>';
-  } else {
-    cont.innerHTML = pendientes.map(m => `
-      <div class="evento-card-mini" style="cursor:pointer" onclick="abrirConfirmarRecepcion(${m.rowIndex})">
-        <div class="evento-tipo-icon">🚚</div>
-        <div class="mant-body">
-          <div class="mant-title">${m.tipoEquipo} — ${m.nombreEquipo}</div>
-          <div class="mant-meta">${m.origen||'—'} → ${m.destino||'—'} · ${m.fechaSalida}</div>
-          ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
-        </div>
-      </div>`).join('');
-  }
-  openPanel('panel-movs-pendientes');
-}
-
-function abrirConfirmarRecepcion(rowIndex) {
-  const m = allMovimientos.find(x => x.rowIndex === rowIndex);
-  if (!m) return;
-  document.getElementById('recibir-id-mov').value = m.id;
-  document.getElementById('recibir-row-index').value = m.rowIndex;
-  document.getElementById('recibir-nombre-equipo').textContent = `${m.tipoEquipo} — ${m.nombreEquipo}`;
-  document.getElementById('recibir-destino').textContent = `Destino: ${m.destino}`;
-  document.getElementById('recibir-recibe').value = '';
-  document.getElementById('recibir-obs').value = '';
-  openPanel('panel-mov-recibir');
-}
-
-async function guardarRecepcionMov() {
-  const rowIndex = document.getElementById('recibir-row-index').value;
-  const recibe   = document.getElementById('recibir-recibe').value.trim();
-  const obs      = document.getElementById('recibir-obs').value.trim();
-
-  if (!recibe) { toast('Indica quién recibe', 'error'); return; }
-
-  const btn = document.querySelector('#panel-mov-recibir .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
-
-  try {
-    const fechaRecepFmt = "'" + new Date().toLocaleDateString('es-CL');
-    // K=ESTADO L=FECHA_RECEP M=RECIBE N=OBS_RECEP
-    await writeSheet(`'${SHEET_MOVIMIENTOS}'!K${rowIndex}:N${rowIndex}`, [[
-      'RECIBIDO', fechaRecepFmt, recibe, obs
-    ]]);
-
-    toast('✓ Recepción confirmada');
-    _origClosePanel('panel-mov-recibir');
-    let idx = _panelStack.lastIndexOf('panel-mov-recibir');
-    if (idx !== -1) _panelStack.splice(idx, 1);
-
-    await loadMovimientos();
-    await abrirMovimientosPendientes();
-  } catch (err) {
-    toast('Error: ' + err.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
-  }
-}

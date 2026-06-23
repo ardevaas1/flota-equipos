@@ -1058,15 +1058,6 @@ function renderDashboard() {
   document.getElementById('stat-docs').textContent = docsVenc;
   document.getElementById('nav-dot').style.display = docsVenc > 0 ? 'block' : 'none';
 
-  // Movimientos pendientes
-  if (typeof loadMovimientos === 'function') {
-    loadMovimientos().then(() => {
-      const pend = (typeof allMovimientos !== 'undefined' ? allMovimientos : []).filter(m => m.estado !== 'RECIBIDO').length;
-      const elMov = document.getElementById('stat-movs-pend');
-      if (elMov) elMov.textContent = pend;
-    }).catch(() => {});
-  }
-
   // Alertas urgentes
   const alertas = [];
   allEquipos.forEach(e => {
