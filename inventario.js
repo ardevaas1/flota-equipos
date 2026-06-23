@@ -53,6 +53,14 @@ let allGenEventos   = [];
 let invModulo = 'generadores'; // 'generadores' | 'maqmenor' | 'herramientas'
 let invItem   = null;          // ítem seleccionado para edición/detalle
 
+// ── Selección múltiple (mover en grupo) ────────────────────────
+let _invModoSeleccion = false;
+let _invSeleccion = new Set();
+let _contModoSeleccion = false;
+let _contSeleccion = new Set();
+let _movMultiOverrides = {};
+let _movMultiItems = [];
+
 // ── Colores de estado ─────────────────────────────────────────
 const INV_ESTADO_COLOR = {
   'operativo':  'green',
@@ -264,7 +272,13 @@ function renderInvLista() {
     const icon  = invIcono(item.equipo);
     const titulo = [item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo;
     const sub    = [item.equipo, item.codigo || item.motor].filter(Boolean).join(' · ');
-    return `<div class="card" onclick="invAbrirDetalle('${invModulo}',${item.rowIndex})">
+    const key = `${invModulo}:${item.rowIndex}`;
+    const checked = _invSeleccion.has(key);
+    const onclickAttr = _invModoSeleccion
+      ? `invToggleItemSeleccion('${invModulo}',${item.rowIndex})`
+      : `invAbrirDetalle('${invModulo}',${item.rowIndex})`;
+    return `<div class="card" onclick="${onclickAttr}">
+      ${_invModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size:22px">${icon}</div>
       <div class="card-body">
         <div class="card-title">${titulo}</div>
@@ -272,7 +286,7 @@ function renderInvLista() {
         <span class="badge ${cls}" style="margin-top:4px;display:inline-block">${item.estado||'Sin estado'}</span>
       </div>
       <div class="card-right">
-        <span class="card-arrow">›</span>
+        ${_invModoSeleccion ? '' : '<span class="card-arrow">›</span>'}
         <span style="font-size:11px;color:#aaa">${item.ubicacion||'—'}</span>
       </div>
     </div>`;
@@ -965,7 +979,13 @@ function renderContainers() {
   const html = filtrados.map(c => {
     const icon = invIcono(c.tipo);
     const cls  = c.estado === 'REGULAR' ? 'amber' : c.estado === 'INCOMPLETO' ? 'red' : 'green';
-    return `<div class="card" onclick="contAbrirDetalle(${c.rowIndex})">
+    const key = `cont:${c.rowIndex}`;
+    const checked = _contSeleccion.has(key);
+    const onclickAttr = _contModoSeleccion
+      ? `contToggleItemSeleccion(${c.rowIndex})`
+      : `contAbrirDetalle(${c.rowIndex})`;
+    return `<div class="card" onclick="${onclickAttr}">
+      ${_contModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size:22px">${icon}</div>
       <div class="card-body">
         <div class="card-title">N° ${c.num} · ${c.tipo}</div>
@@ -973,7 +993,7 @@ function renderContainers() {
         <span class="badge ${cls}" style="margin-top:4px;display:inline-block">${c.estado||'Sin estado'}</span>
       </div>
       <div class="card-right">
-        <span class="card-arrow">›</span>
+        ${_contModoSeleccion ? '' : '<span class="card-arrow">›</span>'}
         <span style="font-size:11px;color:#aaa">${c.ubicacion||'—'}</span>
       </div>
     </div>`;
@@ -1726,3 +1746,276 @@ function abrirMoverFlota(patente) {
   });
 }
 
+
+// ============================================
+// SELECCIÓN MÚLTIPLE — Mover varios ítems a la vez
+// ============================================
+
+// ── Inventario (Generadores/MaqMenor/Herramientas) ──
+function invToggleModoSeleccion() {
+  _invModoSeleccion = !_invModoSeleccion;
+  if (!_invModoSeleccion) _invSeleccion.clear();
+  const btn = document.getElementById('inv-btn-seleccionar');
+  if (btn) btn.textContent = _invModoSeleccion ? '✕ Cancelar' : '☑️ Seleccionar';
+  _invActualizarBarraSeleccion();
+  renderInvLista();
+}
+
+function invCancelarSeleccion() {
+  _invModoSeleccion = false;
+  _invSeleccion.clear();
+  const btn = document.getElementById('inv-btn-seleccionar');
+  if (btn) btn.textContent = '☑️ Seleccionar';
+  _invActualizarBarraSeleccion();
+  renderInvLista();
+}
+
+function invToggleItemSeleccion(modulo, rowIndex) {
+  const key = `${modulo}:${rowIndex}`;
+  if (_invSeleccion.has(key)) _invSeleccion.delete(key);
+  else _invSeleccion.add(key);
+  _invActualizarBarraSeleccion();
+  renderInvLista();
+}
+
+function _invActualizarBarraSeleccion() {
+  const bar = document.getElementById('inv-sel-bar');
+  const count = document.getElementById('inv-sel-count');
+  if (!bar) return;
+  if (_invModoSeleccion && _invSeleccion.size > 0) {
+    bar.classList.remove('hidden');
+    if (count) count.textContent = `${_invSeleccion.size} seleccionado${_invSeleccion.size>1?'s':''}`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+// ── Containers ──
+function contToggleModoSeleccion() {
+  _contModoSeleccion = !_contModoSeleccion;
+  if (!_contModoSeleccion) _contSeleccion.clear();
+  const btn = document.getElementById('cont-btn-seleccionar');
+  if (btn) btn.textContent = _contModoSeleccion ? '✕ Cancelar' : '☑️ Seleccionar';
+  _contActualizarBarraSeleccion();
+  renderContainers();
+}
+
+function contCancelarSeleccion() {
+  _contModoSeleccion = false;
+  _contSeleccion.clear();
+  const btn = document.getElementById('cont-btn-seleccionar');
+  if (btn) btn.textContent = '☑️ Seleccionar';
+  _contActualizarBarraSeleccion();
+  renderContainers();
+}
+
+function contToggleItemSeleccion(rowIndex) {
+  const key = `cont:${rowIndex}`;
+  if (_contSeleccion.has(key)) _contSeleccion.delete(key);
+  else _contSeleccion.add(key);
+  _contActualizarBarraSeleccion();
+  renderContainers();
+}
+
+function _contActualizarBarraSeleccion() {
+  const bar = document.getElementById('cont-sel-bar');
+  const count = document.getElementById('cont-sel-count');
+  if (!bar) return;
+  if (_contModoSeleccion && _contSeleccion.size > 0) {
+    bar.classList.remove('hidden');
+    if (count) count.textContent = `${_contSeleccion.size} seleccionado${_contSeleccion.size>1?'s':''}`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+// ── Abrir panel de mover selección (Inventario) ──
+function abrirMoverSeleccionInv() {
+  _movMultiItems = [];
+  _movMultiOverrides = {};
+  _invSeleccion.forEach(key => {
+    const [modulo, rowIndexStr] = key.split(':');
+    const rowIndex = parseInt(rowIndexStr);
+    const datos = modulo === 'generadores' ? allGeneradores
+                : modulo === 'maqmenor'    ? allMaqMenor : allHerramientas;
+    const item = datos.find(d => d.rowIndex === rowIndex);
+    if (!item) return;
+    const nombre = [item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo;
+    _movMultiItems.push({
+      key, modulo, rowIndex,
+      tipoEquipo: modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
+      nombreEquipo: nombre,
+      ubicacionActual: item.ubicacion || '',
+    });
+  });
+  _abrirPanelMoverMulti();
+}
+
+// ── Abrir panel de mover selección (Containers) ──
+function abrirMoverSeleccionCont() {
+  _movMultiItems = [];
+  _movMultiOverrides = {};
+  _contSeleccion.forEach(key => {
+    const rowIndex = parseInt(key.split(':')[1]);
+    const item = allContainers.find(c => c.rowIndex === rowIndex);
+    if (!item) return;
+    _movMultiItems.push({
+      key, modulo: 'cont', rowIndex,
+      tipoEquipo: 'Container',
+      nombreEquipo: item.tipo || 'Container',
+      ubicacionActual: item.ubicacion || '',
+    });
+  });
+  _abrirPanelMoverMulti();
+}
+
+function _abrirPanelMoverMulti() {
+  if (_movMultiItems.length === 0) { toast('No hay ítems seleccionados', 'error'); return; }
+  // Origen por defecto: si todos comparten la misma ubicación, se usa esa; si no, queda vacío
+  const ubicaciones = new Set(_movMultiItems.map(i => i.ubicacionActual));
+  document.getElementById('movm-origen').value = ubicaciones.size === 1 ? _movMultiItems[0].ubicacionActual : '';
+  document.getElementById('movm-destino').value = '';
+  document.getElementById('movm-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('movm-autoriza').value = '';
+  document.getElementById('movm-traslada').value = '';
+  document.getElementById('movm-obs-salida').value = '';
+  document.getElementById('movm-items-titulo').textContent = `Ítems seleccionados (${_movMultiItems.length})`;
+  _movMultiRefrescarLista();
+  openPanel('panel-mover-multi');
+}
+
+function _movMultiRefrescarLista() {
+  const destinoGeneral = document.getElementById('movm-destino') ? document.getElementById('movm-destino').value.trim() : '';
+  const cont = document.getElementById('movm-items-lista');
+  if (!cont) return;
+  cont.innerHTML = _movMultiItems.map((item, idx) => {
+    const ov = _movMultiOverrides[item.key];
+    const destinoMostrado = (ov && ov.destino) ? ov.destino : (destinoGeneral || '—');
+    return `<div class="movm-item-card" onclick="abrirOverrideItemMulti(${idx})">
+      <div>
+        <div class="movm-item-title">${item.tipoEquipo} — ${item.nombreEquipo}</div>
+        <div class="movm-item-sub">→ ${destinoMostrado}${ov && ov.destino ? ' (personalizado)' : ''}</div>
+      </div>
+      <span style="color:#94a3b8">✏️</span>
+    </div>`;
+  }).join('');
+}
+
+function abrirOverrideItemMulti(idx) {
+  const item = _movMultiItems[idx];
+  if (!item) return;
+  document.getElementById('movmi-idx').value = idx;
+  document.getElementById('movmi-nombre').textContent = `${item.tipoEquipo} — ${item.nombreEquipo}`;
+  const ov = _movMultiOverrides[item.key] || {};
+  document.getElementById('movmi-destino').value = ov.destino || '';
+  document.getElementById('movmi-obs').value = ov.obs || '';
+  openPanel('panel-mover-multi-item');
+}
+
+function guardarOverrideItemMulti() {
+  const idx = parseInt(document.getElementById('movmi-idx').value);
+  const item = _movMultiItems[idx];
+  if (!item) return;
+  const destino = document.getElementById('movmi-destino').value.trim();
+  const obs = document.getElementById('movmi-obs').value.trim();
+  if (destino || obs) {
+    _movMultiOverrides[item.key] = { destino, obs };
+  } else {
+    delete _movMultiOverrides[item.key];
+  }
+  _origClosePanel('panel-mover-multi-item');
+  const idx2 = _panelStack.lastIndexOf('panel-mover-multi-item');
+  if (idx2 !== -1) _panelStack.splice(idx2, 1);
+  _movMultiRefrescarLista();
+}
+
+function quitarItemDeSeleccionMulti() {
+  const idx = parseInt(document.getElementById('movmi-idx').value);
+  const item = _movMultiItems[idx];
+  if (!item) return;
+  _movMultiItems.splice(idx, 1);
+  delete _movMultiOverrides[item.key];
+  // También desmarcar de la selección original
+  if (item.modulo === 'cont') _contSeleccion.delete(item.key);
+  else _invSeleccion.delete(item.key);
+
+  _origClosePanel('panel-mover-multi-item');
+  const idx2 = _panelStack.lastIndexOf('panel-mover-multi-item');
+  if (idx2 !== -1) _panelStack.splice(idx2, 1);
+
+  if (_movMultiItems.length === 0) {
+    toast('Selección vacía');
+    _origClosePanel('panel-mover-multi');
+    const idx3 = _panelStack.lastIndexOf('panel-mover-multi');
+    if (idx3 !== -1) _panelStack.splice(idx3, 1);
+    return;
+  }
+  document.getElementById('movm-items-titulo').textContent = `Ítems seleccionados (${_movMultiItems.length})`;
+  _movMultiRefrescarLista();
+}
+
+async function guardarMovimientoMulti() {
+  const origenGeneral   = document.getElementById('movm-origen').value.trim();
+  const destinoGeneral  = document.getElementById('movm-destino').value.trim();
+  const fecha            = document.getElementById('movm-fecha').value;
+  const autoriza          = document.getElementById('movm-autoriza').value.trim();
+  const traslada           = document.getElementById('movm-traslada').value.trim();
+  const obsGeneral        = document.getElementById('movm-obs-salida').value.trim();
+
+  if (!destinoGeneral || !fecha) { toast('Completa destino general y fecha', 'error'); return; }
+  if (_movMultiItems.length === 0) { toast('No hay ítems seleccionados', 'error'); return; }
+
+  const btn = document.querySelector('#panel-mover-multi .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
+    const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
+
+    const filas = [];
+    const writes = [];
+
+    for (const item of _movMultiItems) {
+      const ov = _movMultiOverrides[item.key] || {};
+      const destino = ov.destino || destinoGeneral;
+      const obs = ov.obs || obsGeneral;
+      const idMov = 'MOV-' + Date.now() + '-' + item.rowIndex;
+
+      filas.push([
+        idMov, fechaFmt, item.tipoEquipo, '', item.nombreEquipo,
+        origenGeneral || item.ubicacionActual, destino, autoriza, traslada, obs,
+        registradoPor
+      ]);
+
+      // Actualizar ubicación en la hoja correspondiente
+      if (item.modulo === 'cont') {
+        writes.push(writeSheet(`'${SHEET_CONTAINERS}'!G${item.rowIndex}`, [[destino]]));
+      } else {
+        let col = item.modulo === 'generadores' ? 'J' : 'I';
+        const sheetName = item.modulo === 'generadores' ? SHEET_GENERADORES
+                         : item.modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+        writes.push(writeSheet(`'${sheetName}'!${col}${item.rowIndex}`, [[destino]]));
+      }
+    }
+
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:K`, filas);
+    await Promise.all(writes);
+
+    toast(`✓ ${filas.length} movimientos registrados`);
+
+    _origClosePanel('panel-mover-multi');
+    const idx = _panelStack.lastIndexOf('panel-mover-multi');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+
+    // Salir de modo selección y refrescar todo
+    invCancelarSeleccion();
+    contCancelarSeleccion();
+    await loadInventario();
+    await loadMovimientos();
+    renderContainers();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}

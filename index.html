@@ -707,14 +707,24 @@
       <div class="inv-stat amber"><div class="inv-stat-n" id="inv-stat-rev">—</div><div class="inv-stat-l">Revisar</div></div>
       <div class="inv-stat red"><div class="inv-stat-n" id="inv-stat-mal">—</div><div class="inv-stat-l">Malos</div></div>
     </div>
-    <div style="padding:0 14px 8px" id="inv-mobile-search">
-      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+    <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="inv-mobile-search">
+      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic">🔍</span>
         <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="renderInvLista()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
+      <button id="inv-btn-seleccionar" onclick="invToggleModoSeleccion()" style="white-space:nowrap;background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;font-size:13px;color:#475569;cursor:pointer">☑️ Seleccionar</button>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
       <div id="inv-lista"></div>
+    </div>
+
+    <!-- Barra flotante de selección múltiple -->
+    <div id="inv-sel-bar" class="sel-bar hidden">
+      <span id="inv-sel-count">0 seleccionados</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="invCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
+        <button onclick="abrirMoverSeleccionInv()" class="sel-bar-btn">📦 Mover</button>
+      </div>
     </div>
 
     <!-- FAB agregar -->
@@ -785,14 +795,24 @@
       <div class="inv-stat amber"><div class="inv-stat-n" id="cont-stat-bodega">—</div><div class="inv-stat-l">Bodegas</div></div>
       <div class="inv-stat green"><div class="inv-stat-n" id="cont-stat-oficina">—</div><div class="inv-stat-l">Oficinas</div></div>
     </div>
-    <div style="padding:0 14px 8px" id="cont-mobile-search">
-      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+    <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="cont-mobile-search">
+      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic">🔍</span>
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="renderContainers()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
+      <button id="cont-btn-seleccionar" onclick="contToggleModoSeleccion()" style="white-space:nowrap;background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;font-size:13px;color:#475569;cursor:pointer">☑️ Seleccionar</button>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
       <div id="cont-lista"></div>
+    </div>
+
+    <!-- Barra flotante de selección múltiple -->
+    <div id="cont-sel-bar" class="sel-bar hidden">
+      <span id="cont-sel-count">0 seleccionados</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="contCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
+        <button onclick="abrirMoverSeleccionCont()" class="sel-bar-btn">📦 Mover</button>
+      </div>
     </div>
 
     <!-- FAB agregar -->
@@ -909,6 +929,69 @@
         <label>Observaciones de salida</label>
         <textarea id="mov-obs-salida" placeholder="Estado del equipo, motivo del traslado, etc."></textarea>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Mover selección múltiple ── -->
+  <div id="panel-mover-multi" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-mover-multi')">‹ Cancelar</button>
+      <span class="pnl-title">Mover selección</span>
+      <button class="pnl-action" onclick="guardarMovimientoMulti()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <div class="form-sec">Datos por defecto (aplican a todos)</div>
+      <div class="form-group">
+        <label>Origen</label>
+        <input type="text" id="movm-origen" placeholder="Ej: Bodega Colima">
+      </div>
+      <div class="form-group">
+        <label>Destino</label>
+        <input type="text" id="movm-destino" placeholder="Ej: Obra Las Encinas" oninput="_movMultiRefrescarLista()">
+      </div>
+      <div class="form-group">
+        <label>Fecha movimiento</label>
+        <input type="date" id="movm-fecha">
+      </div>
+      <div class="form-group">
+        <label>Quién autoriza</label>
+        <input type="text" id="movm-autoriza" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label>Quién traslada</label>
+        <input type="text" id="movm-traslada" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label>Observaciones de salida</label>
+        <textarea id="movm-obs-salida" placeholder="Aplica a todos, salvo que edites uno individualmente"></textarea>
+      </div>
+      <div class="form-sec" id="movm-items-titulo">Ítems seleccionados</div>
+      <div id="movm-items-lista"></div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Override de ítem individual (dentro de Mover selección) ── -->
+  <div id="panel-mover-multi-item" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-mover-multi-item')">‹ Cancelar</button>
+      <span class="pnl-title">Ajustar este ítem</span>
+      <button class="pnl-action" onclick="guardarOverrideItemMulti()">Listo</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="movmi-idx">
+      <div class="form-group">
+        <label>Equipo</label>
+        <div id="movmi-nombre" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+      </div>
+      <div class="form-group">
+        <label>Destino (deja vacío para usar el de todos)</label>
+        <input type="text" id="movmi-destino" placeholder="Usar destino general">
+      </div>
+      <div class="form-group">
+        <label>Observaciones de este ítem</label>
+        <textarea id="movmi-obs" placeholder="Notas específicas de este ítem"></textarea>
+      </div>
+      <button class="action-btn" onclick="quitarItemDeSeleccionMulti()" style="background:#fee2e2;color:#dc2626">✕ Quitar de la selección</button>
     </div>
   </div>
 
