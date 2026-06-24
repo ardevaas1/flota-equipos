@@ -36,6 +36,23 @@
       font-size: 10px;
     }
 
+    /* Botones marcados para ocultarse en modo solo-lectura (viewer y mover) */
+    body.viewer-mode .viewer-hidden { display: none !important; }
+
+    /* ── Selección/registro en el módulo Movimientos ── */
+    /* Por defecto (viewer-mode) ocultamos checkboxes y barra de mover */
+    body.viewer-mode .movh-checkbox { display: none !important; }
+    body.viewer-mode #movh-selbar { display: none !important; }
+    /* El rol 'mover' (viewer-mode + mover-mode) recupera el acceso solo a Movimientos */
+    body.mover-mode .movh-checkbox { display: flex !important; }
+    body.mover-mode .mov-action-btn { display: inline-flex !important; }
+    body.mover-mode #movh-selbar.show { display: flex !important; }
+    body.mover-mode .header-sub::after {
+      content: ' · Solo lectura (puede registrar movimientos)';
+      color: #64748b;
+      font-size: 10px;
+    }
+
     /* ── PIN Screen ── */
     #pin-screen {
       position: fixed; inset: 0; z-index: 9999;
@@ -631,6 +648,14 @@
         </div>
         <span class="modulo-arrow">›</span>
       </div>
+      <div class="modulo-card" onclick="irAModulo('movimientos')">
+        <div class="modulo-icon">🚚</div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Movimientos</div>
+          <div class="modulo-desc">Traslados entre obras y bodega</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
     </div>
     <div style="text-align:center;padding:16px 0">
       <button class="header-btn" onclick="loadData()" style="margin:0 auto;display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:13px;background:#f0f4f8;color:#4a8fc1">↻ Actualizar datos</button>
@@ -712,19 +737,9 @@
         <span class="search-ic">🔍</span>
         <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="renderInvLista()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
-      <button id="inv-btn-seleccionar" onclick="invToggleModoSeleccion()" style="white-space:nowrap;background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;font-size:13px;color:#475569;cursor:pointer">☑️ Seleccionar</button>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
       <div id="inv-lista"></div>
-    </div>
-
-    <!-- Barra flotante de selección múltiple -->
-    <div id="inv-sel-bar" class="sel-bar hidden">
-      <span id="inv-sel-count">0 seleccionados</span>
-      <div style="display:flex;gap:8px">
-        <button onclick="invCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
-        <button onclick="abrirMoverSeleccionInv()" class="sel-bar-btn">📦 Mover</button>
-      </div>
     </div>
 
     <!-- FAB agregar -->
@@ -800,23 +815,64 @@
         <span class="search-ic">🔍</span>
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="renderContainers()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
-      <button id="cont-btn-seleccionar" onclick="contToggleModoSeleccion()" style="white-space:nowrap;background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;font-size:13px;color:#475569;cursor:pointer">☑️ Seleccionar</button>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
       <div id="cont-lista"></div>
     </div>
 
-    <!-- Barra flotante de selección múltiple -->
-    <div id="cont-sel-bar" class="sel-bar hidden">
-      <span id="cont-sel-count">0 seleccionados</span>
-      <div style="display:flex;gap:8px">
-        <button onclick="contCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
-        <button onclick="abrirMoverSeleccionCont()" class="sel-bar-btn">📦 Mover</button>
+    <!-- FAB agregar -->
+    <button class="fab-btn viewer-hidden" onclick="contAbrirNuevo()">＋</button>
+  </div>
+
+  <!-- ══ MÓDULO MOVIMIENTOS (centralizado) ══ -->
+  <div id="mod-movimientos" class="main hidden">
+    <header class="header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+      <div class="header-center">
+        <div class="header-title">Movimientos</div>
+        <div class="header-sub">Constructora LST</div>
+      </div>
+      <button class="header-btn" onclick="loadData()">↻</button>
+    </header>
+    <div class="inv-tabs">
+      <button class="inv-tab active" id="movh-tab-registrar" onclick="movhSetTab('registrar')">📦 Registrar</button>
+      <button class="inv-tab" id="movh-tab-historial" onclick="movhSetTab('historial')">🗂️ Historial</button>
+    </div>
+
+    <!-- Vista: Registrar (lista de equipos + selección) -->
+    <div id="movh-vista-registrar">
+      <div class="chips" style="padding:10px 14px 0">
+        <button class="chip active" onclick="movhSetFiltroTipo('todos',this)">Todos</button>
+        <button class="chip" onclick="movhSetFiltroTipo('flota',this)">Flota</button>
+        <button class="chip" onclick="movhSetFiltroTipo('generadores',this)">Generadores</button>
+        <button class="chip" onclick="movhSetFiltroTipo('maqmenor',this)">Maq. Menor</button>
+        <button class="chip" onclick="movhSetFiltroTipo('herramientas',this)">Herramientas</button>
+        <button class="chip" onclick="movhSetFiltroTipo('containers',this)">Containers</button>
+      </div>
+      <div style="padding:10px 14px 8px">
+        <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+          <span class="search-ic">🔍</span>
+          <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="movhRenderLista()" style="flex:1;border:none;outline:none;font-size:14px">
+        </div>
+      </div>
+      <div class="pages" style="padding:0 14px 80px">
+        <div id="movh-lista"></div>
+      </div>
+      <div id="movh-selbar" class="sel-bar hidden mov-action-btn">
+        <span id="movh-sel-count">0 seleccionados</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="movhCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
+          <button onclick="movhAbrirMoverSeleccion()" class="sel-bar-btn mov-action-btn">📦 Mover</button>
+        </div>
       </div>
     </div>
 
-    <!-- FAB agregar -->
-    <button class="fab-btn viewer-hidden" onclick="contAbrirNuevo()">＋</button>
+    <!-- Vista: Historial -->
+    <div id="movh-vista-historial" class="hidden">
+      <div class="pages" style="padding:10px 14px 80px">
+        <div id="movh-historial-lista"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->

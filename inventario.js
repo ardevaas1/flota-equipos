@@ -400,7 +400,6 @@ function invAbrirDetalle(modulo, rowIndex) {
 
     ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex))}
 
-    <button class="action-btn" onclick="abrirMoverInv()" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
       📁 Ver fotos en Drive
@@ -1054,7 +1053,6 @@ function contAbrirDetalle(rowIndex) {
 
     ${_renderHistorialMovimientos(String(c.num || c.rowIndex))}
 
-    <button class="action-btn" onclick="abrirMoverCont()" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="contAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
   `;
 
@@ -1178,6 +1176,7 @@ function irAModulo(modulo) {
   document.getElementById('mod-inventario').classList.add('hidden');
   document.getElementById('mod-containers').classList.add('hidden');
   document.getElementById('mod-flota').classList.add('hidden');
+  document.getElementById('mod-movimientos').classList.add('hidden');
 
   if (modulo === 'flota') {
     // Flota usa su propio sidebar desktop nativo
@@ -1202,6 +1201,10 @@ function irAModulo(modulo) {
     document.getElementById('mod-containers').classList.remove('hidden');
     _invActivarDesktop('containers');
     renderContainers();
+  } else if (modulo === 'movimientos') {
+    _setDesktopSidebarFlota(false);
+    document.getElementById('mod-movimientos').classList.remove('hidden');
+    movhInit();
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
@@ -1287,6 +1290,7 @@ function volverAInicio() {
   document.getElementById('mod-inventario').classList.add('hidden');
   document.getElementById('mod-containers').classList.add('hidden');
   document.getElementById('mod-flota').classList.add('hidden');
+  document.getElementById('mod-movimientos').classList.add('hidden');
   document.getElementById('main').classList.add('hidden');
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
@@ -1935,9 +1939,10 @@ function quitarItemDeSeleccionMulti() {
   if (!item) return;
   _movMultiItems.splice(idx, 1);
   delete _movMultiOverrides[item.key];
-  // También desmarcar de la selección original
+  // También desmarcar de la selección original (sea cual sea su origen)
   if (item.modulo === 'cont') _contSeleccion.delete(item.key);
-  else _invSeleccion.delete(item.key);
+  else if (item.modulo !== 'flota') _invSeleccion.delete(item.key);
+  if (typeof movhSeleccion !== 'undefined') movhSeleccion.delete(item.key);
 
   _origClosePanel('panel-mover-multi-item');
   const idx2 = _panelStack.lastIndexOf('panel-mover-multi-item');
@@ -1990,6 +1995,8 @@ async function guardarMovimientoMulti() {
       // Actualizar ubicación en la hoja correspondiente
       if (item.modulo === 'cont') {
         writes.push(writeSheet(`'${SHEET_CONTAINERS}'!G${item.rowIndex}`, [[destino]]));
+      } else if (item.modulo === 'flota') {
+        writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${item.rowIndex}`, [[destino]]));
       } else {
         let col = item.modulo === 'generadores' ? 'J' : 'I';
         const sheetName = item.modulo === 'generadores' ? SHEET_GENERADORES
@@ -2010,12 +2017,205 @@ async function guardarMovimientoMulti() {
     // Salir de modo selección y refrescar todo
     invCancelarSeleccion();
     contCancelarSeleccion();
+    movhCancelarSeleccion();
     await loadInventario();
     await loadMovimientos();
     renderContainers();
+    if (typeof loadData === 'function') await loadData(true);
+    movhRenderLista();
+    movhRenderHistorial();
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
   }
+}
+
+// ============================================
+// MÓDULO MOVIMIENTOS — vista centralizada
+// Lista equipos de TODOS los tipos (flota, generadores, maq. menor,
+// herramientas, containers) en un solo lugar para registrar traslados,
+// más una pestaña de Historial. Reemplaza los botones "Registrar
+// movimiento" que antes vivían dentro de cada ficha individual.
+// ============================================
+
+let movhTab = 'registrar';
+let movhFiltroTipo = 'todos';
+let movhSeleccion = new Set(); // claves "modulo:rowIndex"
+
+function movhInit() {
+  movhTab = 'registrar';
+  movhFiltroTipo = 'todos';
+  movhSeleccion.clear();
+  document.getElementById('movh-tab-registrar').classList.add('active');
+  document.getElementById('movh-tab-historial').classList.remove('active');
+  document.getElementById('movh-vista-registrar').classList.remove('hidden');
+  document.getElementById('movh-vista-historial').classList.add('hidden');
+  movhRenderLista();
+  movhRenderHistorial();
+}
+
+function movhSetTab(tab) {
+  movhTab = tab;
+  document.getElementById('movh-tab-registrar').classList.toggle('active', tab === 'registrar');
+  document.getElementById('movh-tab-historial').classList.toggle('active', tab === 'historial');
+  document.getElementById('movh-vista-registrar').classList.toggle('hidden', tab !== 'registrar');
+  document.getElementById('movh-vista-historial').classList.toggle('hidden', tab !== 'historial');
+  if (tab === 'historial') movhRenderHistorial();
+}
+
+function movhSetFiltroTipo(tipo, btn) {
+  movhFiltroTipo = tipo;
+  document.querySelectorAll('#movh-vista-registrar .chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  movhRenderLista();
+}
+
+// Construye la lista unificada de equipos (todos los módulos) con su ubicación actual
+function _movhTodosLosItems() {
+  const items = [];
+  (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
+    items.push({
+      key: `flota:${e.rowIndex}`, modulo: 'flota', rowIndex: e.rowIndex,
+      tipoEquipo: 'Maquinaria',
+      codigoEquipo: e.patente,
+      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      ubicacionActual: e.ubicacion || '',
+      icon: '🚛',
+    });
+  });
+  (typeof allGeneradores !== 'undefined' ? allGeneradores : []).forEach(e => {
+    items.push({
+      key: `generadores:${e.rowIndex}`, modulo: 'generadores', rowIndex: e.rowIndex,
+      tipoEquipo: 'Generador',
+      codigoEquipo: e.codigo || String(e.rowIndex),
+      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      ubicacionActual: e.ubicacion || '',
+      icon: '⚡',
+    });
+  });
+  (typeof allMaqMenor !== 'undefined' ? allMaqMenor : []).forEach(e => {
+    items.push({
+      key: `maqmenor:${e.rowIndex}`, modulo: 'maqmenor', rowIndex: e.rowIndex,
+      tipoEquipo: 'Maq. Menor',
+      codigoEquipo: e.codigo || String(e.rowIndex),
+      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      ubicacionActual: e.ubicacion || '',
+      icon: '🔧',
+    });
+  });
+  (typeof allHerramientas !== 'undefined' ? allHerramientas : []).forEach(e => {
+    items.push({
+      key: `herramientas:${e.rowIndex}`, modulo: 'herramientas', rowIndex: e.rowIndex,
+      tipoEquipo: 'Herramienta',
+      codigoEquipo: e.codigo || String(e.rowIndex),
+      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      ubicacionActual: e.ubicacion || '',
+      icon: '🛠️',
+    });
+  });
+  (typeof allContainers !== 'undefined' ? allContainers : []).forEach(e => {
+    items.push({
+      key: `cont:${e.rowIndex}`, modulo: 'cont', rowIndex: e.rowIndex,
+      tipoEquipo: 'Container',
+      codigoEquipo: String(e.num || e.rowIndex),
+      nombreEquipo: e.tipo || 'Container',
+      ubicacionActual: e.ubicacion || '',
+      icon: '📦',
+    });
+  });
+  return items;
+}
+
+function movhRenderLista() {
+  const searchEl = document.getElementById('movh-search');
+  const txt = searchEl ? searchEl.value.toLowerCase() : '';
+
+  let items = _movhTodosLosItems();
+  if (movhFiltroTipo !== 'todos') items = items.filter(i => i.modulo === movhFiltroTipo);
+  if (txt) {
+    items = items.filter(i => (i.nombreEquipo + i.codigoEquipo + i.ubicacionActual + i.tipoEquipo).toLowerCase().includes(txt));
+  }
+  items.sort((a, b) => a.nombreEquipo.localeCompare(b.nombreEquipo, 'es'));
+
+  const html = items.map(item => {
+    const checked = movhSeleccion.has(item.key);
+    return `<div class="card" onclick="movhToggleItem('${item.key}')">
+      <div class="card-checkbox movh-checkbox ${checked ? 'checked' : ''}">${checked ? '✓' : ''}</div>
+      <div class="card-icon" style="font-size:22px">${item.icon}</div>
+      <div class="card-body">
+        <div class="card-title">${item.nombreEquipo}</div>
+        <div class="card-sub">${item.tipoEquipo} · ${item.codigoEquipo}</div>
+      </div>
+      <div class="card-right">
+        <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">Sin resultados</div>';
+
+  const lista = document.getElementById('movh-lista');
+  if (lista) lista.innerHTML = html;
+  _movhActualizarBarra();
+}
+
+function movhToggleItem(key) {
+  if (typeof userRole !== 'undefined' && userRole === 'viewer') return; // solo lectura, no puede seleccionar
+  if (movhSeleccion.has(key)) movhSeleccion.delete(key);
+  else movhSeleccion.add(key);
+  movhRenderLista();
+}
+
+function movhCancelarSeleccion() {
+  movhSeleccion.clear();
+  movhRenderLista();
+}
+
+function _movhActualizarBarra() {
+  const bar = document.getElementById('movh-selbar');
+  const count = document.getElementById('movh-sel-count');
+  if (!bar) return;
+  if (movhSeleccion.size > 0) {
+    bar.classList.remove('hidden');
+    bar.classList.add('show');
+    if (count) count.textContent = `${movhSeleccion.size} seleccionados`;
+  } else {
+    bar.classList.add('hidden');
+    bar.classList.remove('show');
+  }
+}
+
+// Abre el panel de mover (reutiliza panel-mover-multi) con los ítems seleccionados,
+// sea cual sea su tipo (flota, inventario o containers)
+function movhAbrirMoverSeleccion() {
+  const todos = _movhTodosLosItems();
+  _movMultiItems = [];
+  _movMultiOverrides = {};
+  movhSeleccion.forEach(key => {
+    const item = todos.find(i => i.key === key);
+    if (item) _movMultiItems.push(item);
+  });
+  _abrirPanelMoverMulti();
+}
+
+// Renderiza el historial global de movimientos (todos los tipos), más recientes primero
+function movhRenderHistorial() {
+  const cont = document.getElementById('movh-historial-lista');
+  if (!cont) return;
+  const hist = (allMovimientos || []).slice().sort((a, b) => b.rowIndex - a.rowIndex).slice(0, 100);
+
+  if (hist.length === 0) {
+    cont.innerHTML = '<div class="empty">Sin movimientos registrados</div>';
+    return;
+  }
+
+  cont.innerHTML = hist.map(m => `
+    <div class="evento-card-mini">
+      <div class="evento-tipo-icon">🚚</div>
+      <div class="mant-body">
+        <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+        <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
+        ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
+        ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
+      </div>
+    </div>`).join('');
 }

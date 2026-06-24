@@ -195,7 +195,9 @@ function ensureToken() {
 
 // ── Control de roles ──────────────────────────────────────────
 // Busca el email en la hoja USUARIOS (col A=email, col B=rol).
-// Si está con rol 'admin' → admin. Cualquier otro caso → viewer.
+// Roles soportados: 'admin' (todo) · 'mover' (solo lectura + puede
+// registrar movimientos en el módulo Movimientos) · cualquier otro
+// valor o ausencia de match → 'viewer' (solo lectura, sin poder mover).
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -205,8 +207,11 @@ async function checkUserRole() {
     const data = await res.json();
     const rows = data.values || [];
     const match = rows.find(r => (r[0]||'').toLowerCase().trim() === userEmail);
-    if (match && (match[1]||'').toLowerCase().trim() === 'admin') {
+    const rolHoja = match ? (match[1]||'').toLowerCase().trim() : '';
+    if (rolHoja === 'admin') {
       userRole = 'admin';
+    } else if (rolHoja === 'mover') {
+      userRole = 'mover';
     } else {
       userRole = 'viewer';
     }
@@ -223,12 +228,17 @@ async function checkUserRole() {
   console.log('[ROLE] Email:', userEmail, '→ Rol:', userRole);
 }
 
-// Aplica o quita la clase viewer-mode en el body
+// Aplica las clases de modo en el body según el rol:
+// - admin  → sin clases (acceso total)
+// - mover  → 'viewer-mode' (todo en solo lectura) + 'mover-mode' (puede usar
+//            los controles del módulo Movimientos, marcados con .mov-action-btn)
+// - viewer → solo 'viewer-mode' (ni siquiera puede registrar movimientos)
 function applyViewerMode() {
+  document.body.classList.remove('viewer-mode', 'mover-mode');
   if (userRole === 'viewer') {
     document.body.classList.add('viewer-mode');
-  } else {
-    document.body.classList.remove('viewer-mode');
+  } else if (userRole === 'mover') {
+    document.body.classList.add('viewer-mode', 'mover-mode');
   }
 }
 
@@ -1244,7 +1254,6 @@ function openFicha(patente) {
       📁 Abrir carpeta en Drive
     </a>
     ${typeof _renderHistorialMovimientos === 'function' ? _renderHistorialMovimientos(e.patente) : ''}
-    <button class="action-btn" onclick="abrirMoverFlota('${e.patente}')" style="margin-top:8px;background:#fff3e0;color:#e65100;border:1px solid #ffd9a8">📦 Registrar movimiento</button>
     <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px">✏️ Editar información</button>
   `;
 
