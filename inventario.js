@@ -187,7 +187,7 @@ function parseHerramientas(rows) {
 function parseContainers(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 2 }))
-    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .filter(({ r }) => r[1] && r[1].toString().trim())
     .map(({ r, rowIndex }) => ({
       rowIndex,
       num:          r[0] || '',
@@ -1187,7 +1187,7 @@ function irAModulo(modulo) {
       const backBtn = document.createElement('button');
       backBtn.id = 'flota-back-btn';
       backBtn.className = 'header-btn';
-      backBtn.style.cssText = 'font-size:20px;color:#4a8fc1;order:-1';
+      backBtn.style.cssText = 'font-size:20px;color:var(--accent);order:-1';
       backBtn.onclick = () => {
         document.getElementById('main').classList.add('hidden');
         document.getElementById('modulos-home').classList.remove('hidden');
@@ -2047,27 +2047,63 @@ function movhInit() {
   movhTab = 'registrar';
   movhFiltroTipo = 'todos';
   movhSeleccion.clear();
-  document.getElementById('movh-tab-registrar').classList.add('active');
-  document.getElementById('movh-tab-historial').classList.remove('active');
+  document.querySelectorAll('.movh-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'registrar'));
+  document.querySelectorAll('.movh-chip').forEach(c => c.classList.toggle('active', c.dataset.tipo === 'todos'));
   document.getElementById('movh-vista-registrar').classList.remove('hidden');
   document.getElementById('movh-vista-historial').classList.add('hidden');
+  const dtList = document.getElementById('movh-dt-list-wrap');
+  const dtHist = document.getElementById('movh-dt-historial-wrap');
+  if (dtList) dtList.classList.remove('hidden');
+  if (dtHist) dtHist.classList.add('hidden');
+  const dtTitulo = document.getElementById('movh-dt-titulo');
+  if (dtTitulo) dtTitulo.textContent = 'Registrar movimiento';
+  const dtSearchWrap = document.getElementById('movh-dt-search-wrap');
+  const dtChips = document.getElementById('movh-dt-chips');
+  if (dtSearchWrap) dtSearchWrap.style.display = '';
+  if (dtChips) dtChips.style.display = 'flex';
+  _movhActivarDesktop();
   movhRenderLista();
   movhRenderHistorial();
 }
 
+// Activa el layout desktop (sidebar + área central) o el móvil según el ancho de ventana
+function _movhActivarDesktop() {
+  const esDesktop = window.innerWidth >= 900;
+  const sidebar = document.getElementById('movh-desktop-sidebar');
+  const content = document.getElementById('movh-desktop-content');
+  if (sidebar) sidebar.style.display = esDesktop ? 'flex' : 'none';
+  if (content) content.style.display = esDesktop ? 'flex' : 'none';
+}
+
 function movhSetTab(tab) {
   movhTab = tab;
-  document.getElementById('movh-tab-registrar').classList.toggle('active', tab === 'registrar');
-  document.getElementById('movh-tab-historial').classList.toggle('active', tab === 'historial');
+  document.querySelectorAll('.movh-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('movh-vista-registrar').classList.toggle('hidden', tab !== 'registrar');
   document.getElementById('movh-vista-historial').classList.toggle('hidden', tab !== 'historial');
+  const dtList = document.getElementById('movh-dt-list-wrap');
+  const dtHist = document.getElementById('movh-dt-historial-wrap');
+  const dtTitulo = document.getElementById('movh-dt-titulo');
+  const dtSearchWrap = document.getElementById('movh-dt-search-wrap');
+  const dtChips = document.getElementById('movh-dt-chips');
+  if (dtList) dtList.classList.toggle('hidden', tab !== 'registrar');
+  if (dtHist) dtHist.classList.toggle('hidden', tab !== 'historial');
+  if (dtTitulo) dtTitulo.textContent = tab === 'registrar' ? 'Registrar movimiento' : 'Historial de movimientos';
+  if (dtSearchWrap) dtSearchWrap.style.display = tab === 'registrar' ? '' : 'none';
+  if (dtChips) dtChips.style.display = tab === 'registrar' ? 'flex' : 'none';
   if (tab === 'historial') movhRenderHistorial();
 }
 
-function movhSetFiltroTipo(tipo, btn) {
+function movhSetFiltroTipo(tipo) {
   movhFiltroTipo = tipo;
-  document.querySelectorAll('#movh-vista-registrar .chip').forEach(c => c.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.movh-chip').forEach(c => c.classList.toggle('active', c.dataset.tipo === tipo));
+  movhRenderLista();
+}
+
+// Sincroniza búsqueda desktop → móvil (movhRenderLista lee movh-search)
+function movhSyncSearch() {
+  const dtInput = document.getElementById('movh-dt-search');
+  const mobInput = document.getElementById('movh-search');
+  if (dtInput && mobInput) mobInput.value = dtInput.value;
   movhRenderLista();
 }
 
@@ -2154,7 +2190,9 @@ function movhRenderLista() {
   }).join('') || '<div class="empty">Sin resultados</div>';
 
   const lista = document.getElementById('movh-lista');
+  const listaDt = document.getElementById('movh-dt-lista');
   if (lista) lista.innerHTML = html;
+  if (listaDt) listaDt.innerHTML = html;
   _movhActualizarBarra();
 }
 
@@ -2172,16 +2210,21 @@ function movhCancelarSeleccion() {
 
 function _movhActualizarBarra() {
   const bar = document.getElementById('movh-selbar');
+  const barDt = document.getElementById('movh-selbar-desktop');
   const count = document.getElementById('movh-sel-count');
-  if (!bar) return;
-  if (movhSeleccion.size > 0) {
-    bar.classList.remove('hidden');
-    bar.classList.add('show');
-    if (count) count.textContent = `${movhSeleccion.size} seleccionados`;
-  } else {
-    bar.classList.add('hidden');
-    bar.classList.remove('show');
-  }
+  const countDt = document.getElementById('movh-sel-count-dt');
+  const txt = `${movhSeleccion.size} seleccionados`;
+  [{bar, count}, {bar: barDt, count: countDt}].forEach(({bar, count}) => {
+    if (!bar) return;
+    if (movhSeleccion.size > 0) {
+      bar.classList.remove('hidden');
+      bar.classList.add('show');
+      if (count) count.textContent = txt;
+    } else {
+      bar.classList.add('hidden');
+      bar.classList.remove('show');
+    }
+  });
 }
 
 // Abre el panel de mover (reutiliza panel-mover-multi) con los ítems seleccionados,
@@ -2200,22 +2243,24 @@ function movhAbrirMoverSeleccion() {
 // Renderiza el historial global de movimientos (todos los tipos), más recientes primero
 function movhRenderHistorial() {
   const cont = document.getElementById('movh-historial-lista');
-  if (!cont) return;
+  const contDt = document.getElementById('movh-dt-historial-lista');
   const hist = (allMovimientos || []).slice().sort((a, b) => b.rowIndex - a.rowIndex).slice(0, 100);
 
+  let html;
   if (hist.length === 0) {
-    cont.innerHTML = '<div class="empty">Sin movimientos registrados</div>';
-    return;
+    html = '<div class="empty">Sin movimientos registrados</div>';
+  } else {
+    html = hist.map(m => `
+      <div class="evento-card-mini">
+        <div class="evento-tipo-icon">🚚</div>
+        <div class="mant-body">
+          <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+          <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
+          ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
+          ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
+        </div>
+      </div>`).join('');
   }
-
-  cont.innerHTML = hist.map(m => `
-    <div class="evento-card-mini">
-      <div class="evento-tipo-icon">🚚</div>
-      <div class="mant-body">
-        <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
-        <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
-        ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
-        ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
-      </div>
-    </div>`).join('');
+  if (cont) cont.innerHTML = html;
+  if (contDt) contDt.innerHTML = html;
 }

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="LST Flota">
 <title>LST Constructora — Flota</title>
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
   <style>
     /* ── Modo Viewer (solo lectura) ── */
@@ -42,11 +42,13 @@
     /* ── Selección/registro en el módulo Movimientos ── */
     /* Por defecto (viewer-mode) ocultamos checkboxes y barra de mover */
     body.viewer-mode .movh-checkbox { display: none !important; }
-    body.viewer-mode #movh-selbar { display: none !important; }
+    body.viewer-mode #movh-selbar,
+    body.viewer-mode #movh-selbar-desktop { display: none !important; }
     /* El rol 'mover' (viewer-mode + mover-mode) recupera el acceso solo a Movimientos */
     body.mover-mode .movh-checkbox { display: flex !important; }
     body.mover-mode .mov-action-btn { display: inline-flex !important; }
-    body.mover-mode #movh-selbar.show { display: flex !important; }
+    body.mover-mode #movh-selbar.show,
+    body.mover-mode #movh-selbar-desktop.show { display: flex !important; }
     body.mover-mode .header-sub::after {
       content: ' · Solo lectura (puede registrar movimientos)';
       color: #64748b;
@@ -180,7 +182,7 @@
     </nav>
     <div class="desktop-sidebar-footer">
       <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
-      <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
+      <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
     </div>
   </div>
 
@@ -658,7 +660,7 @@
       </div>
     </div>
     <div style="text-align:center;padding:16px 0">
-      <button class="header-btn" onclick="loadData()" style="margin:0 auto;display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:13px;background:#f0f4f8;color:#4a8fc1">↻ Actualizar datos</button>
+      <button class="header-btn" onclick="loadData()" style="margin:0 auto;display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:13px;background:var(--neutral-soft);color:var(--accent)">↻ Actualizar datos</button>
     </div>
   </div>
 
@@ -695,7 +697,7 @@
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
-        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
 
@@ -715,7 +717,7 @@
 
     <!-- LAYOUT MÓVIL (oculto en desktop) -->
     <header class="header" id="inv-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
       <div class="header-center">
         <div class="header-title" id="inv-titulo">Inventario</div>
         <div class="header-sub">Constructora LST</div>
@@ -733,7 +735,7 @@
       <div class="inv-stat red"><div class="inv-stat-n" id="inv-stat-mal">—</div><div class="inv-stat-l">Malos</div></div>
     </div>
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="inv-mobile-search">
-      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;flex:1">
+      <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic">🔍</span>
         <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="renderInvLista()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
@@ -773,12 +775,12 @@
         </div>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
-        <div style="padding:0 20px;font-size:11px;font-weight:700;color:#5a5f6e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
+        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
         <button class="inv-desktop-tab active" style="cursor:default">📦 Todos los containers</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
-        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:#f0f4f8;color:#5a5f6e">‹ Volver al inicio</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
 
@@ -798,7 +800,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header" id="cont-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
       <div class="header-center">
         <div class="header-title">Containers</div>
         <div class="header-sub">Constructora LST</div>
@@ -811,7 +813,7 @@
       <div class="inv-stat green"><div class="inv-stat-n" id="cont-stat-oficina">—</div><div class="inv-stat-l">Oficinas</div></div>
     </div>
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="cont-mobile-search">
-      <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px;flex:1">
+      <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic">🔍</span>
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="renderContainers()" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
@@ -826,31 +828,85 @@
 
   <!-- ══ MÓDULO MOVIMIENTOS (centralizado) ══ -->
   <div id="mod-movimientos" class="main hidden">
-    <header class="header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:#4a8fc1">‹</button>
+
+    <!-- SIDEBAR DESKTOP -->
+    <div class="inv-desktop-sidebar" id="movh-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top">
+        <img src="logo.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Movimientos</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div class="inv-desktop-tabs">
+        <button class="inv-desktop-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')">📦 Registrar</button>
+        <button class="inv-desktop-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')">🗂️ Historial</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="movh-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title" id="movh-dt-titulo">Registrar movimiento</div>
+        <div class="inv-desktop-search" id="movh-dt-search-wrap">
+          <span>🔍</span>
+          <input type="text" id="movh-dt-search" placeholder="Buscar equipo, código, ubicación..." oninput="movhSyncSearch()">
+        </div>
+        <div class="movh-dt-chips" id="movh-dt-chips" style="display:flex;gap:6px;overflow-x:auto;margin-top:12px">
+          <button class="chip active movh-chip" data-tipo="todos" onclick="movhSetFiltroTipo('todos')">Todos</button>
+          <button class="chip movh-chip" data-tipo="flota" onclick="movhSetFiltroTipo('flota')">Flota</button>
+          <button class="chip movh-chip" data-tipo="generadores" onclick="movhSetFiltroTipo('generadores')">Generadores</button>
+          <button class="chip movh-chip" data-tipo="maqmenor" onclick="movhSetFiltroTipo('maqmenor')">Maq. Menor</button>
+          <button class="chip movh-chip" data-tipo="herramientas" onclick="movhSetFiltroTipo('herramientas')">Herramientas</button>
+          <button class="chip movh-chip" data-tipo="containers" onclick="movhSetFiltroTipo('containers')">Containers</button>
+        </div>
+      </div>
+      <div class="inv-desktop-list" id="movh-dt-list-wrap">
+        <div id="movh-dt-lista"></div>
+      </div>
+      <div class="inv-desktop-list hidden" id="movh-dt-historial-wrap">
+        <div id="movh-dt-historial-lista"></div>
+      </div>
+      <!-- Barra de selección anclada al área central en desktop -->
+      <div id="movh-selbar-desktop" class="sel-bar hidden mov-action-btn">
+        <span id="movh-sel-count-dt">0 seleccionados</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="movhCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
+          <button onclick="movhAbrirMoverSeleccion()" class="sel-bar-btn mov-action-btn">📦 Mover</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL -->
+    <header class="header" id="movh-mobile-header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
       <div class="header-center">
         <div class="header-title">Movimientos</div>
         <div class="header-sub">Constructora LST</div>
       </div>
       <button class="header-btn" onclick="loadData()">↻</button>
     </header>
-    <div class="inv-tabs">
-      <button class="inv-tab active" id="movh-tab-registrar" onclick="movhSetTab('registrar')">📦 Registrar</button>
-      <button class="inv-tab" id="movh-tab-historial" onclick="movhSetTab('historial')">🗂️ Historial</button>
+    <div class="inv-tabs" id="movh-mobile-tabs">
+      <button class="inv-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')">📦 Registrar</button>
+      <button class="inv-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')">🗂️ Historial</button>
     </div>
 
     <!-- Vista: Registrar (lista de equipos + selección) -->
-    <div id="movh-vista-registrar">
-      <div class="chips" style="padding:10px 14px 0">
-        <button class="chip active" onclick="movhSetFiltroTipo('todos',this)">Todos</button>
-        <button class="chip" onclick="movhSetFiltroTipo('flota',this)">Flota</button>
-        <button class="chip" onclick="movhSetFiltroTipo('generadores',this)">Generadores</button>
-        <button class="chip" onclick="movhSetFiltroTipo('maqmenor',this)">Maq. Menor</button>
-        <button class="chip" onclick="movhSetFiltroTipo('herramientas',this)">Herramientas</button>
-        <button class="chip" onclick="movhSetFiltroTipo('containers',this)">Containers</button>
+    <div id="movh-vista-registrar" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+      <div class="chips" style="padding:10px 14px 0;flex-shrink:0">
+        <button class="chip active movh-chip" data-tipo="todos" onclick="movhSetFiltroTipo('todos')">Todos</button>
+        <button class="chip movh-chip" data-tipo="flota" onclick="movhSetFiltroTipo('flota')">Flota</button>
+        <button class="chip movh-chip" data-tipo="generadores" onclick="movhSetFiltroTipo('generadores')">Generadores</button>
+        <button class="chip movh-chip" data-tipo="maqmenor" onclick="movhSetFiltroTipo('maqmenor')">Maq. Menor</button>
+        <button class="chip movh-chip" data-tipo="herramientas" onclick="movhSetFiltroTipo('herramientas')">Herramientas</button>
+        <button class="chip movh-chip" data-tipo="containers" onclick="movhSetFiltroTipo('containers')">Containers</button>
       </div>
-      <div style="padding:10px 14px 8px">
-        <div class="searchbox" style="background:#fff;border:1px solid #e8eaed;border-radius:10px;padding:8px 12px">
+      <div style="padding:10px 14px 8px;flex-shrink:0">
+        <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
           <span class="search-ic">🔍</span>
           <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="movhRenderLista()" style="flex:1;border:none;outline:none;font-size:14px">
         </div>
@@ -868,11 +924,12 @@
     </div>
 
     <!-- Vista: Historial -->
-    <div id="movh-vista-historial" class="hidden">
+    <div id="movh-vista-historial" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
       <div class="pages" style="padding:10px 14px 80px">
         <div id="movh-historial-lista"></div>
       </div>
     </div>
+
   </div>
 
   <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->
@@ -959,7 +1016,7 @@
       <input type="hidden" id="mov-row-index">
       <div class="form-group">
         <label>Equipo</label>
-        <div id="mov-nombre-equipo" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+        <div id="mov-nombre-equipo" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Origen</label>
@@ -1037,7 +1094,7 @@
       <input type="hidden" id="movmi-idx">
       <div class="form-group">
         <label>Equipo</label>
-        <div id="movmi-nombre" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+        <div id="movmi-nombre" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Destino (deja vacío para usar el de todos)</label>
@@ -1063,7 +1120,7 @@
       <input type="hidden" id="gen-evento-codigo">
       <div class="form-group">
         <label>Generador</label>
-        <div id="gen-evento-nombre" style="font-size:14px;font-weight:600;color:#1a1a2e;padding:8px 0"></div>
+        <div id="gen-evento-nombre" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Tipo de evento</label>
@@ -1503,7 +1560,7 @@ function dtSelectEquipo(patente) {
             return `<div class="desktop-evento-row">
               <div class="evento-tipo-icon">${meta.icon}</div>
               <div>
-                <div style="font-size:13px;font-weight:600;color:#1a1a2e">${ev.tipo}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink)">${ev.tipo}</div>
                 <div style="font-size:11px;color:#888">${ev.fechaEvento}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km':''}</div>
                 ${ev.descripcion ? `<div style="font-size:12px;color:#555;margin-top:2px">${ev.descripcion}</div>`:''}
               </div>
