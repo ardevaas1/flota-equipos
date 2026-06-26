@@ -2,24 +2,19 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Design tokens ──────────────────────────────────────────
-   Paleta "obra/flota": grafito + óxido (acero/maquinaria pesada)
-   en vez del azul SaaS genérico anterior. Los colores de estado
-   (verde/ámbar/rojo/azul) se mantienen igual porque comunican
-   significado operativo, no son decorativos.
-   Tipografía: Archivo (títulos/números, carácter técnico) +
-   Inter (texto general, lectura).
+   Variables centralizadas de color y tipografía.
 */
 :root {
-  --ink:         #1c1d1f;   /* texto principal, antes var(--ink) */
-  --ink-soft:    #6e6a62;   /* texto secundario, antes var(--ink-soft) / #777 / #888 */
-  --bg:          #f6f5f2;   /* fondo app, antes var(--bg) */
-  --surface:     #ffffff;   /* tarjetas/paneles */
-  --line:        #e6e2da;   /* bordes, antes var(--line) */
-  --accent:      #c4571f;   /* acento principal (óxido), antes var(--accent) */
-  --accent-dark: #9c4416;   /* hover/activo del acento */
-  --accent-soft: #fbe9dd;   /* fondos suaves con tinte de acento */
-  --neutral-soft: #efece4;  /* fondos neutros para botones secundarios */
-  --font-display: 'Archivo', 'Inter', sans-serif;
+  --ink:         #1a1a2e;
+  --ink-soft:    #5a5f6e;
+  --bg:          #f4f5f7;
+  --surface:     #ffffff;
+  --line:        #e8eaed;
+  --accent:      #4a8fc1;
+  --accent-dark: #3a7aad;
+  --accent-soft: #e8f2fb;
+  --neutral-soft: #f0f4f8;
+  --font-display: 'Inter', sans-serif;
   --font-body:    'Inter', sans-serif;
 }
 
@@ -914,12 +909,12 @@ input, select, textarea { font-family: inherit; }
   color: #fff;
   font-size: 28px; line-height: 1;
   border: none; cursor: pointer;
-  box-shadow: 0 4px 14px rgba(196,87,31,0.45);
+  box-shadow: 0 4px 14px rgba(74,143,193,0.45);
   display: flex; align-items: center; justify-content: center;
   z-index: 80;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.fab-btn:active { transform: scale(0.93); box-shadow: 0 2px 6px rgba(196,87,31,0.3); }
+.fab-btn:active { transform: scale(0.93); box-shadow: 0 2px 6px rgba(74,143,193,0.3); }
 
 /* ── Selección múltiple ── */
 .sel-bar {
