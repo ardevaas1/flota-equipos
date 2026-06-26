@@ -532,10 +532,16 @@
           <img id="edit-foto-ref-img" src="" alt="Foto de referencia" style="width:100%;border-radius:10px;max-height:220px;object-fit:cover;">
         </div>
         <div id="edit-foto-ref-info" style="font-size:12px;color:#888;margin-bottom:8px"></div>
-        <label class="doc-file-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          📷 Seleccionar foto de referencia
-          <input type="file" accept="image/*" onchange="onFotoRefSelected(this)" style="display:none">
-        </label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir de galería
+            <input type="file" accept="image/*" onchange="onFotoRefSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onFotoRefSelected(this)" style="display:none">
+          </label>
+        </div>
         <button id="edit-foto-ref-remove" onclick="quitarFotoRef()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto</button>
       </div>
 
@@ -978,6 +984,12 @@
         <input type="text" id="inv-edit-ubicacion" placeholder="Ej: Colima, Freire, Andes...">
       </div>
 
+      <div class="form-sec">Color</div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="text" id="inv-edit-color" placeholder="Ej: NARANJO, AZUL, GRIS...">
+      </div>
+
       <div class="form-sec">Observaciones</div>
       <div class="form-group">
         <label>Observaciones</label>
@@ -994,10 +1006,16 @@
           <img id="inv-edit-foto-preview-img" src="" alt="Nueva foto" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
           <div style="font-size:12px;color:#888;margin-top:4px">Nueva foto · se subirá al guardar</div>
         </div>
-        <label class="doc-file-label" style="width:100%;justify-content:center;cursor:pointer">
-          📷 Cambiar foto de referencia
-          <input type="file" accept="image/*" onchange="onInvFotoSelected(this)" style="display:none">
-        </label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir de galería
+            <input type="file" accept="image/*" onchange="onInvFotoSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onInvFotoSelected(this)" style="display:none">
+          </label>
+        </div>
         <button id="inv-edit-foto-remove" onclick="quitarInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto actual</button>
       </div>
     </div>
@@ -1199,6 +1217,12 @@
         <input type="text" id="cont-edit-ubicacion" placeholder="Ej: Colima, Barros Arana...">
       </div>
 
+      <div class="form-sec">Color</div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="text" id="cont-edit-color" placeholder="Ej: BLANCO, GRIS, AZUL...">
+      </div>
+
       <div class="form-sec">Equipamiento</div>
       <div class="form-group">
         <label>Equipamiento interno</label>
@@ -1213,10 +1237,16 @@
 
       <div class="form-sec">Foto de referencia</div>
       <div class="form-group">
-        <label class="doc-file-label" style="width:100%;justify-content:center">
-          📷 Cambiar foto de referencia
-          <input type="file" accept="image/*" onchange="onContFotoSelected(this)" style="display:none">
-        </label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir de galería
+            <input type="file" accept="image/*" onchange="onContFotoSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onContFotoSelected(this)" style="display:none">
+          </label>
+        </div>
         <div id="cont-edit-foto-preview" style="display:none"></div>
       </div>
     </div>
@@ -1248,10 +1278,16 @@
         <div id="nuevo-foto-preview" style="display:none;margin-bottom:8px">
           <img id="nuevo-foto-img" src="" alt="Foto" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
         </div>
-        <label class="doc-file-label" style="width:100%;justify-content:center;cursor:pointer">
-          📷 Agregar foto de referencia
-          <input type="file" accept="image/*" onchange="onNuevoInvFotoSelected(this)" style="display:none">
-        </label>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir de galería
+            <input type="file" accept="image/*" onchange="onNuevoInvFotoSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onNuevoInvFotoSelected(this)" style="display:none">
+          </label>
+        </div>
         <button id="nuevo-foto-remove" onclick="quitarNuevoInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto</button>
       </div>
 
@@ -1272,6 +1308,10 @@
       <div id="nuevo-potencia-row" class="form-group" style="display:none">
         <label>Potencia (KVA)</label>
         <input type="text" id="nuevo-potencia" placeholder="Ej: 100 KVA">
+      </div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="text" id="nuevo-color" placeholder="Ej: NARANJO, AZUL, GRIS...">
       </div>
 
       <div class="form-sec">Estado y ubicación</div>
@@ -1336,6 +1376,25 @@
       <div class="form-group">
         <label>Ubicación</label>
         <input type="text" id="cont-nuevo-ubicacion" placeholder="Ej: Colima, Barros Arana...">
+      </div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="text" id="cont-nuevo-color" placeholder="Ej: BLANCO, GRIS, AZUL...">
+      </div>
+
+      <div class="form-sec">Foto de referencia</div>
+      <div class="form-group">
+        <div id="cont-nuevo-foto-preview" style="display:none;margin-bottom:8px"></div>
+        <div class="foto-add-row">
+          <label class="foto-add-btn">
+            📁 Elegir de galería
+            <input type="file" accept="image/*" onchange="onContNuevoFotoSelected(this)" style="display:none">
+          </label>
+          <label class="foto-add-btn camara-btn">
+            📸 Tomar foto
+            <input type="file" accept="image/*" capture="environment" onchange="onContNuevoFotoSelected(this)" style="display:none">
+          </label>
+        </div>
       </div>
 
       <div class="form-sec">Detalles opcionales</div>

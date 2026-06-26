@@ -186,7 +186,7 @@ function parseHerramientas(rows) {
 // Containers: Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
 function parseContainers(rows) {
   return rows
-    .map((r, i) => ({ r, rowIndex: i + 2 }))
+    .map((r, i) => ({ r, rowIndex: i + 3 }))
     .filter(({ r }) => r[1] && r[1].toString().trim())
     .map(({ r, rowIndex }) => ({
       rowIndex,
@@ -210,7 +210,7 @@ async function loadInventario() {
       fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
       fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:J200`),
       fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:M200`),
-      fetchSheet(`'${SHEET_CONTAINERS}'!A2:J100`),
+      fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
     ]);
     allGeneradores  = parseGeneradores(rowsGen);
     allMaqMenor     = parseMaqMenor(rowsMM);
@@ -630,6 +630,7 @@ function invAbrirEditar() {
   }
 
   document.getElementById('inv-edit-ubicacion').value = item.ubicacion || '';
+  document.getElementById('inv-edit-color').value      = item.color || '';
   document.getElementById('inv-edit-obs').value        = item.obs || '';
 
   // Limpiar foto nueva pendiente
@@ -709,6 +710,7 @@ async function invGuardar() {
   const modulo = document.getElementById('inv-edit-modulo').value;
   const estado = document.getElementById('inv-edit-estado').value;
   const ubic   = document.getElementById('inv-edit-ubicacion').value;
+  const color  = document.getElementById('inv-edit-color').value;
   const obs    = document.getElementById('inv-edit-obs').value;
 
   if (!row) return;
@@ -718,19 +720,19 @@ async function invGuardar() {
 
   try {
     // Mapeo de columnas por módulo
-    // Generadores:  I=estado(9) J=ubicacion(10) N=obs(14) O=imagen(15)
-    // Maq. Menor:   H=estado(8) I=ubicacion(9)  J=obs(10) C=foto(3)
-    // Herramientas: H=estado(8) I=ubicacion(9)  L=obs(12) C=registro(3)
-    let colEstado, colUbic, colObs, colFoto, sheetName;
+    // Generadores:  I=estado(9) J=ubicacion(10) G=color(7) N=obs(14) O=imagen(15)
+    // Maq. Menor:   H=estado(8) I=ubicacion(9)  G=color(7) J=obs(10) C=foto(3)
+    // Herramientas: H=estado(8) I=ubicacion(9)  G=color(7) L=obs(12) C=registro(3)
+    let colEstado, colUbic, colColor, colObs, colFoto, sheetName;
 
     if (modulo === 'generadores') {
-      colEstado = 'I'; colUbic = 'J'; colObs = 'N'; colFoto = 'O';
+      colEstado = 'I'; colUbic = 'J'; colColor = 'G'; colObs = 'N'; colFoto = 'O';
       sheetName = SHEET_GENERADORES;
     } else if (modulo === 'maqmenor') {
-      colEstado = 'H'; colUbic = 'I'; colObs = 'J'; colFoto = 'C';
+      colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'J'; colFoto = 'C';
       sheetName = SHEET_MAQ_MENOR;
     } else {
-      colEstado = 'H'; colUbic = 'I'; colObs = 'L'; colFoto = 'C';
+      colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'L'; colFoto = 'C';
       sheetName = SHEET_HERRAMIENTAS;
     }
 
@@ -738,6 +740,7 @@ async function invGuardar() {
     await Promise.all([
       writeSheet(`'${sheetName}'!${colEstado}${row}`, [[estado]]),
       writeSheet(`'${sheetName}'!${colUbic}${row}`,   [[ubic]]),
+      writeSheet(`'${sheetName}'!${colColor}${row}`,  [[color]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
     ]);
 
@@ -1071,6 +1074,7 @@ function contAbrirEditar() {
   document.getElementById('cont-edit-row').value    = c.rowIndex;
   document.getElementById('cont-edit-estado').value = c.estado;
   document.getElementById('cont-edit-ubicacion').value = c.ubicacion || '';
+  document.getElementById('cont-edit-color').value      = c.color || '';
   document.getElementById('cont-edit-equip').value     = c.equipamiento !== '-' ? c.equipamiento : '';
   document.getElementById('cont-edit-obs').value        = c.obs || '';
   _contFoto = null;
@@ -1094,10 +1098,27 @@ function onContFotoSelected(input) {
   input.value = '';
 }
 
+// Foto de referencia al crear un container nuevo
+let _contNuevoFoto = null;
+function onContNuevoFotoSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    _contNuevoFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg', previewUrl: reader.result };
+    const prev = document.getElementById('cont-nuevo-foto-preview');
+    prev.style.display = 'block';
+    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px">`;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
 async function contGuardar() {
   const row    = parseInt(document.getElementById('cont-edit-row').value);
   const estado = document.getElementById('cont-edit-estado').value;
   const ubic   = document.getElementById('cont-edit-ubicacion').value;
+  const color  = document.getElementById('cont-edit-color').value;
   const equip  = document.getElementById('cont-edit-equip').value;
   const obs    = document.getElementById('cont-edit-obs').value;
   if (!row) return;
@@ -1106,10 +1127,11 @@ async function contGuardar() {
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
   try {
-    // Containers: E=estado(5) G=ubicacion(7) I=equipamiento(9) J=obs(10) C=foto(3)
+    // Containers: E=estado(5) F=color(6) G=ubicacion(7) I=equipamiento(9) J=obs(10) C=foto(3)
     toast('Guardando...');
     await Promise.all([
       writeSheet(`'${SHEET_CONTAINERS}'!E${row}`, [[estado]]),
+      writeSheet(`'${SHEET_CONTAINERS}'!F${row}`, [[color]]),
       writeSheet(`'${SHEET_CONTAINERS}'!G${row}`, [[ubic]]),
       writeSheet(`'${SHEET_CONTAINERS}'!I${row}`, [[equip]]),
       writeSheet(`'${SHEET_CONTAINERS}'!J${row}`, [[obs]]),
@@ -1405,7 +1427,7 @@ function invAbrirNuevo() {
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
 
   // Limpiar campos
-  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro'].forEach(id => {
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('nuevo-estado').value = 'OPERATIVO';
@@ -1445,6 +1467,7 @@ async function invGuardarNuevo() {
   const modelo   = document.getElementById('nuevo-modelo').value.trim().toUpperCase();
   const estado   = document.getElementById('nuevo-estado').value;
   const ubicacion= document.getElementById('nuevo-ubicacion').value.trim().toUpperCase();
+  const color    = document.getElementById('nuevo-color').value.trim().toUpperCase();
   const codigo   = mod === 'generadores' ? document.getElementById('nuevo-codigo').value.trim().toUpperCase() : '';
   const potencia = mod === 'generadores' ? document.getElementById('nuevo-potencia').value.trim().toUpperCase() : '';
 
@@ -1458,15 +1481,15 @@ async function invGuardarNuevo() {
     if (mod === 'generadores') {
       // Cols: A=N° B=EQUIPO C=CODIGO D=MARCA E=MODELO F=AÑO G=COLOR H=POTENCIA I=ESTADO J=UBICACION N=OBS
       sheetName = SHEET_GENERADORES;
-      fila = [num, equipo, codigo, marca, modelo, '', '', potencia, estado, ubicacion, '', '', '', ''];
+      fila = [num, equipo, codigo, marca, modelo, '', color, potencia, estado, ubicacion, '', '', '', ''];
     } else if (mod === 'maqmenor') {
       // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
       sheetName = SHEET_MAQ_MENOR;
-      fila = [num, equipo, '', marca, modelo, '', '', estado, ubicacion, ''];
+      fila = [num, equipo, '', marca, modelo, '', color, estado, ubicacion, ''];
     } else {
       // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION
       sheetName = SHEET_HERRAMIENTAS;
-      fila = [num, equipo, '', marca, modelo, '', '', estado, ubicacion, '', '', '', ''];
+      fila = [num, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', ''];
     }
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
@@ -1520,12 +1543,15 @@ async function invGuardarNuevo() {
 
 // ── Nuevo Container ───────────────────────────────────────────
 function contAbrirNuevo() {
-  ['cont-nuevo-ubicacion','cont-nuevo-equip','cont-nuevo-obs'].forEach(id => {
+  ['cont-nuevo-ubicacion','cont-nuevo-color','cont-nuevo-equip','cont-nuevo-obs'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('cont-nuevo-tipo').value   = 'OFICINA';
   document.getElementById('cont-nuevo-estado').value = 'REGULAR';
   document.getElementById('cont-nuevo-medidas').value= '6 METROS';
+  _contNuevoFoto = null;
+  const fp = document.getElementById('cont-nuevo-foto-preview');
+  if (fp) { fp.style.display = 'none'; fp.innerHTML = ''; }
 
   const nextNum = allContainers.length > 0 ? Math.max(...allContainers.map(i => parseInt(i.num)||0)) + 1 : 1;
   document.getElementById('cont-nuevo-num').value = nextNum;
@@ -1539,6 +1565,7 @@ async function contGuardarNuevo() {
   const medidas  = document.getElementById('cont-nuevo-medidas').value.trim().toUpperCase();
   const estado   = document.getElementById('cont-nuevo-estado').value;
   const ubicacion= document.getElementById('cont-nuevo-ubicacion').value.trim().toUpperCase();
+  const color    = document.getElementById('cont-nuevo-color').value.trim().toUpperCase();
   const equip    = document.getElementById('cont-nuevo-equip').value.trim();
   const obs      = document.getElementById('cont-nuevo-obs').value.trim();
 
@@ -1549,9 +1576,33 @@ async function contGuardarNuevo() {
 
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
-    const fila = [num, tipo, '', medidas, estado, '', ubicacion, '-', equip || '-', obs];
+    const fila = [num, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
     await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
+
+    // Subir foto de referencia si se seleccionó
+    if (_contNuevoFoto) {
+      toast('Subiendo foto de referencia...');
+      try {
+        const newRow = (allContainers.length > 0 ? Math.max(...allContainers.map(i => i.rowIndex||0)) : 2) + 1;
+        let folderId = DRIVE_INV_FOLDER;
+        try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
+        const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
+        const fileName = `CONT_${num}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+        const boundary = 'lst_cont_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_contNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method:'POST', headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary}, body,
+        });
+        if (res.ok) {
+          const r = await res.json();
+          await writeSheet(`'${SHEET_CONTAINERS}'!C${newRow}`, [[r.name]]);
+          toast('Foto subida ✓');
+        }
+      } catch(fe) { console.error('[CONT NUEVO FOTO]', fe); }
+      _contNuevoFoto = null;
+    }
 
     _origClosePanel('panel-nuevo-cont'); 
     const idx = _panelStack.lastIndexOf('panel-nuevo-cont');
