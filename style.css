@@ -13,9 +13,37 @@
   --accent:      #4a8fc1;
   --accent-dark: #3a7aad;
   --accent-soft: #e8f2fb;
+  --accent-rgb:  74,143,193;
   --neutral-soft: #f0f4f8;
   --font-display: 'Inter', sans-serif;
   --font-body:    'Inter', sans-serif;
+}
+
+/* ── Tema por módulo ──────────────────────────────────────────
+   Sobreescribimos las variables de acento dentro de cada módulo
+   para que TODO lo que ya usa var(--accent) (pestañas, chips,
+   botón "+", barras de selección, etc.) tome automáticamente el
+   color de esa sección, sin tener que repintar cada componente
+   a mano. */
+#mod-inventario {
+  --accent: #f5a623; --accent-dark: #b15c0c; --accent-soft: #fdecd2; --accent-rgb: 245,166,35;
+}
+#mod-containers {
+  --accent: #c08a5a; --accent-dark: #6b462a; --accent-soft: #f3e7da; --accent-rgb: 192,138,90;
+}
+#mod-movimientos {
+  --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
+}
+/* Mismo tema, pero aplicado en <body> para que alcance también a los
+   paneles de editar/agregar que viven fuera del contenedor del módulo */
+body.tema-inv {
+  --accent: #f5a623; --accent-dark: #b15c0c; --accent-soft: #fdecd2; --accent-rgb: 245,166,35;
+}
+body.tema-cont {
+  --accent: #c08a5a; --accent-dark: #6b462a; --accent-soft: #f3e7da; --accent-rgb: 192,138,90;
+}
+body.tema-mov {
+  --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
 }
 
 html, body { height: 100%; background: var(--bg); font-family: var(--font-body); color: var(--ink); -webkit-tap-highlight-color: transparent; }
@@ -184,7 +212,7 @@ body.is-offline #app { padding-top: 30px; }
 .pnl-back { color: var(--accent); font-size: 15px; font-weight: 500; padding: 4px 0; }
 .pnl-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .pnl-action { background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; padding: 7px 16px; border-radius: 8px; }
-.pnl-action:active { background: #3a7aaa; }
+.pnl-action:active { background: var(--accent-dark); }
 .panel-body { flex: 1; overflow-y: auto; padding: 16px 14px 40px; }
 
 /* ── Ficha ── */
@@ -981,12 +1009,12 @@ body.is-offline #app { padding-top: 30px; }
   color: #fff;
   font-size: 28px; line-height: 1;
   border: none; cursor: pointer;
-  box-shadow: 0 4px 14px rgba(74,143,193,0.45);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.45);
   display: flex; align-items: center; justify-content: center;
   z-index: 80;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.fab-btn:active { transform: scale(0.93); box-shadow: 0 2px 6px rgba(74,143,193,0.3); }
+.fab-btn:active { transform: scale(0.93); box-shadow: 0 2px 6px rgba(var(--accent-rgb),0.3); }
 
 /* ── Selección múltiple ── */
 .sel-bar {

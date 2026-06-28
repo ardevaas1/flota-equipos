@@ -1249,6 +1249,13 @@ function irAModulo(modulo) {
   document.getElementById('mod-flota').classList.add('hidden');
   document.getElementById('mod-movimientos').classList.add('hidden');
 
+  // Tema de color por módulo — aplicado en <body> para que también
+  // alcance a los paneles de editar/agregar (viven fuera del contenedor del módulo)
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov');
+  if (modulo === 'containers') document.body.classList.add('tema-cont');
+  else if (modulo === 'movimientos') document.body.classList.add('tema-mov');
+  else if (modulo !== 'flota') document.body.classList.add('tema-inv');
+
   if (modulo === 'flota') {
     // Flota usa su propio sidebar desktop nativo
     _setDesktopSidebarFlota(true);
@@ -1363,6 +1370,7 @@ function volverAInicio() {
   document.getElementById('mod-flota').classList.add('hidden');
   document.getElementById('mod-movimientos').classList.add('hidden');
   document.getElementById('main').classList.add('hidden');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov');
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');
