@@ -1584,7 +1584,7 @@ function dtRenderEquipos() {
     const cls = e.estado === 'op' ? 'green' : e.estado === 'obs' ? 'amber' : 'red';
     const sel = dtSelectedPatente === e.patente ? 'selected' : '';
     return `<tr class="${sel}" onclick="dtSelectEquipo('${e.patente}')">
-      <td class="dt-icon">${iconoEquipo(e.equipo)}</td>
+      <td class="dt-icon"><div class="dt-icon-badge">${iconoEquipo(e.equipo)}</div></td>
       <td><div class="dt-name">${e.marca} ${e.modelo}</div><div class="dt-sub">${e.equipo} · ${e.anio||'—'}</div></td>
       <td><span class="dt-plate">${e.patente}</span></td>
       <td><span class="badge ${cls}" style="font-size:10px">${e.estadoRaw?.split(' ')[0] || '—'}</span></td>
@@ -1635,7 +1635,7 @@ function dtSelectEquipo(patente) {
   document.getElementById('dt-detail-body').innerHTML = `
     <!-- Hero -->
     <div class="ficha-hero" style="margin-bottom:12px">
-      <div class="ficha-hero-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>

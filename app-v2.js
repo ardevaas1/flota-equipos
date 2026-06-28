@@ -356,109 +356,22 @@ const ESTADO_COLOR = { op:'green', obs:'amber', det:'red', rep:'blue', otro:'gra
 
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
-  // SVG icons por tipo de máquina
+  // Iconos de línea simples (mismo lenguaje visual que el menú principal):
+  // trazo blanco, sin relleno, para usar dentro de una placa con degradado.
   const svgs = {
-    camioneta: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="18" width="36" height="14" rx="3" fill="#3B82F6"/>
-      <path d="M6 18 L10 10 L28 10 L34 18" fill="#2563EB"/>
-      <rect x="10" y="11" width="8" height="6" rx="1" fill="#BAE6FD"/>
-      <rect x="20" y="11" width="8" height="6" rx="1" fill="#BAE6FD"/>
-      <circle cx="10" cy="32" r="4" fill="#1E293B"/><circle cx="10" cy="32" r="2" fill="#94A3B8"/>
-      <circle cx="30" cy="32" r="4" fill="#1E293B"/><circle cx="30" cy="32" r="2" fill="#94A3B8"/>
-    </svg>`,
-    camion: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="16" width="24" height="16" rx="2" fill="#F59E0B"/>
-      <rect x="26" y="20" width="12" height="12" rx="2" fill="#D97706"/>
-      <rect x="28" y="22" width="8" height="7" rx="1" fill="#FEF3C7"/>
-      <rect x="4" y="18" width="10" height="8" rx="1" fill="#FDE68A"/>
-      <circle cx="9" cy="32" r="4" fill="#1E293B"/><circle cx="9" cy="32" r="2" fill="#94A3B8"/>
-      <circle cx="31" cy="32" r="4" fill="#1E293B"/><circle cx="31" cy="32" r="2" fill="#94A3B8"/>
-    </svg>`,
-    furgon: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="14" width="36" height="18" rx="3" fill="#8B5CF6"/>
-      <rect x="4" y="16" width="12" height="9" rx="1" fill="#C4B5FD"/>
-      <rect x="18" y="16" width="8" height="9" rx="1" fill="#C4B5FD"/>
-      <rect x="28" y="16" width="8" height="9" rx="1" fill="#C4B5FD"/>
-      <circle cx="10" cy="32" r="4" fill="#1E293B"/><circle cx="10" cy="32" r="2" fill="#94A3B8"/>
-      <circle cx="30" cy="32" r="4" fill="#1E293B"/><circle cx="30" cy="32" r="2" fill="#94A3B8"/>
-    </svg>`,
-    retroexcavadora: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="24" width="22" height="10" rx="2" fill="#F59E0B"/>
-      <rect x="4" y="18" width="14" height="8" rx="1" fill="#D97706"/>
-      <rect x="6" y="20" width="8" height="5" rx="1" fill="#FEF3C7"/>
-      <path d="M24 22 L30 14 L34 18 L28 26 Z" fill="#92400E"/>
-      <path d="M34 18 L38 22 L36 28 L32 26 Z" fill="#78350F"/>
-      <rect x="2" y="32" width="22" height="4" rx="2" fill="#1E293B"/>
-    </svg>`,
-    excavadora: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="26" width="24" height="8" rx="2" fill="#EF4444"/>
-      <rect x="4" y="18" width="16" height="10" rx="1" fill="#DC2626"/>
-      <rect x="6" y="20" width="10" height="6" rx="1" fill="#FCA5A5"/>
-      <path d="M20 16 L28 10 L32 14 L26 22 Z" fill="#B91C1C"/>
-      <path d="M32 14 L38 18 L36 24 L30 22 Z" fill="#991B1B"/>
-      <path d="M36 24 L40 26 L38 30 L34 28 Z" fill="#7F1D1D"/>
-      <rect x="2" y="32" width="24" height="4" rx="2" fill="#1E293B"/>
-    </svg>`,
-    minicargador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="6" y="20" width="20" height="12" rx="2" fill="#F59E0B"/>
-      <rect x="8" y="22" width="10" height="7" rx="1" fill="#FEF3C7"/>
-      <path d="M2 28 L6 24 L6 32 L2 32 Z" fill="#D97706"/>
-      <path d="M2 26 L8 26 L8 28 L2 28 Z" fill="#92400E"/>
-      <rect x="26" y="16" width="4" height="6" rx="1" fill="#92400E"/>
-      <rect x="22" y="14" width="12" height="4" rx="1" fill="#78350F"/>
-      <rect x="4" y="30" width="22" height="5" rx="2" fill="#1E293B"/>
-    </svg>`,
-    manipulador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="4" y="22" width="20" height="12" rx="2" fill="#10B981"/>
-      <rect x="6" y="24" width="10" height="7" rx="1" fill="#D1FAE5"/>
-      <path d="M24 20 L34 8 L36 10 L28 24 Z" fill="#059669"/>
-      <path d="M34 8 L38 10 L38 14 L36 14 Z" fill="#065F46"/>
-      <rect x="4" y="32" width="20" height="4" rx="2" fill="#1E293B"/>
-    </svg>`,
-    grua: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="4" y="24" width="16" height="10" rx="2" fill="#F59E0B"/>
-      <rect x="6" y="26" width="8" height="6" rx="1" fill="#FEF3C7"/>
-      <rect x="18" y="6" width="3" height="28" fill="#D97706"/>
-      <rect x="18" y="6" width="18" height="3" fill="#D97706"/>
-      <rect x="33" y="9" width="2" height="12" fill="#92400E"/>
-      <rect x="4" y="32" width="16" height="4" rx="2" fill="#1E293B"/>
-    </svg>`,
-    rodillo: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="8" y="16" width="24" height="12" rx="2" fill="#6B7280"/>
-      <rect x="10" y="18" width="12" height="7" rx="1" fill="#D1D5DB"/>
-      <ellipse cx="20" cy="30" rx="14" ry="6" fill="#374151"/>
-      <ellipse cx="20" cy="30" rx="10" ry="4" fill="#6B7280"/>
-      <rect x="6" y="12" width="28" height="6" rx="3" fill="#4B5563"/>
-    </svg>`,
-    mixer: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="2" y="20" width="20" height="14" rx="2" fill="#3B82F6"/>
-      <rect x="4" y="22" width="8" height="8" rx="1" fill="#BFDBFE"/>
-      <ellipse cx="28" cy="22" rx="9" ry="11" fill="#1D4ED8"/>
-      <path d="M22 16 L34 14 L34 30 L22 28 Z" fill="#2563EB"/>
-      <circle cx="8" cy="34" r="3" fill="#1E293B"/><circle cx="8" cy="34" r="1.5" fill="#94A3B8"/>
-      <circle cx="16" cy="34" r="3" fill="#1E293B"/><circle cx="16" cy="34" r="1.5" fill="#94A3B8"/>
-    </svg>`,
-    tractor: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="4" y="18" width="20" height="14" rx="2" fill="#16A34A"/>
-      <rect x="6" y="20" width="10" height="8" rx="1" fill="#BBF7D0"/>
-      <circle cx="12" cy="32" r="6" fill="#1E293B"/><circle cx="12" cy="32" r="3" fill="#4B5563"/>
-      <circle cx="30" cy="34" r="4" fill="#1E293B"/><circle cx="30" cy="34" r="2" fill="#4B5563"/>
-      <rect x="22" y="22" width="12" height="8" rx="1" fill="#15803D"/>
-    </svg>`,
-    generador: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="4" y="16" width="32" height="18" rx="3" fill="#6B7280"/>
-      <rect x="8" y="20" width="10" height="8" rx="1" fill="#D1D5DB"/>
-      <path d="M22 18 L26 26 L23 26 L27 34 L21 24 L24 24 Z" fill="#FCD34D"/>
-      <circle cx="32" cy="24" r="4" fill="#374151"/>
-      <circle cx="32" cy="24" r="2" fill="#9CA3AF"/>
-    </svg>`,
-    default: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="equipo-svg">
-      <rect x="8" y="12" width="24" height="20" rx="3" fill="#6B7280"/>
-      <rect x="12" y="16" width="8" height="6" rx="1" fill="#D1D5DB"/>
-      <path d="M16 8 L20 4 L24 8 L22 8 L22 12 L18 12 L18 8 Z" fill="#4B5563"/>
-      <rect x="10" y="28" width="6" height="4" rx="1" fill="#374151"/>
-      <rect x="24" y="28" width="6" height="4" rx="1" fill="#374151"/>
-    </svg>`,
+    camioneta: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 16h1M3 16V9a1 1 0 0 1 1-1h6v8M10 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 9h4l3 3v4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="16" r="2" stroke="white" stroke-width="1.7"/><circle cx="18" cy="16" r="2" stroke="white" stroke-width="1.7"/></svg>`,
+    camion: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 16h1M2 16V7a1 1 0 0 1 1-1h9v10M12 16h6" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="16" r="2" stroke="white" stroke-width="1.7"/><circle cx="17" cy="16" r="2" stroke="white" stroke-width="1.7"/></svg>`,
+    furgon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="6" width="20" height="10" rx="2" stroke="white" stroke-width="1.7"/><path d="M9 6v10M16 6v10" stroke="white" stroke-width="1.7"/><circle cx="7" cy="18.5" r="1.6" stroke="white" stroke-width="1.7"/><circle cx="17" cy="18.5" r="1.6" stroke="white" stroke-width="1.7"/></svg>`,
+    retroexcavadora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="13" width="9" height="6" rx="1.5" stroke="white" stroke-width="1.7"/><circle cx="4.5" cy="20" r="1.6" stroke="white" stroke-width="1.7"/><circle cx="9" cy="20" r="1.6" stroke="white" stroke-width="1.7"/><path d="M9 13V9h5l4-5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 4l2 2-3 4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    excavadora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="14" width="10" height="5" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M2 19h12" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M9 14V11h4l6-7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 5l3 2-4 5-3-2Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+    minicargador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="11" width="13" height="7" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M16 12l4-3v9l-4-3" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><circle cx="6.5" cy="20" r="1.8" stroke="white" stroke-width="1.7"/><circle cx="12.5" cy="20" r="1.8" stroke="white" stroke-width="1.7"/></svg>`,
+    manipulador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="13" width="11" height="6" rx="1.5" stroke="white" stroke-width="1.7"/><circle cx="5" cy="20.5" r="1.6" stroke="white" stroke-width="1.7"/><circle cx="10" cy="20.5" r="1.6" stroke="white" stroke-width="1.7"/><path d="M11 13 21 4" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M21 4h-4M21 4v4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    grua: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="15" width="8" height="5" rx="1.3" stroke="white" stroke-width="1.7"/><path d="M6 15V3h14" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 3v9" stroke="white" stroke-width="1.7" stroke-linecap="round"/><circle cx="4.5" cy="20.5" r="1.5" stroke="white" stroke-width="1.5"/><circle cx="9" cy="20.5" r="1.5" stroke="white" stroke-width="1.5"/></svg>`,
+    rodillo: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="6" cy="17" r="4" stroke="white" stroke-width="1.7"/><circle cx="18" cy="17" r="4" stroke="white" stroke-width="1.7"/><path d="M6 13V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    mixer: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 17h1M3 17V9a1 1 0 0 1 1-1h6v9" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="13" r="6" stroke="white" stroke-width="1.7"/><path d="M14 8l6-2v14" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><circle cx="6.5" cy="17" r="2" stroke="white" stroke-width="1.7"/><circle cx="13.5" cy="17" r="2" stroke="white" stroke-width="1.7"/></svg>`,
+    tractor: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="9" width="9" height="7" rx="1.3" stroke="white" stroke-width="1.7"/><circle cx="6" cy="19" r="3.2" stroke="white" stroke-width="1.7"/><circle cx="18" cy="19" r="2.2" stroke="white" stroke-width="1.7"/><path d="M12 11h7v5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    generador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="7" width="16" height="10" rx="2" stroke="white" stroke-width="1.7"/><path d="M9 9l-2 4h2l-2 4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="12" r="3" stroke="white" stroke-width="1.7"/></svg>`,
+    default: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="4" y="4" width="16" height="13" rx="2" stroke="white" stroke-width="1.7"/><path d="M9 21h6M12 17v4" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   };
   if (t.includes('camioneta'))   return svgs.camioneta;
   if (t.includes('camion') || t.includes('camión')) return svgs.camion;
@@ -797,7 +710,7 @@ function renderEventos() {
   document.getElementById('eventos-proximas').innerHTML = conHoro.slice(0,8).map(e => {
     const cls = e.diff < 0 ? 'red' : e.diff < 500 ? 'amber' : 'green';
     return `<div class="mant-card" onclick="openFicha('${e.patente}')">
-      <div class="mant-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="mant-icon mant-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="mant-body">
         <div class="mant-title">${e.marca} ${e.modelo}</div>
         <div class="mant-meta">${e.equipo} · Actual: ${formatNum(e.actual)} · Próxima: ${formatNum(e.prox)} · Cada: ${e.mantCada||'—'}</div>
@@ -1190,7 +1103,7 @@ function renderDashboard() {
     const cls = d < 0 ? 'red' : d < 30 ? 'amber' : 'blue';
     const txt = d < 0 ? `Vencido ${Math.abs(d)}d` : `Vence en ${d}d`;
     return `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente} · ${e.ubicacion}</div>
@@ -1216,7 +1129,7 @@ function renderDashboard() {
   document.getElementById('dash-mant').innerHTML = conHoro.slice(0,5).map(e => {
     const cls = e.diff < 0 ? 'red' : e.diff < 500 ? 'amber' : 'green';
     return `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">Actual: ${formatNum(e.actual)} · Próxima: ${formatNum(e.prox)}</div>
@@ -1254,7 +1167,7 @@ function renderEquipos() {
 
   document.getElementById('equipos-list').innerHTML = filtered.map(e => `
     <div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente} · ${e.anio}</div>
@@ -1293,7 +1206,7 @@ function openFicha(patente) {
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
-      <div class="ficha-hero-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>
@@ -1439,7 +1352,7 @@ function renderAlertas() {
     }).join('');
 
     const card = `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente} · ${e.ubicacion}</div>
