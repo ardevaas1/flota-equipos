@@ -14,6 +14,100 @@ let driveFolders    = {};   // cache patente → folderId
 let driveSubfolders = {};   // cache patente/subfolder → folderId
 const today = new Date();
 
+// ── Soporte offline básico ──────────────────────────────────────
+// Guarda en localStorage una "foto" de los últimos datos cargados con
+// éxito, para poder MOSTRARLOS (solo lectura) cuando no hay internet.
+// No reemplaza la app online: solo evita la pantalla en blanco sin señal.
+const OFFLINE_CACHE_KEY = 'lst_offline_cache';
+const OFFLINE_CACHE_TS_KEY = 'lst_offline_cache_ts';
+
+function guardarCacheOffline() {
+  try {
+    const snapshot = {
+      allEquipos,
+      allEventos: (typeof allEventos !== 'undefined') ? allEventos : [],
+      allGeneradores: (typeof allGeneradores !== 'undefined') ? allGeneradores : [],
+      allMaqMenor: (typeof allMaqMenor !== 'undefined') ? allMaqMenor : [],
+      allHerramientas: (typeof allHerramientas !== 'undefined') ? allHerramientas : [],
+      allContainers: (typeof allContainers !== 'undefined') ? allContainers : [],
+      allMovimientos: (typeof allMovimientos !== 'undefined') ? allMovimientos : [],
+    };
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(OFFLINE_CACHE_TS_KEY, Date.now().toString());
+  } catch(e) {
+    console.warn('[OFFLINE] No se pudo guardar el cache local:', e.message);
+  }
+}
+
+// Recupera el snapshot guardado y lo vuelca en las variables globales.
+// Devuelve true si había algo que cargar.
+function cargarCacheOffline() {
+  try {
+    const raw = localStorage.getItem(OFFLINE_CACHE_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    allEquipos = snap.allEquipos || [];
+    if (typeof allEventos !== 'undefined') allEventos = snap.allEventos || [];
+    if (typeof allGeneradores !== 'undefined') allGeneradores = snap.allGeneradores || [];
+    if (typeof allMaqMenor !== 'undefined') allMaqMenor = snap.allMaqMenor || [];
+    if (typeof allHerramientas !== 'undefined') allHerramientas = snap.allHerramientas || [];
+    if (typeof allContainers !== 'undefined') allContainers = snap.allContainers || [];
+    if (typeof allMovimientos !== 'undefined') allMovimientos = snap.allMovimientos || [];
+    return true;
+  } catch(e) {
+    console.warn('[OFFLINE] No se pudo leer el cache local:', e.message);
+    return false;
+  }
+}
+
+// Muestra/oculta el banner de "sin conexión" con la fecha del último dato guardado
+function actualizarBannerOffline(mostrar) {
+  const banner = document.getElementById('offline-banner');
+  if (!banner) return;
+  document.body.classList.toggle('is-offline', mostrar);
+  banner.classList.toggle('hidden', !mostrar);
+  if (mostrar) {
+    const ts = parseInt(localStorage.getItem(OFFLINE_CACHE_TS_KEY) || '0');
+    const fechaEl = document.getElementById('offline-banner-fecha');
+    if (fechaEl) {
+      fechaEl.textContent = ts ? 'el ' + new Date(ts).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    }
+  }
+}
+
+// Renderiza todo a partir de lo que haya en memoria (online o desde cache)
+function _renderTodoDesdeMemoria() {
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderEquipos === 'function') renderEquipos();
+  if (typeof renderAlertas === 'function') renderAlertas();
+  if (typeof renderEventos === 'function') renderEventos();
+  if (typeof renderInvLista === 'function') renderInvLista();
+  if (typeof renderContainers === 'function') renderContainers();
+}
+
+// Carga directamente desde el cache local sin tocar la red — para cuando
+// arrancamos sin conexión o el login/los datos en vivo fallan.
+function iniciarModoOffline() {
+  const habiaCache = cargarCacheOffline();
+  document.getElementById('splash').classList.add('hidden');
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('main').classList.add('hidden');
+  document.getElementById('modulos-home').classList.remove('hidden');
+  actualizarBannerOffline(true);
+  if (habiaCache) {
+    _renderTodoDesdeMemoria();
+  } else {
+    toast('Sin conexión y sin datos guardados todavía', 'error');
+  }
+}
+
+window.addEventListener('online', () => {
+  actualizarBannerOffline(false);
+  // Al recuperar señal, refrescamos datos en background
+  if (typeof loadData === 'function' && accessToken) loadData(true);
+});
+window.addEventListener('offline', () => actualizarBannerOffline(true));
+
 // ── Roles de usuario ──────────────────────────────────────────
 let userRole  = null;   // 'admin' | 'viewer'
 let userEmail = null;
@@ -1044,11 +1138,25 @@ async function loadData(background = false) {
       }, 300);
     }
     toast('Datos actualizados ✓');
+    actualizarBannerOffline(false);
+    guardarCacheOffline();
   } catch (e) {
     console.error(e);
-    splash(100, 'Error: ' + e.message);
-    toast('Error: ' + e.message, 'error');
-    setTimeout(hideSplash, 2000);
+    // Sin conexión (u otro error de red) → si hay datos guardados, mostrarlos en vez de dejar la pantalla en blanco
+    const sinRed = !navigator.onLine || /Failed to fetch|NetworkError|network/i.test(e.message || '');
+    if (sinRed && cargarCacheOffline()) {
+      splash(100, 'Sin conexión — usando datos guardados');
+      setTimeout(() => {
+        hideSplash();
+        document.getElementById('modulos-home').classList.remove('hidden');
+        actualizarBannerOffline(true);
+        _renderTodoDesdeMemoria();
+      }, 400);
+    } else {
+      splash(100, 'Error: ' + e.message);
+      toast('Error: ' + e.message, 'error');
+      setTimeout(hideSplash, 2000);
+    }
   } finally {
     if (btn) btn.style.opacity = '1';
   }
@@ -1837,6 +1945,13 @@ function validarPin() {
 }
 
 function enterApp() {
+  // Sin conexión al entrar → ir directo a modo offline con lo último guardado,
+  // sin intentar login/token (fallaría igual y solo demora la espera).
+  if (!navigator.onLine) {
+    iniciarModoOffline();
+    return;
+  }
+
   initOAuth();
 
   // Estado base en el historial → el botón Back no saldrá de la app

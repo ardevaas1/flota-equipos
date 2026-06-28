@@ -23,6 +23,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 input, select, textarea { font-family: inherit; }
 .hidden { display: none !important; }
 
+#offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #92400e; color: #fff; text-align: center;
+  font-size: 12px; font-weight: 600; padding: 7px 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+#offline-banner-fecha { font-weight: 400; opacity: 0.85; }
+/* Cuando el banner está visible, empujamos el contenido para que no quede tapado */
+body.is-offline #app { padding-top: 30px; }
+
 /* ── Firma tipográfica: Archivo para títulos y números, Inter para todo lo demás ── */
 .header-title, .modulos-title, .modulo-nombre, .login-title, .splash-name,
 .ficha-hero-name, .pnl-title, .inv-desktop-sidebar-title, .desktop-sidebar-title,

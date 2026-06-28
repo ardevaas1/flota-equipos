@@ -139,6 +139,9 @@
   </style>
 </head>
 <body>
+<div id="offline-banner" class="hidden">
+  📡 Sin conexión — mostrando datos guardados <span id="offline-banner-fecha"></span>
+</div>
 <div id="app">
 
   <!-- ══ LAYOUT DESKTOP (visible solo ≥900px) ══ -->
@@ -1752,6 +1755,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostrar página equipos por defecto
     const eq = document.getElementById('dt-page-equipos');
     if (eq) { eq.style.display = 'flex'; eq.style.flexDirection = 'column'; }
+  }
+});
+
+// ── Soporte offline: registrar el service worker que cachea el esqueleto de la app ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('[SW] No se pudo registrar el service worker:', err.message);
+    });
+  });
+}
+// Reflejar el estado de conexión actual apenas carga (por si ya estaba sin señal)
+document.addEventListener('DOMContentLoaded', () => {
+  if (!navigator.onLine && typeof actualizarBannerOffline === 'function') {
+    actualizarBannerOffline(true);
   }
 });
 </script>
