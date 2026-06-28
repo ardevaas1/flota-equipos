@@ -987,7 +987,19 @@
       <div class="form-sec">Color</div>
       <div class="form-group">
         <label>Color</label>
-        <input type="text" id="inv-edit-color" placeholder="Ej: NARANJO, AZUL, GRIS...">
+        <select id="inv-edit-color" onchange="_toggleColorOtro('inv-edit-color')">
+          <option value="">Sin especificar</option>
+          <option value="AMARILLO">Amarillo</option>
+          <option value="NARANJO">Naranjo</option>
+          <option value="ROJO">Rojo</option>
+          <option value="AZUL">Azul</option>
+          <option value="VERDE">Verde</option>
+          <option value="GRIS">Gris</option>
+          <option value="BLANCO">Blanco</option>
+          <option value="NEGRO">Negro</option>
+          <option value="OTRO">Otro...</option>
+        </select>
+        <input type="text" id="inv-edit-color-otro" placeholder="Especifica el color" style="display:none;margin-top:8px">
       </div>
 
       <div class="form-sec">Observaciones</div>
@@ -1220,7 +1232,19 @@
       <div class="form-sec">Color</div>
       <div class="form-group">
         <label>Color</label>
-        <input type="text" id="cont-edit-color" placeholder="Ej: BLANCO, GRIS, AZUL...">
+        <select id="cont-edit-color" onchange="_toggleColorOtro('cont-edit-color')">
+          <option value="">Sin especificar</option>
+          <option value="AMARILLO">Amarillo</option>
+          <option value="NARANJO">Naranjo</option>
+          <option value="ROJO">Rojo</option>
+          <option value="AZUL">Azul</option>
+          <option value="VERDE">Verde</option>
+          <option value="GRIS">Gris</option>
+          <option value="BLANCO">Blanco</option>
+          <option value="NEGRO">Negro</option>
+          <option value="OTRO">Otro...</option>
+        </select>
+        <input type="text" id="cont-edit-color-otro" placeholder="Especifica el color" style="display:none;margin-top:8px">
       </div>
 
       <div class="form-sec">Equipamiento</div>
@@ -1311,7 +1335,19 @@
       </div>
       <div class="form-group">
         <label>Color</label>
-        <input type="text" id="nuevo-color" placeholder="Ej: NARANJO, AZUL, GRIS...">
+        <select id="nuevo-color" onchange="_toggleColorOtro('nuevo-color')">
+          <option value="">Sin especificar</option>
+          <option value="AMARILLO">Amarillo</option>
+          <option value="NARANJO">Naranjo</option>
+          <option value="ROJO">Rojo</option>
+          <option value="AZUL">Azul</option>
+          <option value="VERDE">Verde</option>
+          <option value="GRIS">Gris</option>
+          <option value="BLANCO">Blanco</option>
+          <option value="NEGRO">Negro</option>
+          <option value="OTRO">Otro...</option>
+        </select>
+        <input type="text" id="nuevo-color-otro" placeholder="Especifica el color" style="display:none;margin-top:8px">
       </div>
 
       <div class="form-sec">Estado y ubicación</div>
@@ -1379,7 +1415,19 @@
       </div>
       <div class="form-group">
         <label>Color</label>
-        <input type="text" id="cont-nuevo-color" placeholder="Ej: BLANCO, GRIS, AZUL...">
+        <select id="cont-nuevo-color" onchange="_toggleColorOtro('cont-nuevo-color')">
+          <option value="">Sin especificar</option>
+          <option value="AMARILLO">Amarillo</option>
+          <option value="NARANJO">Naranjo</option>
+          <option value="ROJO">Rojo</option>
+          <option value="AZUL">Azul</option>
+          <option value="VERDE">Verde</option>
+          <option value="GRIS">Gris</option>
+          <option value="BLANCO">Blanco</option>
+          <option value="NEGRO">Negro</option>
+          <option value="OTRO">Otro...</option>
+        </select>
+        <input type="text" id="cont-nuevo-color-otro" placeholder="Especifica el color" style="display:none;margin-top:8px">
       </div>
 
       <div class="form-sec">Foto de referencia</div>

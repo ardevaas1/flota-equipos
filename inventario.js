@@ -61,6 +61,55 @@ let _contSeleccion = new Set();
 let _movMultiOverrides = {};
 let _movMultiItems = [];
 
+// Selector de color con opción "Otro..." — muestra/oculta el campo de texto libre
+function _toggleColorOtro(selectId) {
+  const sel = document.getElementById(selectId);
+  const otro = document.getElementById(selectId + '-otro');
+  if (!sel || !otro) return;
+  otro.style.display = sel.value === 'OTRO' ? 'block' : 'none';
+}
+// Devuelve el valor final de color (predefinido o el de "otro" si corresponde)
+function _valorColor(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return '';
+  if (sel.value === 'OTRO') {
+    const otro = document.getElementById(selectId + '-otro');
+    return (otro ? otro.value.trim().toUpperCase() : '');
+  }
+  return sel.value;
+}
+// Precarga un selector de color con un valor guardado (predefinido u "otro")
+const COLORES_PREDEFINIDOS = ['AMARILLO','NARANJO','ROJO','AZUL','VERDE','GRIS','BLANCO','NEGRO'];
+function _precargarColor(selectId, valorGuardado) {
+  const sel = document.getElementById(selectId);
+  const otro = document.getElementById(selectId + '-otro');
+  if (!sel) return;
+  const v = (valorGuardado || '').toUpperCase().trim();
+  if (!v) { sel.value = ''; if (otro) { otro.value = ''; otro.style.display = 'none'; } return; }
+  if (COLORES_PREDEFINIDOS.includes(v)) {
+    sel.value = v;
+    if (otro) { otro.value = ''; otro.style.display = 'none'; }
+  } else {
+    sel.value = 'OTRO';
+    if (otro) { otro.value = v; otro.style.display = 'block'; }
+  }
+}
+// Marca/desmarca visualmente un campo inválido y devuelve si es válido
+function _campoValido(id, esValido) {
+  const el = document.getElementById(id);
+  if (!el) return esValido;
+  el.classList.toggle('input-error', !esValido);
+  return esValido;
+}
+function _limpiarErrores(panelId) {
+  document.querySelectorAll(`#${panelId} .input-error`).forEach(el => el.classList.remove('input-error'));
+}
+// Hace foco en el primer campo marcado como inválido dentro de un panel
+function _enfocarPrimerError(panelId) {
+  const first = document.querySelector(`#${panelId} .input-error`);
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── Colores de estado ─────────────────────────────────────────
 const INV_ESTADO_COLOR = {
   'operativo':  'green',
@@ -630,7 +679,7 @@ function invAbrirEditar() {
   }
 
   document.getElementById('inv-edit-ubicacion').value = item.ubicacion || '';
-  document.getElementById('inv-edit-color').value      = item.color || '';
+  _precargarColor('inv-edit-color', item.color || '');
   document.getElementById('inv-edit-obs').value        = item.obs || '';
 
   // Limpiar foto nueva pendiente
@@ -710,7 +759,7 @@ async function invGuardar() {
   const modulo = document.getElementById('inv-edit-modulo').value;
   const estado = document.getElementById('inv-edit-estado').value;
   const ubic   = document.getElementById('inv-edit-ubicacion').value;
-  const color  = document.getElementById('inv-edit-color').value;
+  const color  = _valorColor('inv-edit-color');
   const obs    = document.getElementById('inv-edit-obs').value;
 
   if (!row) return;
@@ -1074,7 +1123,7 @@ function contAbrirEditar() {
   document.getElementById('cont-edit-row').value    = c.rowIndex;
   document.getElementById('cont-edit-estado').value = c.estado;
   document.getElementById('cont-edit-ubicacion').value = c.ubicacion || '';
-  document.getElementById('cont-edit-color').value      = c.color || '';
+  _precargarColor('cont-edit-color', c.color || '');
   document.getElementById('cont-edit-equip').value     = c.equipamiento !== '-' ? c.equipamiento : '';
   document.getElementById('cont-edit-obs').value        = c.obs || '';
   _contFoto = null;
@@ -1118,7 +1167,7 @@ async function contGuardar() {
   const row    = parseInt(document.getElementById('cont-edit-row').value);
   const estado = document.getElementById('cont-edit-estado').value;
   const ubic   = document.getElementById('cont-edit-ubicacion').value;
-  const color  = document.getElementById('cont-edit-color').value;
+  const color  = _valorColor('cont-edit-color');
   const equip  = document.getElementById('cont-edit-equip').value;
   const obs    = document.getElementById('cont-edit-obs').value;
   if (!row) return;
@@ -1430,6 +1479,7 @@ function invAbrirNuevo() {
   ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  _precargarColor('nuevo-color', '');
   document.getElementById('nuevo-estado').value = 'OPERATIVO';
   // Reset campo OTRO y foto
   const otroRow = document.getElementById('nuevo-equipo-otro-row');
@@ -1467,11 +1517,31 @@ async function invGuardarNuevo() {
   const modelo   = document.getElementById('nuevo-modelo').value.trim().toUpperCase();
   const estado   = document.getElementById('nuevo-estado').value;
   const ubicacion= document.getElementById('nuevo-ubicacion').value.trim().toUpperCase();
-  const color    = document.getElementById('nuevo-color').value.trim().toUpperCase();
+  const color    = _valorColor('nuevo-color');
   const codigo   = mod === 'generadores' ? document.getElementById('nuevo-codigo').value.trim().toUpperCase() : '';
   const potencia = mod === 'generadores' ? document.getElementById('nuevo-potencia').value.trim().toUpperCase() : '';
 
-  if (!equipo || !estado) { toast('Completa los campos obligatorios', 'error'); return; }
+  _limpiarErrores('panel-nuevo-inv');
+  let valido = true;
+  if (!_campoValido('nuevo-equipo-otro', equipoSel !== 'OTRO' || !!equipoOtro)) valido = false;
+  if (!_campoValido('nuevo-marca', !!marca)) valido = false;
+  if (mod === 'generadores' && !_campoValido('nuevo-codigo', !!codigo)) valido = false;
+  if (!valido) {
+    toast('Completa los campos obligatorios marcados en rojo', 'error');
+    _enfocarPrimerError('panel-nuevo-inv');
+    return;
+  }
+
+  // Re-chequear N° correlativo por si se agregó otro ítem desde que se abrió el formulario
+  // (evita duplicados si dos personas registran al mismo tiempo)
+  const datosActuales = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const numFresco = datosActuales.length > 0 ? Math.max(...datosActuales.map(i => parseInt(i.num)||0)) + 1 : 1;
+  let numFinal = num;
+  if (parseInt(num) !== numFresco) {
+    numFinal = numFresco;
+    document.getElementById('nuevo-num').value = numFresco;
+    toast(`Se actualizó el N° a ${numFresco} (ya se había registrado otro ítem)`, 'info');
+  }
 
   const btn = document.querySelector('#panel-nuevo-inv .pnl-action');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
@@ -1481,15 +1551,15 @@ async function invGuardarNuevo() {
     if (mod === 'generadores') {
       // Cols: A=N° B=EQUIPO C=CODIGO D=MARCA E=MODELO F=AÑO G=COLOR H=POTENCIA I=ESTADO J=UBICACION N=OBS
       sheetName = SHEET_GENERADORES;
-      fila = [num, equipo, codigo, marca, modelo, '', color, potencia, estado, ubicacion, '', '', '', ''];
+      fila = [numFinal, equipo, codigo, marca, modelo, '', color, potencia, estado, ubicacion, '', '', '', ''];
     } else if (mod === 'maqmenor') {
       // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
       sheetName = SHEET_MAQ_MENOR;
-      fila = [num, equipo, '', marca, modelo, '', color, estado, ubicacion, ''];
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, ''];
     } else {
       // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION
       sheetName = SHEET_HERRAMIENTAS;
-      fila = [num, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', ''];
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', ''];
     }
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
@@ -1502,7 +1572,7 @@ async function invGuardarNuevo() {
         // Obtener rowIndex del nuevo ítem (última fila del sheet)
         const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
         const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
-        const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || num) : num;
+        const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : numFinal;
         let folderId = DRIVE_INV_FOLDER;
         try {
           const sf = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
@@ -1546,6 +1616,7 @@ function contAbrirNuevo() {
   ['cont-nuevo-ubicacion','cont-nuevo-color','cont-nuevo-equip','cont-nuevo-obs'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  _precargarColor('cont-nuevo-color', '');
   document.getElementById('cont-nuevo-tipo').value   = 'OFICINA';
   document.getElementById('cont-nuevo-estado').value = 'REGULAR';
   document.getElementById('cont-nuevo-medidas').value= '6 METROS';
@@ -1565,18 +1636,34 @@ async function contGuardarNuevo() {
   const medidas  = document.getElementById('cont-nuevo-medidas').value.trim().toUpperCase();
   const estado   = document.getElementById('cont-nuevo-estado').value;
   const ubicacion= document.getElementById('cont-nuevo-ubicacion').value.trim().toUpperCase();
-  const color    = document.getElementById('cont-nuevo-color').value.trim().toUpperCase();
+  const color    = _valorColor('cont-nuevo-color');
   const equip    = document.getElementById('cont-nuevo-equip').value.trim();
   const obs      = document.getElementById('cont-nuevo-obs').value.trim();
 
-  if (!tipo || !estado) { toast('Completa los campos obligatorios', 'error'); return; }
+  _limpiarErrores('panel-nuevo-cont');
+  let valido = true;
+  if (!_campoValido('cont-nuevo-medidas', !!medidas)) valido = false;
+  if (!valido) {
+    toast('Completa los campos obligatorios marcados en rojo', 'error');
+    _enfocarPrimerError('panel-nuevo-cont');
+    return;
+  }
+
+  // Re-chequear N° por si se agregó otro container desde que se abrió el formulario
+  const numFresco = allContainers.length > 0 ? Math.max(...allContainers.map(i => parseInt(i.num)||0)) + 1 : 1;
+  let numFinal = num;
+  if (parseInt(num) !== numFresco) {
+    numFinal = numFresco;
+    document.getElementById('cont-nuevo-num').value = numFresco;
+    toast(`Se actualizó el N° a ${numFresco} (ya se había registrado otro container)`, 'info');
+  }
 
   const btn = document.querySelector('#panel-nuevo-cont .pnl-action');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
-    const fila = [num, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
+    const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
     await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
 
@@ -1588,7 +1675,7 @@ async function contGuardarNuevo() {
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
         const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
-        const fileName = `CONT_${num}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+        const fileName = `CONT_${numFinal}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
         const boundary = 'lst_cont_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
         const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_contNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
