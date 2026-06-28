@@ -1258,7 +1258,7 @@ function irAModulo(modulo) {
       const backBtn = document.createElement('button');
       backBtn.id = 'flota-back-btn';
       backBtn.className = 'header-btn';
-      backBtn.style.cssText = 'font-size:20px;color:var(--accent);order:-1';
+      backBtn.style.cssText = 'font-size:20px;color:#fff;order:-1';
       backBtn.onclick = () => {
         document.getElementById('main').classList.add('hidden');
         document.getElementById('modulos-home').classList.remove('hidden');

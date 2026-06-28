@@ -32,7 +32,7 @@
     /* Indicador sutil de modo lectura en el header */
     body.viewer-mode .header-sub::after {
       content: ' · Solo lectura';
-      color: #64748b;
+      color: rgba(255,255,255,0.8);
       font-size: 10px;
     }
 
@@ -51,7 +51,7 @@
     body.mover-mode #movh-selbar-desktop.show { display: flex !important; }
     body.mover-mode .header-sub::after {
       content: ' · Solo lectura (puede registrar movimientos)';
-      color: #64748b;
+      color: rgba(255,255,255,0.8);
       font-size: 10px;
     }
 
@@ -148,7 +148,7 @@
   <!-- ══ LAYOUT DESKTOP (visible solo ≥900px) ══ -->
   <div class="desktop-sidebar dt-oculto" id="desktop-sidebar">
     <div class="desktop-sidebar-header">
-      <img src="logo.png" alt="LST">
+      <img src="logo-white.png" alt="LST">
       <div>
         <div class="desktop-sidebar-title">Flota &amp; Equipos</div>
         <div class="desktop-sidebar-sub">Constructora LST</div>
@@ -311,7 +311,7 @@
   <div id="main" class="main hidden">
 
     <header class="header">
-      <img src="logo.png" class="header-logo" alt="LST">
+      <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title" id="page-title">Inicio</div>
         <div class="header-sub">Constructora LST</div>
@@ -687,8 +687,8 @@
 
     <!-- SIDEBAR DESKTOP (oculto en móvil via JS) -->
     <div class="inv-desktop-sidebar" id="inv-desktop-sidebar" style="display:none">
-      <div class="inv-desktop-sidebar-top">
-        <img src="logo.png" alt="LST">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--inv">
+        <img src="logo-white.png" alt="LST">
         <div>
           <div class="inv-desktop-sidebar-title">Inventario</div>
           <div class="inv-desktop-sidebar-sub">Constructora LST</div>
@@ -734,8 +734,8 @@
     </div>
 
     <!-- LAYOUT MÓVIL (oculto en desktop) -->
-    <header class="header" id="inv-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
+    <header class="header header--inv" id="inv-mobile-header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
       <div class="header-center">
         <div class="header-title" id="inv-titulo">Inventario</div>
         <div class="header-sub">Constructora LST</div>
@@ -771,8 +771,8 @@
 
     <!-- SIDEBAR DESKTOP -->
     <div class="inv-desktop-sidebar" id="cont-desktop-sidebar" style="display:none">
-      <div class="inv-desktop-sidebar-top">
-        <img src="logo.png" alt="LST">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--cont">
+        <img src="logo-white.png" alt="LST">
         <div>
           <div class="inv-desktop-sidebar-title">Containers</div>
           <div class="inv-desktop-sidebar-sub">Constructora LST</div>
@@ -817,8 +817,8 @@
     </div>
 
     <!-- LAYOUT MÓVIL -->
-    <header class="header" id="cont-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
+    <header class="header header--cont" id="cont-mobile-header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
       <div class="header-center">
         <div class="header-title">Containers</div>
         <div class="header-sub">Constructora LST</div>
@@ -849,8 +849,8 @@
 
     <!-- SIDEBAR DESKTOP -->
     <div class="inv-desktop-sidebar" id="movh-desktop-sidebar" style="display:none">
-      <div class="inv-desktop-sidebar-top">
-        <img src="logo.png" alt="LST">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--mov">
+        <img src="logo-white.png" alt="LST">
         <div>
           <div class="inv-desktop-sidebar-title">Movimientos</div>
           <div class="inv-desktop-sidebar-sub">Constructora LST</div>
@@ -900,8 +900,8 @@
     </div>
 
     <!-- LAYOUT MÓVIL -->
-    <header class="header" id="movh-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px;color:var(--accent)">‹</button>
+    <header class="header header--mov" id="movh-mobile-header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
       <div class="header-center">
         <div class="header-title">Movimientos</div>
         <div class="header-sub">Constructora LST</div>

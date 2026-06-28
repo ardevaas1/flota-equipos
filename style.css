@@ -85,15 +85,21 @@ body.is-offline #app { padding-top: 30px; }
 .header {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top));
-  background: #fff; border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%),
+    linear-gradient(135deg, #1d4d75 0%, var(--accent) 55%, #6fb1de 100%);
   flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(74,143,193,0.2);
 }
+.header--inv  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #b15c0c 0%, #f5a623 55%, #ffc864 100%); box-shadow: 0 2px 10px rgba(245,166,35,0.25); }
+.header--cont { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #6b462a 0%, #c08a5a 55%, #d9ad84 100%); box-shadow: 0 2px 10px rgba(192,138,90,0.25); }
+.header--mov  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%); box-shadow: 0 2px 10px rgba(47,138,77,0.25); }
 .header-logo { height: 36px; width: auto; object-fit: contain; }
 .header-center { flex: 1; }
-.header-title { font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1.2; }
-.header-sub { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
-.header-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--neutral-soft); color: var(--accent); font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.header-btn:active { background: #dce8f3; }
+.header-title { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2; }
+.header-sub { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 1px; }
+.header-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.header-btn:active { background: rgba(255,255,255,0.3); }
 
 /* ── Pages ── */
 .pages { flex: 1; overflow-y: auto; overflow-x: hidden; }
@@ -385,19 +391,21 @@ body.is-offline #app { padding-top: 30px; }
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 16px 14px;
-    border-bottom: 1px solid var(--line);
+    padding: 18px 14px;
     flex-shrink: 0;
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #1d4d75 0%, var(--accent) 55%, #6fb1de 100%);
   }
   .desktop-sidebar-header img {
     width: 36px; height: 36px;
-    border-radius: 10px; object-fit: contain;
+    object-fit: contain;
   }
   .desktop-sidebar-title {
-    font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.2;
+    font-size: 13px; font-weight: 700; color: #fff; line-height: 1.2;
   }
   .desktop-sidebar-sub {
-    font-size: 11px; color: var(--ink-soft); margin-top: 1px;
+    font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 1px;
   }
 
   /* Stats en sidebar */
@@ -751,18 +759,30 @@ body.is-offline #app { padding-top: 30px; }
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 16px 14px;
-    border-bottom: 1px solid var(--line);
+    padding: 18px 14px;
     flex-shrink: 0;
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #b15c0c 0%, #f5a623 55%, #ffc864 100%);
+  }
+  .inv-desktop-sidebar-top--cont {
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #6b462a 0%, #c08a5a 55%, #d9ad84 100%);
+  }
+  .inv-desktop-sidebar-top--mov {
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%);
   }
   .inv-desktop-sidebar-top img {
-    width: 36px; height: 36px; border-radius: 10px; object-fit: contain;
+    width: 36px; height: 36px; object-fit: contain;
   }
   .inv-desktop-sidebar-title {
-    font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.2;
+    font-size: 13px; font-weight: 700; color: #fff; line-height: 1.2;
   }
   .inv-desktop-sidebar-sub {
-    font-size: 11px; color: var(--ink-soft); margin-top: 1px;
+    font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 1px;
   }
   .inv-desktop-stats {
     display: grid;
