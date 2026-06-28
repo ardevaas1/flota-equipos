@@ -2249,41 +2249,45 @@ function movhSyncSearch() {
 function _movhTodosLosItems() {
   const items = [];
   (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
     items.push({
       key: `flota:${e.rowIndex}`, modulo: 'flota', rowIndex: e.rowIndex,
       tipoEquipo: 'Maquinaria',
       codigoEquipo: e.patente,
-      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || e.patente,
       ubicacionActual: e.ubicacion || '',
       icon: '🚛',
     });
   });
   (typeof allGeneradores !== 'undefined' ? allGeneradores : []).forEach(e => {
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
     items.push({
       key: `generadores:${e.rowIndex}`, modulo: 'generadores', rowIndex: e.rowIndex,
       tipoEquipo: 'Generador',
       codigoEquipo: e.codigo || String(e.rowIndex),
-      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Generador',
       ubicacionActual: e.ubicacion || '',
       icon: '⚡',
     });
   });
   (typeof allMaqMenor !== 'undefined' ? allMaqMenor : []).forEach(e => {
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
     items.push({
       key: `maqmenor:${e.rowIndex}`, modulo: 'maqmenor', rowIndex: e.rowIndex,
       tipoEquipo: 'Maq. Menor',
       codigoEquipo: e.codigo || String(e.rowIndex),
-      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Maq. Menor',
       ubicacionActual: e.ubicacion || '',
       icon: '🔧',
     });
   });
   (typeof allHerramientas !== 'undefined' ? allHerramientas : []).forEach(e => {
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
     items.push({
       key: `herramientas:${e.rowIndex}`, modulo: 'herramientas', rowIndex: e.rowIndex,
       tipoEquipo: 'Herramienta',
       codigoEquipo: e.codigo || String(e.rowIndex),
-      nombreEquipo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Herramienta',
       ubicacionActual: e.ubicacion || '',
       icon: '🛠️',
     });
