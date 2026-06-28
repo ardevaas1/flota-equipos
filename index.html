@@ -631,13 +631,15 @@
   <!-- ══ PANTALLA INICIO MÓDULOS ══ -->
   <div id="modulos-home" class="modulos-home hidden">
     <div class="modulos-header">
-      <img src="logo.png" class="modulos-logo" alt="LST">
+      <div class="modulos-logo-wrap"><img src="logo.png" class="modulos-logo" alt="LST"></div>
       <div class="modulos-title">Constructora LST</div>
       <div class="modulos-sub">Gestión de Recursos</div>
     </div>
     <div class="modulos-lista">
       <div class="modulo-card" onclick="irAModulo('flota')">
-        <div class="modulo-icon">🚛</div>
+        <div class="modulo-icon modulo-icon--flota">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M2 17h1M3 17V8a1 1 0 0 1 1-1h7v10M11 17h7M18 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 11h5l3 3v3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="white" stroke-width="1.8"/></svg>
+        </div>
         <div class="modulo-info">
           <div class="modulo-nombre">Flota &amp; Maquinaria</div>
           <div class="modulo-desc">Vehículos y maquinaria pesada</div>
@@ -645,7 +647,9 @@
         <span class="modulo-arrow">›</span>
       </div>
       <div class="modulo-card" onclick="irAModulo('generadores')">
-        <div class="modulo-icon">⚡</div>
+        <div class="modulo-icon modulo-icon--inv">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="white" fill-opacity="0.15"/></svg>
+        </div>
         <div class="modulo-info">
           <div class="modulo-nombre">Inventario</div>
           <div class="modulo-desc">Generadores · Maq. Menor · Herramientas</div>
@@ -653,7 +657,9 @@
         <span class="modulo-arrow">›</span>
       </div>
       <div class="modulo-card" onclick="irAModulo('containers')">
-        <div class="modulo-icon">📦</div>
+        <div class="modulo-icon modulo-icon--cont">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.8"/><path d="M3 11h18M8 7v4M16 7v4" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
         <div class="modulo-info">
           <div class="modulo-nombre">Containers</div>
           <div class="modulo-desc">Módulos, oficinas y bodegas</div>
@@ -661,7 +667,9 @@
         <span class="modulo-arrow">›</span>
       </div>
       <div class="modulo-card" onclick="irAModulo('movimientos')">
-        <div class="modulo-icon">🚚</div>
+        <div class="modulo-icon modulo-icon--mov">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 16V7a1 1 0 0 1 1-1h8v10" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3.5 3.2V16H12" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="17" r="1.8" stroke="white" stroke-width="1.8"/><circle cx="17" cy="17" r="1.8" stroke="white" stroke-width="1.8"/><path d="M3 8h3M3 11h2" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
         <div class="modulo-info">
           <div class="modulo-nombre">Movimientos</div>
           <div class="modulo-desc">Traslados entre obras y bodega</div>
