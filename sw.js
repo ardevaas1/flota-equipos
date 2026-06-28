@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v1';
+const CACHE_NAME = 'lst-flota-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const APP_SHELL = [
   './inventario.js',
   './manifest.json',
   './logo.png',
+  './logo-white.png',
 ];
 
 // Instalar: precachear el esqueleto de la app
