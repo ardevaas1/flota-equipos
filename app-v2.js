@@ -639,17 +639,17 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
 
 // ── Tipos de eventos ──────────────────────────────────────────
 const TIPOS_EVENTO = [
-  { value: 'Mantención preventiva', icon: '🔧', color: 'green'  },
-  { value: 'Reparación',            icon: '🔨', color: 'blue'   },
-  { value: 'Falla',                 icon: '⚠️', color: 'amber'  },
-  { value: 'Choque / Accidente',    icon: '💥', color: 'red'    },
-  { value: 'Inspección',            icon: '📋', color: 'blue'   },
-  { value: 'Cambio de documento',   icon: '📄', color: 'gray'   },
-  { value: 'Otro',                  icon: '🔩', color: 'gray'   },
+  { value: 'Mantención preventiva', icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`, color: 'green'  },
+  { value: 'Reparación',            icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M9 11 4 16l3 3 5-5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 9l4-4 4 4-4 4Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`, color: 'blue'   },
+  { value: 'Falla',                 icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 3 3 19h18Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="white" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="white"/></svg>`, color: 'amber'  },
+  { value: 'Choque / Accidente',    icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 4l3 3-3 3M9 2l-1 4 4-1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`, color: 'red'    },
+  { value: 'Inspección',            icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="10" cy="10" r="6.5" stroke="white" stroke-width="1.7"/><path d="M15 15l6 6" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M7.5 10l1.8 1.8L13 8" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`, color: 'blue'   },
+  { value: 'Cambio de documento',   icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M6 2h9l3 3v17H6Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`, color: 'gray'   },
+  { value: 'Otro',                  icon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.7"/><path d="M12 16v.01M12 13c0-2 2-2 2-4a2 2 0 1 0-4 0" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`, color: 'gray'   },
 ];
 
 function tipoEventoMeta(tipo) {
-  return TIPOS_EVENTO.find(t => t.value === tipo) || { icon: '🔩', color: 'gray' };
+  return TIPOS_EVENTO.find(t => t.value === tipo) || TIPOS_EVENTO[TIPOS_EVENTO.length - 1];
 }
 
 // allEventos: cargados desde hoja MANTENCIONES
@@ -730,7 +730,7 @@ function renderHistorialEventos(containerId, eventos, limit = 50) {
     const equipo = allEquipos.find(e => e.patente === ev.patente);
     const nombre = equipo ? `${equipo.marca} ${equipo.modelo}` : ev.equipo || ev.patente;
     return `<div class="evento-card" onclick="${equipo ? `openFicha('${ev.patente}')` : ''}">
-      <div class="evento-tipo-icon">${meta.icon}</div>
+      <div class="evento-tipo-icon ${meta.color}">${meta.icon}</div>
       <div class="mant-body">
         <div class="mant-title">${ev.tipo}</div>
         <div class="mant-meta">${ev.fechaEvento} · ${nombre} · ${ev.patente}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>
@@ -747,7 +747,7 @@ function renderHistorialEquipo(patente) {
   return eventos.slice(0, 20).map(ev => {
     const meta = tipoEventoMeta(ev.tipo);
     return `<div class="evento-card-mini">
-      <div class="evento-tipo-icon">${meta.icon}</div>
+      <div class="evento-tipo-icon ${meta.color}">${meta.icon}</div>
       <div class="mant-body">
         <div class="mant-title">${ev.tipo}</div>
         <div class="mant-meta">${ev.fechaEvento}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>

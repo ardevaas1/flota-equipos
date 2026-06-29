@@ -126,39 +126,42 @@ function invEstadoColor(estado) {
 }
 
 // ── Icono simple por tipo de equipo inventario ────────────────
+// Iconos de línea blancos (mismo lenguaje visual que el resto de la app),
+// pensados para ir dentro de una placa con degradado (.card-icon, etc).
 const INV_ICONOS = {
-  generador: '⚡',
-  soplador: '💨',
-  vibroapisonador: '🔨',
-  aspiradora: '🌀',
-  turbocalefactor: '🔥',
-  compresor: '🔧',
-  hidrolavadora: '💧',
-  'cortadora de asfalto': '⚙️',
-  motobomba: '🚰',
-  'bomba sumergible': '🌊',
-  'placa compactadora': '🪨',
-  betonera: '🔄',
-  'unidad motriz': '⚙️',
-  rodillo: '🛞',
-  demoledor: '💥',
-  'pistola impacto': '🔩',
-  'pulidora hormigón': '✨',
-  teodolito: '📐',
-  esmeril: '⚙️',
-  taladro: '🔩',
-  container: '📦',
-  bodega: '🏚️',
-  oficina: '🏢',
-  baño: '🚽',
+  generador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="7" width="16" height="10" rx="2" stroke="white" stroke-width="1.7"/><path d="M9 9l-2 4h2l-2 4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="12" r="3" stroke="white" stroke-width="1.7"/></svg>`,
+  soplador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="12" r="2" stroke="white" stroke-width="1.7"/><path d="M12 10c0-3 2-5 4-5s2 2 0 3-4 2-4 2Zm0 4c0 3-2 5-4 5s-2-2 0-3 4-2 4-2Zm2-2c3 0 5 2 5 4s-2 2-3 0-2-4-2-4Zm-4 0c-3 0-5-2-5-4s2-2 3 0 2 4 2 4Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+  vibroapisonador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="9" y="2" width="6" height="9" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M12 11v4" stroke="white" stroke-width="1.7"/><path d="M6 19h12l-2-4H8Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  aspiradora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><ellipse cx="9" cy="8" rx="6" ry="5" stroke="white" stroke-width="1.7"/><path d="M13 11l7 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M17 16l3 3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  turbocalefactor: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 2c2 3-2 4-2 7a3 3 0 0 0 6 0c0-1-1-2-1-2 1 4-1 5-1 5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 14h14v6H5Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  compresor: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="6" width="14" height="9" rx="3" stroke="white" stroke-width="1.7"/><circle cx="6.5" cy="19" r="1.6" stroke="white" stroke-width="1.7"/><circle cx="13.5" cy="19" r="1.6" stroke="white" stroke-width="1.7"/><path d="M17 9h4M17 12h4" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  hidrolavadora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="9" width="10" height="9" rx="2" stroke="white" stroke-width="1.7"/><circle cx="6" cy="20" r="1.4" stroke="white" stroke-width="1.5"/><circle cx="10" cy="20" r="1.4" stroke="white" stroke-width="1.5"/><path d="M13 12h4l4-3" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M17 12c1 2 1 3 0 5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  'cortadora de asfalto': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="9" cy="9" r="6" stroke="white" stroke-width="1.7"/><path d="M9 5v8M5 9h8" stroke="white" stroke-width="1.5"/><path d="M13 13l8 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  motobomba: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="9" cy="13" r="6" stroke="white" stroke-width="1.7"/><path d="M9 7V3M6 3h6" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M15 13h6" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  'bomba sumergible': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 2c3 4 6 7.5 6 11a6 6 0 1 1-12 0c0-3.5 3-7 6-11Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  'placa compactadora': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="14" width="20" height="5" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M7 14V9h6l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  betonera: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M4 4l12-2 2 14-12 2Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6" cy="20" r="1.5" stroke="white" stroke-width="1.5"/><circle cx="13" cy="20" r="1.5" stroke="white" stroke-width="1.5"/><path d="M3 18h14" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  'unidad motriz': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="12" r="3" stroke="white" stroke-width="1.7"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  rodillo: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="6" cy="17" r="4" stroke="white" stroke-width="1.7"/><circle cx="18" cy="17" r="4" stroke="white" stroke-width="1.7"/><path d="M6 13V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  demoledor: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="9" y="2" width="6" height="9" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M12 11v4" stroke="white" stroke-width="1.7"/><path d="M6 19h12l-2-4H8Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  'pistola impacto': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 13h9l3-4h5v5h-5l-3 4H3Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 18l-2 3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  'pulidora hormigón': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="9" cy="9" r="6" stroke="white" stroke-width="1.7"/><circle cx="9" cy="9" r="2" stroke="white" stroke-width="1.5"/><path d="M13 13l8 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  teodolito: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="9" r="4" stroke="white" stroke-width="1.7"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  esmeril: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="9" cy="9" r="6" stroke="white" stroke-width="1.7"/><path d="M9 5v8M5 9h8" stroke="white" stroke-width="1.5"/><path d="M13 13l8 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  taladro: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M21 11v3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  container: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M3 11h18M8 7v4M16 7v4" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  bodega: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 10 12 4l9 6" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9v11h14V9" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  oficina: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="4" y="3" width="16" height="18" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M8 8h2M14 8h2M8 12h2M14 12h2M8 16h2M14 16h2" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  baño: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M6 10V6a3 3 0 0 1 6 0" stroke="white" stroke-width="1.7" stroke-linecap="round"/><rect x="4" y="10" width="14" height="6" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M6 16v3M16 16v3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
 };
+const INV_ICONO_DEFAULT = `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function invIcono(equipo) {
   const k = (equipo || '').toLowerCase();
   for (const [key, icon] of Object.entries(INV_ICONOS)) {
     if (k.includes(key)) return icon;
   }
-  return '🔧';
+  return INV_ICONO_DEFAULT;
 }
 
 // ── Parser genérico de hoja inventario ───────────────────────
@@ -401,7 +404,7 @@ function invAbrirDetalle(modulo, rowIndex) {
           : evs.map(ev => {
               const meta = tipoEventoMeta(ev.tipo);
               return `<div class="evento-card-mini">
-                <div class="evento-tipo-icon">${meta.icon}</div>
+                <div class="evento-tipo-icon ${meta.color}">${meta.icon}</div>
                 <div class="mant-body">
                   <div class="mant-title">${ev.tipo}</div>
                   <div class="mant-meta">${ev.fechaEvento}${ev.horometro?' · '+ev.horometro+' h':''}</div>
@@ -1741,7 +1744,7 @@ function _renderHistorialMovimientos(codigoEquipo) {
       <div class="ficha-sec-title">Historial de movimientos</div>
       ${hist.map(m => `
         <div class="evento-card-mini">
-          <div class="evento-tipo-icon">🚚</div>
+          <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
           <div class="mant-body">
             <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
             <div class="mant-meta">${m.fechaSalida}</div>
@@ -2264,7 +2267,7 @@ function _movhTodosLosItems() {
       codigoEquipo: e.patente,
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || e.patente,
       ubicacionActual: e.ubicacion || '',
-      icon: '🚛',
+      icon: iconoEquipo(e.equipo),
     });
   });
   (typeof allGeneradores !== 'undefined' ? allGeneradores : []).forEach(e => {
@@ -2275,7 +2278,7 @@ function _movhTodosLosItems() {
       codigoEquipo: e.codigo || String(e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Generador',
       ubicacionActual: e.ubicacion || '',
-      icon: '⚡',
+      icon: invIcono(e.equipo),
     });
   });
   (typeof allMaqMenor !== 'undefined' ? allMaqMenor : []).forEach(e => {
@@ -2286,7 +2289,7 @@ function _movhTodosLosItems() {
       codigoEquipo: e.codigo || String(e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Maq. Menor',
       ubicacionActual: e.ubicacion || '',
-      icon: '🔧',
+      icon: invIcono(e.equipo),
     });
   });
   (typeof allHerramientas !== 'undefined' ? allHerramientas : []).forEach(e => {
@@ -2297,7 +2300,7 @@ function _movhTodosLosItems() {
       codigoEquipo: e.codigo || String(e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Herramienta',
       ubicacionActual: e.ubicacion || '',
-      icon: '🛠️',
+      icon: invIcono(e.equipo),
     });
   });
   (typeof allContainers !== 'undefined' ? allContainers : []).forEach(e => {
@@ -2307,7 +2310,7 @@ function _movhTodosLosItems() {
       codigoEquipo: String(e.num || e.rowIndex),
       nombreEquipo: e.tipo || 'Container',
       ubicacionActual: e.ubicacion || '',
-      icon: '📦',
+      icon: invIcono(e.tipo),
     });
   });
   return items;
@@ -2328,7 +2331,7 @@ function movhRenderLista() {
     const checked = movhSeleccion.has(item.key);
     return `<div class="card" onclick="movhToggleItem('${item.key}')">
       <div class="card-checkbox movh-checkbox ${checked ? 'checked' : ''}">${checked ? '✓' : ''}</div>
-      <div class="card-icon" style="font-size:22px">${item.icon}</div>
+      <div class="card-icon">${item.icon}</div>
       <div class="card-body">
         <div class="card-title">${item.nombreEquipo}</div>
         <div class="card-sub">${item.tipoEquipo} · ${item.codigoEquipo}</div>
@@ -2402,7 +2405,7 @@ function movhRenderHistorial() {
   } else {
     html = hist.map(m => `
       <div class="evento-card-mini">
-        <div class="evento-tipo-icon">🚚</div>
+        <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
         <div class="mant-body">
           <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
