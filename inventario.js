@@ -435,7 +435,7 @@ function invAbrirDetalle(modulo, rowIndex) {
       <div class="field-row"><span class="fl">Ubicación</span><span class="fv">${item.ubicacion||'—'}</span></div>
       ${item.color ? `<div class="field-row"><span class="fl">Color</span><span class="fv">${item.color}</span></div>` : ''}
       ${extraFields}
-      ${item.obs ? `<div class="ficha-obs">⚠️ ${item.obs}</div>` : ''}
+      ${item.obs ? `<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${item.obs}</div>` : ''}
     </div>
 
     ${imgSrc ? `
@@ -452,9 +452,9 @@ function invAbrirDetalle(modulo, rowIndex) {
 
     ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex))}
 
-    <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
+    <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
-      📁 Ver fotos en Drive
+      <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver fotos en Drive
     </a>
   `;
 
@@ -484,8 +484,8 @@ async function invCargarMiniatura(fileName, thumbId) {
     el.innerHTML = `<img src="${imgUrl}" alt="Foto"
       style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
       onclick="invAbrirFotoModalUrl('${imgUrl}')"
-      onerror="this.parentElement.innerHTML='<span style=\\'color:#64748b;font-size:12px;padding:12px\\'>📷 Sin imagen</span>'">
-      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff">🔍 Ver</div>`;
+      onerror="this.parentElement.innerHTML='<span style=\\'color:#64748b;font-size:12px;padding:12px\\'><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Sin imagen</span>'">
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
     el._driveImgUrl = imgUrl;
     return;
   }
@@ -499,7 +499,7 @@ async function invCargarMiniatura(fileName, thumbId) {
     if (!res.ok) throw new Error('Error Drive ' + res.status);
     const data = await res.json();
     if (!data.files || data.files.length === 0) {
-      el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px">📷 ${fileName}</span>`;
+      el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
       return;
     }
     const file = data.files[0];
@@ -510,13 +510,13 @@ async function invCargarMiniatura(fileName, thumbId) {
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
       style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
       onclick="invAbrirFotoModal('${fileName}')"
-      onerror="this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px>📷 ${fileName}</span>'">
-      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff">🔍 Ver</div>`;
+      onerror="this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>'">
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
     el._driveImgUrl = imgUrl;
     el._driveFileId = file.id;
   } catch(e) {
     console.warn('[FOTO THUMB]', e.message);
-    el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px">📷 ${fileName}</span>`;
+    el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
   }
 }
 
@@ -1093,7 +1093,7 @@ function contAbrirDetalle(rowIndex) {
       <div class="field-row"><span class="fl">Color</span><span class="fv">${c.color||'—'}</span></div>
       ${c.equipamiento&&c.equipamiento!=='-'?`<div class="field-row"><span class="fl">Equipamiento</span><span class="fv">${c.equipamiento}</span></div>`:''}
       ${c.fecha&&c.fecha!=='-'?`<div class="field-row"><span class="fl">Fecha arribo</span><span class="fv">${c.fecha}</span></div>`:''}
-      ${c.obs?`<div class="ficha-obs">⚠️ ${c.obs}</div>`:''}
+      ${c.obs?`<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${c.obs}</div>`:''}
     </div>
 
     ${c.foto?`
@@ -1108,7 +1108,7 @@ function contAbrirDetalle(rowIndex) {
 
     ${_renderHistorialMovimientos(String(c.num || c.rowIndex))}
 
-    <button class="action-btn" onclick="contAbrirEditar()" style="margin-top:8px">✏️ Editar información</button>
+    <button class="action-btn" onclick="contAbrirEditar()" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
   `;
 
   openPanel('panel-cont-detalle');
@@ -1749,7 +1749,7 @@ function _renderHistorialMovimientos(codigoEquipo) {
             <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
             <div class="mant-meta">${m.fechaSalida}</div>
             ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
-            ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
+            ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
           </div>
         </div>`).join('')}
     </div>`;
@@ -2049,7 +2049,7 @@ function _movMultiRefrescarLista() {
         <div class="movm-item-title">${item.tipoEquipo} — ${item.nombreEquipo}</div>
         <div class="movm-item-sub">→ ${destinoMostrado}${ov && ov.destino ? ' (personalizado)' : ''}</div>
       </div>
-      <span style="color:#94a3b8">✏️</span>
+      <span style="color:#94a3b8"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg></span>
     </div>`;
   }).join('');
 }
@@ -2410,7 +2410,7 @@ function movhRenderHistorial() {
           <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
-          ${m.obsSalida ? `<div class="evento-desc">📝 ${m.obsSalida}</div>` : ''}
+          ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
         </div>
       </div>`).join('');
   }

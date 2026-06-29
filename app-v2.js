@@ -1200,9 +1200,9 @@ function openFicha(patente) {
   // Botón ficha técnica (Google Doc)
   const fichaBtn = e.linkFicha
     ? `<a class="ficha-link-btn" href="${e.linkFicha}" target="_blank" rel="noopener">
-        📄 Abrir ficha técnica
+        <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Abrir ficha técnica
        </a>`
-    : `<div class="ficha-link-btn disabled" style="opacity:0.4;cursor:default">📄 Ficha técnica no disponible</div>`;
+    : `<div class="ficha-link-btn disabled" style="opacity:0.4;cursor:default"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Ficha técnica no disponible</div>`;
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
@@ -1236,7 +1236,7 @@ function openFicha(patente) {
       ${field('Actual', formatNum(e.horometro) + (e.mantCada ? ' · Cada ' + e.mantCada : ''))}
       ${field('Próxima mantención', formatNum(e.proxMant))}
       ${field('Última mantención', formatNum(e.ultMant))}
-      ${e.obs ? `<div class="ficha-obs">⚠️ ${e.obs}</div>` : ''}
+      ${e.obs ? `<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
     </div>
 
@@ -1251,31 +1251,31 @@ function openFicha(patente) {
         <div><div class="doc-name">SOAP</div><div class="doc-date">${e.soap||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.soap))}
-          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','SOAP')">📂 Ver</button>
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','SOAP')"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver</button>
         </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Permiso de circulación</div><div class="doc-date">${e.permiso||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.permiso))}
-          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','PERMISO')">📂 Ver</button>
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','PERMISO')"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver</button>
         </div>
       </div>
       <div class="doc-row">
         <div><div class="doc-name">Revisión técnica</div><div class="doc-date">${e.revision||'Sin dato'}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           ${docBadge(diasRestantes(e.revision))}
-          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','REVISION')">📂 Ver</button>
+          <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','REVISION')"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver</button>
         </div>
       </div>
     </div>
 
     ${fichaBtn}
     <a class="ficha-link-btn" onclick="abrirCarpetaDrive('${e.patente}')" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5">
-      📁 Abrir carpeta en Drive
+      <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Abrir carpeta en Drive
     </a>
     ${typeof _renderHistorialMovimientos === 'function' ? _renderHistorialMovimientos(e.patente) : ''}
-    <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px">✏️ Editar información</button>
+    <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
   `;
 
   openPanel('panel-ficha');
@@ -2026,10 +2026,11 @@ function resetDocInputs() {
   // Limpiar memoria
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
 
+  const ic = '<svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const configs = [
-    { labelId: 'soap-file-label',     inputId: 'soap-file',     text: '📎 Subir archivo SOAP'         },
-    { labelId: 'permiso-file-label',  inputId: 'permiso-file',  text: '📎 Subir archivo Permiso'      },
-    { labelId: 'revision-file-label', inputId: 'revision-file', text: '📎 Subir archivo Rev. Técnica' },
+    { labelId: 'soap-file-label',     inputId: 'soap-file',     text: ic + ' Subir archivo SOAP'         },
+    { labelId: 'permiso-file-label',  inputId: 'permiso-file',  text: ic + ' Subir archivo Permiso'      },
+    { labelId: 'revision-file-label', inputId: 'revision-file', text: ic + ' Subir archivo Rev. Técnica' },
   ];
 
   configs.forEach(function(cfg) {

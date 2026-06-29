@@ -146,8 +146,14 @@ body.is-offline #app { padding-top: 30px; }
 .stat.blue  .stat-n { color: #1565c0; }
 
 /* ── Section label ── */
-.sec-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.6px; }
+.sec-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.6px; display: flex; align-items: center; gap: 6px; }
 .sec-label:first-child { margin-top: 0; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.status-dot--red   { background: #c62828; box-shadow: 0 0 0 3px rgba(198,40,40,0.15); }
+.status-dot--amber { background: #e65100; box-shadow: 0 0 0 3px rgba(230,81,0,0.15); }
+.status-dot--green { background: #2e7d32; box-shadow: 0 0 0 3px rgba(46,125,50,0.15); }
+/* Iconos de línea pequeños embebidos en texto/botones (currentColor = hereda el color del texto) */
+.inline-ic { width: 15px; height: 15px; vertical-align: -3px; flex-shrink: 0; }
 
 /* ── Cards ── */
 .card {
@@ -184,7 +190,7 @@ body.is-offline #app { padding-top: 30px; }
 /* ── Search ── */
 .search-area { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 10px 12px; margin-bottom: 10px; }
 .searchbox { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.search-ic { font-size: 15px; }
+.search-ic { width: 16px; height: 16px; display: flex; color: var(--ink-soft); }
 .searchbox input { flex: 1; border: none; outline: none; font-size: 14px; color: var(--ink); background: none; }
 .searchbox input::placeholder { color: #bbb; }
 .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
@@ -722,7 +728,8 @@ body.is-offline #app { padding-top: 30px; }
     align-items: center; justify-content: center;
     height: 100%; color: #bbb; text-align: center; gap: 10px;
   }
-  .desktop-detail-empty-icon { font-size: 48px; }
+  .desktop-detail-empty-icon { color: #cbd5e1; }
+  .desktop-detail-empty-icon svg { width: 48px; height: 48px; }
 
   /* ══════════════════════════════════
      PANELS (drawer) — solo en desktop
