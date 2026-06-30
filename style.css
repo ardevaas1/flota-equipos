@@ -117,7 +117,7 @@ body.is-offline #app { padding-top: 30px; }
 
 /* ── App shell ── */
 #app { height: 100%; max-width: 430px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column; position: relative; overflow: hidden; }
-.main { display: flex; flex-direction: column; height: 100%; }
+.main { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
 
 /* ── Transición de navegación entre módulos (estilo push/pop tipo Instagram/iOS) ──
    Solo en mobile: en desktop la navegación es por sidebar persistente, no "empuja" pantallas. */
