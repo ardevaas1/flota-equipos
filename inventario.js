@@ -129,7 +129,7 @@ function invEstadoColor(estado) {
 // Iconos de línea blancos (mismo lenguaje visual que el resto de la app),
 // pensados para ir dentro de una placa con degradado (.card-icon, etc).
 const INV_ICONOS = {
-  generador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="7" width="16" height="10" rx="2" stroke="white" stroke-width="1.7"/><path d="M9 9l-2 4h2l-2 4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="12" r="3" stroke="white" stroke-width="1.7"/></svg>`,
+  generador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="2" y="7" width="18" height="10" rx="2" stroke="white" stroke-width="1.6"/><path d="M5 10h6M5 12.5h6M5 15h6" stroke="white" stroke-width="1.4" stroke-linecap="round"/><rect x="14" y="9.5" width="4" height="5" rx="0.8" stroke="white" stroke-width="1.4"/><path d="M2 19h18M5 7V5M17 7V5" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   soplador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="12" r="2" stroke="white" stroke-width="1.7"/><path d="M12 10c0-3 2-5 4-5s2 2 0 3-4 2-4 2Zm0 4c0 3-2 5-4 5s-2-2 0-3 4-2 4-2Zm2-2c3 0 5 2 5 4s-2 2-3 0-2-4-2-4Zm-4 0c-3 0-5-2-5-4s2-2 3 0 2 4 2 4Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
   vibroapisonador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="9" y="2" width="6" height="9" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M12 11v4" stroke="white" stroke-width="1.7"/><path d="M6 19h12l-2-4H8Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
   aspiradora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><ellipse cx="9" cy="8" rx="6" ry="5" stroke="white" stroke-width="1.7"/><path d="M13 11l7 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M17 16l3 3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
@@ -1245,25 +1245,51 @@ function _setDesktopSidebarFlota(visible) {
 
 // ══ TRANSICIÓN DE NAVEGACIÓN (push/pop estilo Instagram/iOS) ═══════
 const PG_ANIM_MS = 320;
-let _pgAnimando = false;
+const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos'];
+let _pgTimeoutId = null;
+
+// Limpia cualquier clase de animación que haya quedado a medias (p.ej. por taps rápidos)
+function _pgClearAnimClasses() {
+  PG_CONTAINERS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('pg-push-enter', 'pg-push-enter-active', 'pg-push-behind', 'pg-dim',
+                         'pg-pop-enter', 'pg-pop-enter-active', 'pg-pop-exit-active');
+  });
+}
 
 function _pgTransition(saliente, entrante, direccion) {
   if (!entrante) return;
+
+  // Cancelar cualquier animación pendiente y dejar todas las pantallas en un estado limpio
+  if (_pgTimeoutId) { clearTimeout(_pgTimeoutId); _pgTimeoutId = null; }
+  _pgClearAnimClasses();
+
   // En desktop (sidebar persistente) o si falta alguna pantalla: cambio instantáneo, sin animación
-  if (window.innerWidth >= 900 || !saliente || saliente === entrante || _pgAnimando) {
-    if (saliente && saliente !== entrante) saliente.classList.add('hidden');
+  if (window.innerWidth >= 900 || !saliente || saliente === entrante) {
+    PG_CONTAINERS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el !== entrante) el.classList.add('hidden');
+    });
     entrante.classList.remove('hidden');
     return;
   }
-  _pgAnimando = true;
+
+  // Cualquier otra pantalla que no sea parte de esta transición queda oculta de inmediato
+  PG_CONTAINERS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el !== saliente && el !== entrante) el.classList.add('hidden');
+  });
+
   entrante.classList.remove('hidden');
+  saliente.classList.remove('hidden');
 
   if (direccion === 'forward') {
     entrante.classList.add('pg-push-enter');
     void entrante.offsetWidth; // forzar reflow para que la transición se anime
     entrante.classList.remove('pg-push-enter');
     entrante.classList.add('pg-push-enter-active');
-    saliente.classList.add('pg-push-behind');
+    saliente.classList.add('pg-push-behind', 'pg-dim');
   } else {
     entrante.classList.add('pg-pop-enter');
     void entrante.offsetWidth;
@@ -1272,11 +1298,10 @@ function _pgTransition(saliente, entrante, direccion) {
     saliente.classList.add('pg-pop-exit-active');
   }
 
-  setTimeout(() => {
+  _pgTimeoutId = setTimeout(() => {
     saliente.classList.add('hidden');
-    saliente.classList.remove('pg-push-behind', 'pg-pop-exit-active');
-    entrante.classList.remove('pg-push-enter-active', 'pg-pop-enter-active');
-    _pgAnimando = false;
+    _pgClearAnimClasses();
+    _pgTimeoutId = null;
   }, PG_ANIM_MS);
 }
 

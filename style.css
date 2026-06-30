@@ -129,19 +129,25 @@ body.is-offline #app { padding-top: 30px; }
     transform: translateX(0);
     box-shadow: -6px 0 18px rgba(0,0,0,0.12);
   }
-  /* Pantalla saliente en navegación hacia adelante: retrocede levemente y se oscurece (efecto parallax) */
-  .pg-push-behind {
-    transition: transform .32s cubic-bezier(.22,.61,.36,1), filter .32s ease;
-    transform: translateX(-22%) scale(.95);
-    filter: brightness(.75);
+  /* Pantalla saliente en navegación hacia adelante: retrocede levemente (efecto parallax) */
+  .pg-push-behind { transition: transform .32s cubic-bezier(.22,.61,.36,1); transform: translateX(-22%) scale(.95); }
+  .pg-push-behind::after {
+    content: ''; position: absolute; inset: 0; background: #000; opacity: 0;
+    transition: opacity .32s ease; pointer-events: none;
   }
+  .pg-push-behind.pg-dim::after { opacity: .25; }
   /* Pantalla entrante en "volver": empieza en el estado "detrás" y se asienta a su lugar normal */
-  .pg-pop-enter { transform: translateX(-22%) scale(.95); filter: brightness(.75); }
+  .pg-pop-enter { transform: translateX(-22%) scale(.95); }
   .pg-pop-enter-active {
-    transition: transform .32s cubic-bezier(.22,.61,.36,1), filter .32s ease;
+    transition: transform .32s cubic-bezier(.22,.61,.36,1);
     transform: translateX(0) scale(1);
-    filter: brightness(1);
   }
+  .pg-pop-enter::after, .pg-pop-enter-active::after {
+    content: ''; position: absolute; inset: 0; background: #000; pointer-events: none;
+    transition: opacity .32s ease;
+  }
+  .pg-pop-enter::after { opacity: .25; }
+  .pg-pop-enter-active::after { opacity: 0; }
   /* Pantalla saliente en "volver": sale deslizando hacia la derecha */
   .pg-pop-exit-active {
     transition: transform .28s cubic-bezier(.22,.61,.36,1);
