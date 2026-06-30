@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v2';
+const CACHE_NAME = 'lst-flota-shell-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -40,27 +40,31 @@ self.addEventListener('activate', (event) => {
 // Fetch: solo intervenimos en archivos propios del sitio (mismo origen).
 // Las llamadas a Google Sheets/Drive/Identity pasan directo a la red,
 // sin pasar por el cache (necesitan auth en vivo, no tiene sentido cachearlas aquí).
+//
+// Estrategia: NETWORK-FIRST. Siempre se intenta traer la versión más
+// reciente del servidor primero; el cache local solo se usa como respaldo
+// si no hay conexión. Esto evita que, tras subir cambios de diseño, alguien
+// vea una mezcla de archivos viejos y nuevos por culpa de una copia cacheada
+// — el único costo es que con internet la app siempre pide la versión actual.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return; // dejar pasar todo lo externo
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cached = await cache.match(event.request);
-      // Stale-while-revalidate: responder rápido con lo cacheado (o esperar red si no hay nada),
-      // y en paralelo intentar traer una versión fresca para la próxima vez.
-      const networkFetch = fetch(event.request)
-        .then((res) => {
-          if (res && res.status === 200) cache.put(event.request, res.clone());
-          return res;
-        })
-        .catch(() => null);
-
-      return cached || (await networkFetch) || new Response(
-        '<h1>Sin conexión</h1><p>No se pudo cargar esta página y no hay una copia guardada.</p>',
-        { headers: { 'Content-Type': 'text/html; charset=UTF-8' } }
-      );
-    })
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const fresh = await fetch(event.request);
+        if (fresh && fresh.status === 200) cache.put(event.request, fresh.clone());
+        return fresh;
+      } catch (err) {
+        const cached = await cache.match(event.request);
+        return cached || new Response(
+          '<h1>Sin conexión</h1><p>No se pudo cargar esta página y no hay una copia guardada.</p>',
+          { headers: { 'Content-Type': 'text/html; charset=UTF-8' } }
+        );
+      }
+    })()
   );
 });
