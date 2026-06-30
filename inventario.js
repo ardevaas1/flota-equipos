@@ -1243,8 +1243,8 @@ function _setDesktopSidebarFlota(visible) {
   }
 }
 
-// ══ TRANSICIÓN DE NAVEGACIÓN (push/pop estilo Instagram/iOS) ═══════
-const PG_ANIM_MS = 320;
+// ══ TRANSICIÓN DE NAVEGACIÓN (push/pop simple, una sola pantalla en movimiento) ═══════
+const PG_ANIM_MS = 300;
 const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos'];
 let _pgTimeoutId = null;
 
@@ -1253,8 +1253,7 @@ function _pgClearAnimClasses() {
   PG_CONTAINERS.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.classList.remove('pg-push-enter', 'pg-push-enter-active', 'pg-push-behind', 'pg-dim',
-                         'pg-pop-enter', 'pg-pop-enter-active', 'pg-pop-exit-active');
+    el.classList.remove('pg-push-enter', 'pg-push-enter-active', 'pg-pop-exit-active');
   });
 }
 
@@ -1284,17 +1283,13 @@ function _pgTransition(saliente, entrante, direccion) {
   entrante.classList.remove('hidden');
   saliente.classList.remove('hidden');
 
+  // Solo se anima UNA pantalla a la vez; la otra queda fija, sin transformar ni oscurecer.
   if (direccion === 'forward') {
     entrante.classList.add('pg-push-enter');
     void entrante.offsetWidth; // forzar reflow para que la transición se anime
     entrante.classList.remove('pg-push-enter');
     entrante.classList.add('pg-push-enter-active');
-    saliente.classList.add('pg-push-behind', 'pg-dim');
   } else {
-    entrante.classList.add('pg-pop-enter');
-    void entrante.offsetWidth;
-    entrante.classList.remove('pg-pop-enter');
-    entrante.classList.add('pg-pop-enter-active');
     saliente.classList.add('pg-pop-exit-active');
   }
 

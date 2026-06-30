@@ -51,6 +51,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 input, select, textarea { font-family: inherit; }
 .hidden { display: none !important; }
 
+/* ── Feedback táctil ── leve "hundimiento" al presionar botones, tarjetas e ítems,
+   para que se sienta que uno está realmente apretando algo (estilo apps nativas). */
+button, .modulo-card, .equipo-card, .inv-card, .cont-card, .movh-card, [onclick] {
+  transition: transform .12s ease, opacity .12s ease;
+}
+button:active, .modulo-card:active, .equipo-card:active, .inv-card:active, .cont-card:active, .movh-card:active, [onclick]:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
 #offline-banner {
   position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
   background: #92400e; color: #fff; text-align: center;
@@ -126,31 +136,12 @@ body.is-offline #app { padding-top: 30px; }
   /* Pantalla entrante en navegación hacia adelante: entra deslizando desde la derecha */
   .pg-push-enter { transform: translateX(100%); }
   .pg-push-enter-active {
-    transition: transform .32s cubic-bezier(.22,.61,.36,1);
+    transition: transform .3s ease;
     transform: translateX(0);
   }
-  /* Pantalla saliente en navegación hacia adelante: retrocede levemente (efecto parallax) */
-  .pg-push-behind { transition: transform .32s cubic-bezier(.22,.61,.36,1); transform: translateX(-22%) scale(.95); }
-  .pg-push-behind::after {
-    content: ''; position: absolute; inset: 0; background: #000; opacity: 0;
-    transition: opacity .32s ease; pointer-events: none;
-  }
-  .pg-push-behind.pg-dim::after { opacity: .25; }
-  /* Pantalla entrante en "volver": empieza en el estado "detrás" y se asienta a su lugar normal */
-  .pg-pop-enter { transform: translateX(-22%) scale(.95); }
-  .pg-pop-enter-active {
-    transition: transform .32s cubic-bezier(.22,.61,.36,1);
-    transform: translateX(0) scale(1);
-  }
-  .pg-pop-enter::after, .pg-pop-enter-active::after {
-    content: ''; position: absolute; inset: 0; background: #000; pointer-events: none;
-    transition: opacity .32s ease;
-  }
-  .pg-pop-enter::after { opacity: .25; }
-  .pg-pop-enter-active::after { opacity: 0; }
   /* Pantalla saliente en "volver": sale deslizando hacia la derecha */
   .pg-pop-exit-active {
-    transition: transform .28s cubic-bezier(.22,.61,.36,1);
+    transition: transform .26s ease;
     transform: translateX(100%);
   }
 }
