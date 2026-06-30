@@ -122,12 +122,12 @@ body.is-offline #app { padding-top: 30px; }
   #modulos-home.hidden, #main.hidden, #mod-inventario.hidden, #mod-containers.hidden, #mod-movimientos.hidden {
     display: none !important;
   }
+  #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos { will-change: transform; }
   /* Pantalla entrante en navegación hacia adelante: entra deslizando desde la derecha */
   .pg-push-enter { transform: translateX(100%); }
   .pg-push-enter-active {
     transition: transform .32s cubic-bezier(.22,.61,.36,1);
     transform: translateX(0);
-    box-shadow: -6px 0 18px rgba(0,0,0,0.12);
   }
   /* Pantalla saliente en navegación hacia adelante: retrocede levemente (efecto parallax) */
   .pg-push-behind { transition: transform .32s cubic-bezier(.22,.61,.36,1); transform: translateX(-22%) scale(.95); }
@@ -152,7 +152,6 @@ body.is-offline #app { padding-top: 30px; }
   .pg-pop-exit-active {
     transition: transform .28s cubic-bezier(.22,.61,.36,1);
     transform: translateX(100%);
-    box-shadow: -6px 0 18px rgba(0,0,0,0.12);
   }
 }
 
