@@ -975,7 +975,7 @@ body.is-offline #app { padding-top: 30px; }
   #mod-containers > .header,
   #mod-movimientos .inv-tabs,
   #mod-movimientos .pages,
-  #mod-movimientos .chips,
+  #mod-movimientos #movh-vista-registrar .chips,
   #mod-movimientos .searchbox,
   #movh-selbar,
   #mod-movimientos > .header {
