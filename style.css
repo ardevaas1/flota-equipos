@@ -109,6 +109,47 @@ body.is-offline #app { padding-top: 30px; }
 #app { height: 100%; max-width: 430px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .main { display: flex; flex-direction: column; height: 100%; }
 
+/* ── Transición de navegación entre módulos (estilo push/pop tipo Instagram/iOS) ──
+   Solo en mobile: en desktop la navegación es por sidebar persistente, no "empuja" pantallas. */
+@media (max-width: 899.98px) {
+  #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  #modulos-home { z-index: 1; }
+  #main, #mod-inventario, #mod-containers, #mod-movimientos { z-index: 2; }
+  #modulos-home.hidden, #main.hidden, #mod-inventario.hidden, #mod-containers.hidden, #mod-movimientos.hidden {
+    display: none !important;
+  }
+  /* Pantalla entrante en navegación hacia adelante: entra deslizando desde la derecha */
+  .pg-push-enter { transform: translateX(100%); }
+  .pg-push-enter-active {
+    transition: transform .32s cubic-bezier(.22,.61,.36,1);
+    transform: translateX(0);
+    box-shadow: -6px 0 18px rgba(0,0,0,0.12);
+  }
+  /* Pantalla saliente en navegación hacia adelante: retrocede levemente y se oscurece (efecto parallax) */
+  .pg-push-behind {
+    transition: transform .32s cubic-bezier(.22,.61,.36,1), filter .32s ease;
+    transform: translateX(-22%) scale(.95);
+    filter: brightness(.75);
+  }
+  /* Pantalla entrante en "volver": empieza en el estado "detrás" y se asienta a su lugar normal */
+  .pg-pop-enter { transform: translateX(-22%) scale(.95); filter: brightness(.75); }
+  .pg-pop-enter-active {
+    transition: transform .32s cubic-bezier(.22,.61,.36,1), filter .32s ease;
+    transform: translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  /* Pantalla saliente en "volver": sale deslizando hacia la derecha */
+  .pg-pop-exit-active {
+    transition: transform .28s cubic-bezier(.22,.61,.36,1);
+    transform: translateX(100%);
+    box-shadow: -6px 0 18px rgba(0,0,0,0.12);
+  }
+}
+
 /* ── Header ── */
 .header {
   display: flex; align-items: center; gap: 10px;

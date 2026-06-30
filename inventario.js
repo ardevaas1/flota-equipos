@@ -1243,14 +1243,52 @@ function _setDesktopSidebarFlota(visible) {
   }
 }
 
+// ══ TRANSICIÓN DE NAVEGACIÓN (push/pop estilo Instagram/iOS) ═══════
+const PG_ANIM_MS = 320;
+let _pgAnimando = false;
+
+function _pgTransition(saliente, entrante, direccion) {
+  if (!entrante) return;
+  // En desktop (sidebar persistente) o si falta alguna pantalla: cambio instantáneo, sin animación
+  if (window.innerWidth >= 900 || !saliente || saliente === entrante || _pgAnimando) {
+    if (saliente && saliente !== entrante) saliente.classList.add('hidden');
+    entrante.classList.remove('hidden');
+    return;
+  }
+  _pgAnimando = true;
+  entrante.classList.remove('hidden');
+
+  if (direccion === 'forward') {
+    entrante.classList.add('pg-push-enter');
+    void entrante.offsetWidth; // forzar reflow para que la transición se anime
+    entrante.classList.remove('pg-push-enter');
+    entrante.classList.add('pg-push-enter-active');
+    saliente.classList.add('pg-push-behind');
+  } else {
+    entrante.classList.add('pg-pop-enter');
+    void entrante.offsetWidth;
+    entrante.classList.remove('pg-pop-enter');
+    entrante.classList.add('pg-pop-enter-active');
+    saliente.classList.add('pg-pop-exit-active');
+  }
+
+  setTimeout(() => {
+    saliente.classList.add('hidden');
+    saliente.classList.remove('pg-push-behind', 'pg-pop-exit-active');
+    entrante.classList.remove('pg-push-enter-active', 'pg-pop-enter-active');
+    _pgAnimando = false;
+  }, PG_ANIM_MS);
+}
+
 function irAModulo(modulo) {
   const homeEl = document.getElementById('modulos-home');
-  if (homeEl) homeEl.classList.add('hidden');
-
-  document.getElementById('mod-inventario').classList.add('hidden');
-  document.getElementById('mod-containers').classList.add('hidden');
   document.getElementById('mod-flota').classList.add('hidden');
-  document.getElementById('mod-movimientos').classList.add('hidden');
+
+  // Ocultar instantáneamente cualquier módulo que no sea el destino (no participa en la animación)
+  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'main'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && id !== _moduloElId(modulo)) el.classList.add('hidden');
+  });
 
   // Tema de color por módulo — aplicado en <body> para que también
   // alcance a los paneles de editar/agregar (viven fuera del contenedor del módulo)
@@ -1262,39 +1300,44 @@ function irAModulo(modulo) {
   if (modulo === 'flota') {
     // Flota usa su propio sidebar desktop nativo
     _setDesktopSidebarFlota(true);
-    document.getElementById('main').classList.remove('hidden');
+    _pgTransition(homeEl, document.getElementById('main'), 'forward');
     const hdr = document.querySelector('#main .header');
     if (hdr && !document.getElementById('flota-back-btn')) {
       const backBtn = document.createElement('button');
       backBtn.id = 'flota-back-btn';
       backBtn.className = 'header-btn';
       backBtn.style.cssText = 'font-size:20px;color:#fff;order:-1';
-      backBtn.onclick = () => {
-        document.getElementById('main').classList.add('hidden');
-        document.getElementById('modulos-home').classList.remove('hidden');
-      };
+      backBtn.onclick = () => volverAInicio();
       backBtn.textContent = '‹';
       hdr.insertBefore(backBtn, hdr.firstChild);
     }
   } else if (modulo === 'containers') {
     // Ocultar sidebar de Flota para que no se superponga
     _setDesktopSidebarFlota(false);
-    document.getElementById('mod-containers').classList.remove('hidden');
+    _pgTransition(homeEl, document.getElementById('mod-containers'), 'forward');
     _invActivarDesktop('containers');
     renderContainers();
   } else if (modulo === 'movimientos') {
     _setDesktopSidebarFlota(false);
-    document.getElementById('mod-movimientos').classList.remove('hidden');
+    _pgTransition(homeEl, document.getElementById('mod-movimientos'), 'forward');
     movhInit();
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
-    document.getElementById('mod-inventario').classList.remove('hidden');
+    _pgTransition(homeEl, document.getElementById('mod-inventario'), 'forward');
     _invActivarDesktop('inventario');
     invSetModulo(modulo === 'generadores' ? 'generadores' : modulo === 'maqmenor' ? 'maqmenor' : 'herramientas');
   }
 
   history.pushState({ modulo }, '');
+}
+
+// Mapea el nombre lógico de módulo al id de su contenedor raíz
+function _moduloElId(modulo) {
+  if (modulo === 'flota') return 'main';
+  if (modulo === 'containers') return 'mod-containers';
+  if (modulo === 'movimientos') return 'mod-movimientos';
+  return 'mod-inventario';
 }
 
 // Activa el layout desktop o móvil según el ancho de ventana
@@ -1368,18 +1411,20 @@ function contSyncSearch() {
 }
 
 function volverAInicio() {
-  document.getElementById('mod-inventario').classList.add('hidden');
-  document.getElementById('mod-containers').classList.add('hidden');
-  document.getElementById('mod-flota').classList.add('hidden');
-  document.getElementById('mod-movimientos').classList.add('hidden');
-  document.getElementById('main').classList.add('hidden');
+  const homeEl = document.getElementById('modulos-home');
+  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'main']
+    .map(id => document.getElementById(id));
+  const saliente = candidatos.find(el => el && !el.classList.contains('hidden'));
+
+  candidatos.forEach(el => { if (el && el !== saliente) el.classList.add('hidden'); });
   document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov');
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');
   if (s) s.classList.add('dt-oculto');
   if (m) m.classList.add('dt-oculto');
-  document.getElementById('modulos-home').classList.remove('hidden');
+
+  _pgTransition(saliente, homeEl, 'back');
 }
 
 // ══ AGREGAR NUEVO ÍTEM ══════════════════════════════════════
