@@ -4,6 +4,19 @@
 // Herramientas, Containers
 // ============================================
 
+// ── Empty state con ícono (compartido con app-v2.js) ──
+// Si app-v2.js ya la definió global, no la redefinimos
+if (typeof emptyState === 'undefined') {
+  window.emptyState = function(titulo, subtitulo, iconPath) {
+    const path = iconPath || `<path d="M3 7h18M3 12h18M3 17h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`;
+    return `<div class="empty">
+      <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none">${path}</svg></div>
+      <div class="empty-title">${titulo}</div>
+      ${subtitulo ? `<div class="empty-sub">${subtitulo}</div>` : ''}
+    </div>`;
+  };
+}
+
 // ── Carpeta Drive exclusiva para fotos de Inventario & Containers ──
 const DRIVE_INV_FOLDER = '1VTFqBY-uF8vAapnsnnF2YvN8T5CUb52g';
 
@@ -356,7 +369,7 @@ function renderInvLista() {
         ${_invModoSeleccion ? '' : ''}
       </div>
     </div>`;
-  }).join('') || '<div class="empty">Sin resultados</div>';
+  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
 
   const lista   = document.getElementById('inv-lista');
   const listaDt = document.getElementById('inv-dt-lista');
@@ -414,7 +427,7 @@ function invAbrirDetalle(modulo, rowIndex) {
       <div class="ficha-section">
         <div class="ficha-sec-title">Historial de eventos</div>
         ${evs.length === 0
-          ? '<div class="empty">Sin eventos registrados</div>'
+          ? emptyState('Sin eventos registrados','Aún no hay historial para este equipo')
           : evs.map(ev => {
               const meta = tipoEventoMeta(ev.tipo);
               return `<div class="evento-card-mini">
@@ -1065,7 +1078,7 @@ function renderContainers() {
         <span style="font-size:11px;color:#aaa">${c.ubicacion||'—'}</span>
       </div>
     </div>`;
-  }).join('') || '<div class="empty">Sin resultados</div>';
+  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
 
   const lista   = document.getElementById('cont-lista');
   const listaDt = document.getElementById('cont-dt-lista');
@@ -1816,7 +1829,7 @@ function _renderHistorialMovimientos(codigoEquipo) {
     return `
     <div class="ficha-section">
       <div class="ficha-sec-title">Historial de movimientos</div>
-      <div class="empty">Sin movimientos registrados</div>
+      ${emptyState('Sin movimientos','Este equipo no ha sido trasladado aún')}
     </div>`;
   }
 
@@ -2421,7 +2434,7 @@ function movhRenderLista() {
         <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
       </div>
     </div>`;
-  }).join('') || '<div class="empty">Sin resultados</div>';
+  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
 
   const lista = document.getElementById('movh-lista');
   const listaDt = document.getElementById('movh-dt-lista');
@@ -2482,7 +2495,7 @@ function movhRenderHistorial() {
 
   let html;
   if (hist.length === 0) {
-    html = '<div class="empty">Sin movimientos registrados</div>';
+    html = emptyState('Sin movimientos','No hay traslados registrados');
   } else {
     html = hist.map(m => `
       <div class="evento-card-mini">

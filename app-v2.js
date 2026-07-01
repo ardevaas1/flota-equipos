@@ -354,6 +354,19 @@ function parseEstado(raw) {
 const ESTADO_LABEL = { op:'Operativo', obs:'Con observaciones', det:'Detenido', rep:'En reparación', 'sin-dato':'Sin dato', otro:'Otro' };
 const ESTADO_COLOR = { op:'green', obs:'amber', det:'red', rep:'blue', otro:'gray' };
 
+// ── Chevron SVG para reemplazar el › unicode en tarjetas ──
+const CHEVRON = `<span class="card-chevron"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+
+// ── Empty state con ícono contextual ──
+function emptyState(titulo, subtitulo, iconPath) {
+  const path = iconPath || `<path d="M3 7h18M3 12h18M3 17h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`;
+  return `<div class="empty">
+    <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none">${path}</svg></div>
+    <div class="empty-title">${titulo}</div>
+    ${subtitulo ? `<div class="empty-sub">${subtitulo}</div>` : ''}
+  </div>`;
+}
+
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
   // Iconos de línea simples (mismo lenguaje visual que el menú principal):
@@ -738,12 +751,12 @@ function renderHistorialEventos(containerId, eventos, limit = 50) {
       </div>
       <span class="badge ${meta.color}" style="white-space:nowrap">${ev.patente}</span>
     </div>`;
-  }).join('') || '<div class="empty">Sin eventos registrados</div>';
+  }).join('') || emptyState('Sin eventos registrados','Aún no hay mantenciones ni reparaciones',`<path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`);
 }
 
 function renderHistorialEquipo(patente) {
   const eventos = allEventos.filter(ev => ev.patente === patente);
-  if (eventos.length === 0) return '<div class="empty">Sin eventos registrados para este equipo</div>';
+  if (eventos.length === 0) return emptyState('Sin eventos','Aún no hay mantenciones ni reparaciones',`<path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`);
   return eventos.slice(0, 20).map(ev => {
     const meta = tipoEventoMeta(ev.tipo);
     return `<div class="evento-card-mini">
@@ -1113,7 +1126,7 @@ function renderDashboard() {
         <span style="font-size:11px;color:#aaa">${lbl}</span>
       </div>
     </div>`;
-  }).join('') || '<div class="empty">Sin alertas urgentes ✓</div>';
+  }).join('') || emptyState('Todo al día','No hay alertas urgentes pendientes',`<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>`);
 
   // Mantenciones próximas
   const conHoro = allEquipos
@@ -1178,7 +1191,8 @@ function renderEquipos() {
         <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}">${ESTADO_LABEL[e.estado]||e.estado}</span>
         <span style="font-size:11px;color:#aaa">${e.ubicacion}</span>
       </div>
-    </div>`).join('') || '<div class="empty">Sin resultados</div>';
+    </div>`).join('') || emptyState('Sin resultados', 'Probá con otro filtro o búsqueda',
+      `<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
 }
 
 function setFilter(f, btn) {
@@ -1366,9 +1380,9 @@ function renderAlertas() {
     else ok.push(card);
   });
 
-  document.getElementById('alertas-vencidos').innerHTML = vencidos.join('') || '<div class="empty">Sin documentos vencidos ✓</div>';
-  document.getElementById('alertas-pronto').innerHTML   = pronto.join('')   || '<div class="empty">Sin vencimientos próximos ✓</div>';
-  document.getElementById('alertas-ok').innerHTML       = ok.join('')       || '<div class="empty">Sin equipos con documentos</div>';
+  document.getElementById('alertas-vencidos').innerHTML = vencidos.join('') || emptyState('Sin vencidos','Todos los documentos están vigentes');
+  document.getElementById('alertas-pronto').innerHTML   = pronto.join('')   || emptyState('Sin vencimientos','No hay documentos por vencer pronto');
+  document.getElementById('alertas-ok').innerHTML       = ok.join('')       || emptyState('Sin documentos registrados','Agrega documentos desde la ficha de cada equipo');
 }
 
 
