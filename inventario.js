@@ -120,9 +120,23 @@ const INV_ESTADO_COLOR = {
   'nuevo':      'blue',
 };
 
+const INV_ESTADO_BORDER = {
+  'operativo':  'card--op',
+  'nuevo':      'card--op',
+  'revisar':    'card--obs',
+  'en revisión':'card--obs',
+  'malo':       'card--det',
+  'mala':       'card--det',
+};
+
 function invEstadoColor(estado) {
   const k = (estado || '').toLowerCase().trim();
   return INV_ESTADO_COLOR[k] || 'gray';
+}
+
+function invEstadoBorder(estado) {
+  const k = (estado || '').toLowerCase().trim();
+  return INV_ESTADO_BORDER[k] || 'card--default';
 }
 
 // ── Icono simple por tipo de equipo inventario ────────────────
@@ -329,17 +343,17 @@ function renderInvLista() {
     const onclickAttr = _invModoSeleccion
       ? `invToggleItemSeleccion('${invModulo}',${item.rowIndex})`
       : `invAbrirDetalle('${invModulo}',${item.rowIndex})`;
-    return `<div class="card" onclick="${onclickAttr}">
+    return `<div class="card ${invEstadoBorder(item.estado)}" onclick="${onclickAttr}">
       ${_invModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size:22px">${icon}</div>
       <div class="card-body">
         <div class="card-title">${titulo}</div>
         <div class="card-sub">${sub}</div>
-        <span class="badge ${cls}" style="margin-top:4px;display:inline-block">${item.estado||'Sin estado'}</span>
       </div>
       <div class="card-right">
-        ${_invModoSeleccion ? '' : '<span class="card-arrow">›</span>'}
+        <span class="badge ${cls}">${item.estado||'Sin estado'}</span>
         <span style="font-size:11px;color:#aaa">${item.ubicacion||'—'}</span>
+        ${_invModoSeleccion ? '' : ''}
       </div>
     </div>`;
   }).join('') || '<div class="empty">Sin resultados</div>';
@@ -1033,21 +1047,21 @@ function renderContainers() {
   const html = filtrados.map(c => {
     const icon = invIcono(c.tipo);
     const cls  = c.estado === 'REGULAR' ? 'amber' : c.estado === 'INCOMPLETO' ? 'red' : 'green';
+    const borderCls = c.estado === 'REGULAR' ? 'card--obs' : c.estado === 'INCOMPLETO' ? 'card--det' : 'card--op';
     const key = `cont:${c.rowIndex}`;
     const checked = _contSeleccion.has(key);
     const onclickAttr = _contModoSeleccion
       ? `contToggleItemSeleccion(${c.rowIndex})`
       : `contAbrirDetalle(${c.rowIndex})`;
-    return `<div class="card" onclick="${onclickAttr}">
+    return `<div class="card ${borderCls}" onclick="${onclickAttr}">
       ${_contModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size:22px">${icon}</div>
       <div class="card-body">
         <div class="card-title">N° ${c.num} · ${c.tipo}</div>
         <div class="card-sub">${c.medidas}${c.equipamiento&&c.equipamiento!=='-'?' · '+c.equipamiento:''}</div>
-        <span class="badge ${cls}" style="margin-top:4px;display:inline-block">${c.estado||'Sin estado'}</span>
       </div>
       <div class="card-right">
-        ${_contModoSeleccion ? '' : '<span class="card-arrow">›</span>'}
+        <span class="badge ${cls}">${c.estado||'Sin estado'}</span>
         <span style="font-size:11px;color:#aaa">${c.ubicacion||'—'}</span>
       </div>
     </div>`;

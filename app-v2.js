@@ -1165,16 +1165,17 @@ function renderEquipos() {
     return ((a.marca||'') + (a.modelo||'')).localeCompare((b.marca||'') + (b.modelo||''), 'es');
   });
 
+  const ESTADO_CARD = { op: 'card--op', obs: 'card--obs', det: 'card--det', rep: 'card--rep' };
+
   document.getElementById('equipos-list').innerHTML = filtered.map(e => `
-    <div class="card" onclick="openFicha('${e.patente}')">
+    <div class="card ${ESTADO_CARD[e.estado] || 'card--default'}" onclick="openFicha('${e.patente}')">
       <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
-        <div class="card-sub">${e.equipo} · ${e.patente} · ${e.anio}</div>
-        <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}" style="margin-top:4px;display:inline-block">${ESTADO_LABEL[e.estado]||e.estado}</span>
+        <div class="card-sub">${e.equipo} · ${e.patente}</div>
       </div>
       <div class="card-right">
-        <span class="card-arrow">›</span>
+        <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}">${ESTADO_LABEL[e.estado]||e.estado}</span>
         <span style="font-size:11px;color:#aaa">${e.ubicacion}</span>
       </div>
     </div>`).join('') || '<div class="empty">Sin resultados</div>';
