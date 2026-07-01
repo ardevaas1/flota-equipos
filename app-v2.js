@@ -1720,8 +1720,15 @@ const isDesktop = () => window.innerWidth >= 900;
 
 function openPanel(id) {
   const el = document.getElementById(id);
+  // Forzar posición inicial ANTES de mostrar el elemento,
+  // así el navegador siempre tiene un punto de partida para la transición
+  // (sin esto, la primera vez que se abre un panel no hay animación porque
+  // el elemento nunca tuvo un transform definido en un frame visible anterior).
+  el.style.transform = 'translateX(100%)';
   el.classList.remove('hidden');
-  requestAnimationFrame(() => el.style.transform = 'translateX(0)');
+  // Doble rAF: el primero confirma que el elemento ya tiene display,
+  // el segundo dispara la transición CSS desde 100% → 0.
+  requestAnimationFrame(() => requestAnimationFrame(() => el.style.transform = 'translateX(0)'));
 
   // Desktop: overlay detrás del panel
   if (isDesktop() && !document.getElementById('panel-overlay')) {
