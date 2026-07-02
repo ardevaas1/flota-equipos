@@ -506,15 +506,19 @@ async function invCargarMiniatura(fileName, thumbId) {
     const mPath  = fileName.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     const mQuery = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     const fileId = (mPath && mPath[1]) || (mQuery && mQuery[1]);
+    // uc?export=view devuelve el archivo crudo (bytes de imagen) — sin ningún overlay de Drive
     const imgUrl = fileId
-      ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
+      ? `https://drive.google.com/uc?export=view&id=${fileId}`
       : fileName;
+    // Si uc?export=view falla (ej: archivo no público), intentar lh3
+    const fallbackUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : fileName;
     el.innerHTML = `<img src="${imgUrl}" alt="Foto"
-      style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
-      onclick="invAbrirFotoModalUrl('${imgUrl}')"
-      onerror="this.parentElement.innerHTML='<span style=\\'color:#64748b;font-size:12px;padding:12px\\'><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Sin imagen</span>'">
-      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
+      style="width:100%;height:220px;object-fit:cover;object-position:center top;display:block;pointer-events:none;-webkit-user-drag:none"
+      draggable="false"
+      onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}'}">
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
     el._driveImgUrl = imgUrl;
+    el._driveFileId = fileId;
     return;
   }
 
@@ -530,17 +534,18 @@ async function invCargarMiniatura(fileName, thumbId) {
       el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
       return;
     }
-    const file = data.files[0];
-    const imgUrl = file.thumbnailLink
-      ? file.thumbnailLink.replace('=s220', '=s800')
-      : `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
+        const file = data.files[0];
+    // uc?export=view = bytes crudos del archivo, sin overlay de Drive posible
+    const imgUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    const fallbackUrl = file.thumbnailLink
+      ? file.thumbnailLink.replace(/=s\d+$/, '=s800')
+      : `https://lh3.googleusercontent.com/d/${file.id}`;
     el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
-      style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
+      style="width:100%;height:220px;object-fit:cover;object-position:center top;display:block;cursor:pointer"
       onclick="invAbrirFotoModal('${fileName}')"
-      onerror="this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>'">
+      onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';return};this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px>Sin imagen</span>'">
       <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
-    el._driveImgUrl = imgUrl;
     el._driveFileId = file.id;
   } catch(e) {
     console.warn('[FOTO THUMB]', e.message);
