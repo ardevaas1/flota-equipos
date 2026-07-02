@@ -1246,7 +1246,7 @@ function openFicha(patente) {
 
     ${e.fotoRef ? `
     <div class="ficha-section" style="padding:0;overflow:hidden;border-radius:14px;cursor:pointer" onclick="abrirFotoRefModal('${e.patente}')">
-      <img src="${e.fotoRef}" alt="Foto de referencia" style="width:100%;max-height:220px;object-fit:cover;display:block;border-radius:14px">
+      <img src="${e.fotoRef}" alt="Foto de referencia" style="width:100%;height:220px;object-fit:cover;display:block;border-radius:14px">
     </div>` : ''}
 
     <div class="ficha-section">

@@ -468,7 +468,7 @@ function invAbrirDetalle(modulo, rowIndex) {
     ${imgSrc ? `
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
-      <div style="padding:4px 0;-webkit-transform:translateZ(0);transform:translateZ(0)"
+      <div style="padding:4px 0"
            onclick="${imgSrc.startsWith('http') ? `invAbrirFotoModalUrl('${imgSrc.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')` }">
         <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative">
           <div style="min-height:60px;display:flex;align-items:center;justify-content:center">
