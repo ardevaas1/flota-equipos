@@ -1747,21 +1747,28 @@ function openPanel(id) {
 function closePanel(id) {
   const el = document.getElementById(id);
   el.style.transform = 'translateX(100%)';
-  setTimeout(() => el.classList.add('hidden'), 280);
   if (id === 'panel-ficha') {
     try { localStorage.removeItem('lst_ficha'); } catch(e) {}
   }
-
-  // Desktop: quitar overlay si no queda ningún panel abierto
-  if (isDesktop()) {
-    setTimeout(() => {
+  // Usar transitionend para ocultar el panel exactamente cuando termina la animación,
+  // sin lag ni glitch de setTimeout. Fallback por si el evento no dispara.
+  let _panelClosed = false;
+  function _onPanelClose() {
+    if (_panelClosed) return;
+    _panelClosed = true;
+    el.removeEventListener('transitionend', _onPanelClose);
+    el.classList.add('hidden');
+    // Desktop: quitar overlay si ya no queda ningún panel abierto
+    if (isDesktop()) {
       const stillOpen = document.querySelectorAll('.panel:not(.hidden)').length;
       if (!stillOpen) {
         const ov = document.getElementById('panel-overlay');
         if (ov) ov.remove();
       }
-    }, 290);
+    }
   }
+  el.addEventListener('transitionend', _onPanelClose, { once: true });
+  setTimeout(_onPanelClose, 320); // fallback
 }
 
 // ── Restaurar estado anterior ─────────────────────────────────
@@ -2108,6 +2115,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     body, html {
       overscroll-behavior-y: none;
+    }
+    .chips, .inv-tabs, .movh-tabs-bar, .movh-chips-row {
+      overscroll-behavior-x: contain;
     }
   `;
   document.head.appendChild(style);

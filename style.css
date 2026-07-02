@@ -132,16 +132,19 @@ body.is-offline #app { padding-top: 30px; }
   #modulos-home.hidden, #main.hidden, #mod-inventario.hidden, #mod-containers.hidden, #mod-movimientos.hidden {
     display: none !important;
   }
-  #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos { will-change: transform; }
-  /* Pantalla entrante en navegación hacia adelante: entra deslizando desde la derecha */
+  /* will-change se aplica dinámicamente desde JS solo al elemento que anima,
+     no permanentemente a todos — evita presión de memoria innecesaria en GPU */
+  /* Pantalla entrante en navegación hacia adelante: entra deslizando desde la derecha.
+     cubic-bezier(0.16,1,0.3,1) = easeOutExpo: arranca rápido y llega limpio sin frenada brusca */
   .pg-push-enter { transform: translateX(100%); }
   .pg-push-enter-active {
-    transition: transform .3s ease;
+    transition: transform .25s cubic-bezier(0.16, 1, 0.3, 1);
     transform: translateX(0);
   }
-  /* Pantalla saliente en "volver": sale deslizando hacia la derecha */
+  /* Pantalla saliente en "volver": sale deslizando hacia la derecha.
+     cubic-bezier(0.4,0,1,1) = easeIn: arranca de inmediato (sin pegarse al inicio) y acelera hacia fuera */
   .pg-pop-exit-active {
-    transition: transform .26s ease;
+    transition: transform .22s cubic-bezier(0.4, 0, 1, 1);
     transform: translateX(100%);
   }
 }
@@ -246,6 +249,8 @@ body.is-offline #app { padding-top: 30px; }
 .chips {
   display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px;
   scrollbar-width: none; -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .chips::-webkit-scrollbar { display: none; height: 0; }
 .chip {
@@ -296,7 +301,7 @@ body.is-offline #app { padding-top: 30px; }
 .panel {
   position: absolute; inset: 0; background: var(--bg); z-index: 50;
   display: flex; flex-direction: column;
-  transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .panel:not(.hidden) { transform: translateX(0); }
 .panel-bar {
@@ -1139,6 +1144,8 @@ body.is-offline #app { padding-top: 30px; }
 .inv-tabs {
   display: flex; gap: 0; background: #fff; border-bottom: 1px solid var(--line);
   overflow-x: auto; flex-shrink: 0;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .inv-tabs::-webkit-scrollbar { display: none; }
 .inv-tab {

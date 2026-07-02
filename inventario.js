@@ -1271,11 +1271,14 @@ function _setDesktopSidebarFlota(visible) {
 }
 
 // ══ TRANSICIÓN DE NAVEGACIÓN (push/pop simple, una sola pantalla en movimiento) ═══════
-const PG_ANIM_MS = 300;
+// PG_ANIM_MS debe ser >= la duración CSS más larga (enter: 250ms, exit: 220ms)
+const PG_ANIM_MS = 260;
 const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos'];
 let _pgTimeoutId = null;
+let _pgAnimEl    = null; // elemento que está animando actualmente
+let _pgOnEnd     = null; // listener transitionend activo
 
-// Limpia cualquier clase de animación que haya quedado a medias (p.ej. por taps rápidos)
+// Limpia clases de animación de todos los contenedores
 function _pgClearAnimClasses() {
   PG_CONTAINERS.forEach(id => {
     const el = document.getElementById(id);
@@ -1284,14 +1287,26 @@ function _pgClearAnimClasses() {
   });
 }
 
+// Cancela completamente cualquier animación en curso y deja el DOM limpio
+function _pgAbortAnim() {
+  if (_pgTimeoutId) { clearTimeout(_pgTimeoutId); _pgTimeoutId = null; }
+  if (_pgAnimEl && _pgOnEnd) {
+    _pgAnimEl.removeEventListener('transitionend', _pgOnEnd);
+    _pgAnimEl.style.willChange  = '';
+    _pgAnimEl.style.pointerEvents = '';
+    _pgAnimEl = null;
+    _pgOnEnd  = null;
+  }
+  _pgClearAnimClasses();
+}
+
 function _pgTransition(saliente, entrante, direccion) {
   if (!entrante) return;
 
-  // Cancelar cualquier animación pendiente y dejar todas las pantallas en un estado limpio
-  if (_pgTimeoutId) { clearTimeout(_pgTimeoutId); _pgTimeoutId = null; }
-  _pgClearAnimClasses();
+  // Cancelar animación anterior y dejar DOM limpio
+  _pgAbortAnim();
 
-  // En desktop (sidebar persistente) o si falta alguna pantalla: cambio instantáneo, sin animación
+  // Desktop o misma pantalla: cambio instantáneo, sin animación
   if (window.innerWidth >= 900 || !saliente || saliente === entrante) {
     PG_CONTAINERS.forEach(id => {
       const el = document.getElementById(id);
@@ -1301,7 +1316,7 @@ function _pgTransition(saliente, entrante, direccion) {
     return;
   }
 
-  // Cualquier otra pantalla que no sea parte de esta transición queda oculta de inmediato
+  // Ocultar pantallas que no participan en esta transición
   PG_CONTAINERS.forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== saliente && el !== entrante) el.classList.add('hidden');
@@ -1310,21 +1325,41 @@ function _pgTransition(saliente, entrante, direccion) {
   entrante.classList.remove('hidden');
   saliente.classList.remove('hidden');
 
-  // Solo se anima UNA pantalla a la vez; la otra queda fija, sin transformar ni oscurecer.
-  if (direccion === 'forward') {
-    entrante.classList.add('pg-push-enter');
-    void entrante.offsetWidth; // forzar reflow para que la transición se anime
-    entrante.classList.remove('pg-push-enter');
-    entrante.classList.add('pg-push-enter-active');
-  } else {
-    saliente.classList.add('pg-pop-exit-active');
-  }
+  // GPU layer solo en el elemento que anima — evita presión de memoria
+  const animEl = direccion === 'forward' ? entrante : saliente;
+  animEl.style.willChange    = 'transform';
+  animEl.style.pointerEvents = 'none'; // bloquear taps durante la animación
+  _pgAnimEl = animEl;
 
-  _pgTimeoutId = setTimeout(() => {
+  // Cleanup preciso al terminar (transitionend es exacto, sin lag de setTimeout)
+  _pgOnEnd = () => {
+    animEl.style.willChange    = '';
+    animEl.style.pointerEvents = '';
     saliente.classList.add('hidden');
     _pgClearAnimClasses();
-    _pgTimeoutId = null;
-  }, PG_ANIM_MS);
+    _pgAnimEl = null;
+    _pgOnEnd  = null;
+    if (_pgTimeoutId) { clearTimeout(_pgTimeoutId); _pgTimeoutId = null; }
+  };
+  animEl.addEventListener('transitionend', _pgOnEnd, { once: true });
+
+  // Fallback: por si transitionend no dispara (edge case en algunos browsers)
+  _pgTimeoutId = setTimeout(_pgOnEnd, PG_ANIM_MS + 80);
+
+  if (direccion === 'forward') {
+    // Doble rAF: el browser registra translateX(100%) en un frame y en el siguiente
+    // ya tiene el punto de partida para interpolar → transición garantizada sin reflow síncrono
+    entrante.classList.add('pg-push-enter');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      entrante.classList.remove('pg-push-enter');
+      entrante.classList.add('pg-push-enter-active');
+    }));
+  } else {
+    // Back: un rAF para que el browser vea el estado inicial antes de añadir la clase de salida
+    requestAnimationFrame(() => {
+      saliente.classList.add('pg-pop-exit-active');
+    });
+  }
 }
 
 function irAModulo(modulo) {
