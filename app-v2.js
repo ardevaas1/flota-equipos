@@ -1598,7 +1598,7 @@ async function saveEquipo() {
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
-      // Columna L (horómetro actual) NO se toca aquí: solo se actualiza al registrar un evento de mantención
+      // Columna L (km/horómetro) nunca se toca desde la app — se actualiza solo en el Sheets
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[proxima]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[ultima]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[soap]]),

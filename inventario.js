@@ -507,9 +507,17 @@ async function invCargarMiniatura(fileName, thumbId) {
     const imgUrl = fileId
       ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
       : fileName;
+    // Resetear el flex del spinner y dejar el contenedor como block para que la imagen llene bien
+    el.style.display = 'block';
+    el.style.minHeight = '';
+    el.style.alignItems = '';
+    el.style.justifyContent = '';
+    // -webkit-transform: fuerza compositing layer en iOS → overflow:hidden + border-radius funciona correctamente
+    el.style.webkitTransform = 'translateZ(0)';
+    el.style.transform = 'translateZ(0)';
     el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto"
-      style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
+      style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
       onclick="invAbrirFotoModalUrl('${imgUrl}')"
       onerror="this.parentElement.innerHTML='<span style=\\'color:#64748b;font-size:12px;padding:12px\\'><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Sin imagen</span>'">
       <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
@@ -533,9 +541,15 @@ async function invCargarMiniatura(fileName, thumbId) {
     const imgUrl = file.thumbnailLink
       ? file.thumbnailLink.replace('=s220', '=s800')
       : `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
+    el.style.display = 'block';
+    el.style.minHeight = '';
+    el.style.alignItems = '';
+    el.style.justifyContent = '';
+    el.style.webkitTransform = 'translateZ(0)';
+    el.style.transform = 'translateZ(0)';
     el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
-      style="width:100%;height:auto;max-height:220px;object-fit:cover;border-radius:10px;display:block;cursor:pointer"
+      style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
       onclick="invAbrirFotoModal('${fileName}')"
       onerror="this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>'">
       <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
