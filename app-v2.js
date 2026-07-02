@@ -465,7 +465,10 @@ function toast(msg, type = 'ok') {
 }
 
 function splash(pct, hint) {
-  document.getElementById('splash-progress').style.width = pct + '%';
+  const fill = document.getElementById('splash-progress');
+  // Al primer progreso real (>0%), apagar el pulso de espera
+  if (pct > 0) fill.classList.remove('splash-waiting');
+  fill.style.width = pct + '%';
   if (hint) document.getElementById('splash-hint').textContent = hint;
 }
 
@@ -1917,16 +1920,22 @@ function enterApp() {
 
   // ── Caso 1: token aún válido → splash normal + carga ──
   if (loadSavedToken()) {
-    document.getElementById('splash').classList.remove('hidden');
+    const splashEl = document.getElementById('splash');
+    splashEl.classList.remove('hidden');
+    document.getElementById('splash-progress').classList.add('splash-waiting');
+    document.getElementById('splash-hint').textContent = 'Conectando...';
     loadData();
     return;
   }
 
-  // ── Caso 2: ya hizo login antes → ir directo a módulos, renovar en background ──
+  // ── Caso 2: ya hizo login antes → mostrar splash "Sincronizando..." mientras se renueva el token ──
   if (hadLogin) {
-    document.getElementById('splash').classList.add('hidden');
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('modulos-home').classList.remove('hidden');
+    // Mostrar splash con mensaje de sincronización en vez de la home sin datos
+    const splashEl = document.getElementById('splash');
+    const hintEl   = document.getElementById('splash-hint');
+    splashEl.classList.remove('hidden');
+    document.getElementById('splash-progress').classList.add('splash-waiting');
+    splash(15, 'Sincronizando...');
 
     let intentosInit = 0;
     function intentarSilencioso() {
@@ -1939,9 +1948,8 @@ function enterApp() {
             if (intentosInit < 3 && response.error !== 'access_denied') {
               setTimeout(intentarSilencioso, 2000);
             } else {
-              // Solo tras múltiples fallos ir al login
-              document.getElementById('modulos-home').classList.add('hidden');
-              document.getElementById('main').classList.add('hidden');
+              // Tras múltiples fallos → login
+              splashEl.classList.add('hidden');
               document.getElementById('login-screen').classList.remove('hidden');
             }
             return;
@@ -1952,15 +1960,14 @@ function enterApp() {
             const se = localStorage.getItem(EMAIL_KEY);
             if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); }
           } catch(e) {}
-          // Recargar datos frescos en background
+          // Cargar datos — loadData() ya maneja el splash y al final muestra modulos-home
           loadData();
         };
         tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
       } else if (intentosInit < 8) {
         setTimeout(intentarSilencioso, 500);
       } else {
-        document.getElementById('modulos-home').classList.add('hidden');
-        document.getElementById('main').classList.add('hidden');
+        splashEl.classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
       }
     }

@@ -468,9 +468,12 @@ function invAbrirDetalle(modulo, rowIndex) {
     ${imgSrc ? `
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
-      <div style="padding:8px 0" onclick="${imgSrc.startsWith('http') ? `invAbrirFotoModalUrl('${imgSrc.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')` }">
-        <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;min-height:60px;display:flex;align-items:center;justify-content:center">
-          <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
+      <div style="padding:4px 0;-webkit-transform:translateZ(0);transform:translateZ(0)"
+           onclick="${imgSrc.startsWith('http') ? `invAbrirFotoModalUrl('${imgSrc.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')` }">
+        <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative">
+          <div style="min-height:60px;display:flex;align-items:center;justify-content:center">
+            <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
+          </div>
         </div>
       </div>
     </div>` : ''}
@@ -500,22 +503,12 @@ async function invCargarMiniatura(fileName, thumbId) {
 
   // Si es URL directa (http/https), mostrar sin buscar en Drive
   if (fileName.startsWith('http')) {
-    // Soporta /file/d/ID/view  y  ?id=ID  y  &id=ID
     const mPath  = fileName.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     const mQuery = fileName.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     const fileId = (mPath && mPath[1]) || (mQuery && mQuery[1]);
     const imgUrl = fileId
       ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
       : fileName;
-    // Resetear el flex del spinner y dejar el contenedor como block para que la imagen llene bien
-    el.style.display = 'block';
-    el.style.minHeight = '';
-    el.style.alignItems = '';
-    el.style.justifyContent = '';
-    // -webkit-transform: fuerza compositing layer en iOS → overflow:hidden + border-radius funciona correctamente
-    el.style.webkitTransform = 'translateZ(0)';
-    el.style.transform = 'translateZ(0)';
-    el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto"
       style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
       onclick="invAbrirFotoModalUrl('${imgUrl}')"
@@ -541,12 +534,6 @@ async function invCargarMiniatura(fileName, thumbId) {
     const imgUrl = file.thumbnailLink
       ? file.thumbnailLink.replace('=s220', '=s800')
       : `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
-    el.style.display = 'block';
-    el.style.minHeight = '';
-    el.style.alignItems = '';
-    el.style.justifyContent = '';
-    el.style.webkitTransform = 'translateZ(0)';
-    el.style.transform = 'translateZ(0)';
     el.style.position = 'relative';
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
       style="width:100%;height:220px;object-fit:cover;display:block;cursor:pointer"
