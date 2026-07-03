@@ -1853,7 +1853,8 @@ async function contGuardarNuevo() {
 // MOVIMIENTOS — Traslados entre obras/bodega
 // Hoja MOVIMIENTOS: A=ID B=FECHA_SALIDA C=TIPO_EQUIPO D=CODIGO_EQUIPO
 //   E=NOMBRE_EQUIPO F=ORIGEN G=DESTINO H=AUTORIZA I=TRASLADA J=OBS_SALIDA
-//   K=ESTADO L=FECHA_RECEPCION M=RECIBE N=OBS_RECEPCION O=REGISTRADO_POR
+//   K=REGISTRADO_POR L=GUIA_DESPACHO
+// (pendiente futuro: ESTADO / FECHA_RECEPCION / RECIBE / OBS_RECEPCION)
 // ============================================
 
 let allMovimientos = [];
@@ -1882,7 +1883,7 @@ function _renderHistorialMovimientos(codigoEquipo) {
           <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
           <div class="mant-body">
             <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
-            <div class="mant-meta">${m.fechaSalida}</div>
+            <div class="mant-meta">${m.fechaSalida}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
             ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
             ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
           </div>
@@ -1893,7 +1894,7 @@ function _renderHistorialMovimientos(codigoEquipo) {
 // Carga todos los movimientos (se usa para historial)
 async function loadMovimientos() {
   try {
-    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:K2000`);
+    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:L2000`);
     allMovimientos = (rows || []).map((r, i) => ({
       rowIndex: i + 2,
       id: r[0] || '',
@@ -1907,6 +1908,7 @@ async function loadMovimientos() {
       traslada: r[8] || '',
       obsSalida: r[9] || '',
       registradoPor: r[10] || '',
+      guiaDespacho: r[11] || '',
     }));
   } catch (e) {
     console.warn('[MOV] Hoja MOVIMIENTOS no encontrada, se creará al guardar el primer movimiento');
@@ -1951,6 +1953,7 @@ function _abrirPanelMover(data) {
   document.getElementById('mov-origen').value = data.ubicacionActual || '';
   document.getElementById('mov-destino').value = '';
   document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mov-guia').value = '';
   document.getElementById('mov-autoriza').value = '';
   document.getElementById('mov-traslada').value = '';
   document.getElementById('mov-obs-salida').value = '';
@@ -1965,11 +1968,13 @@ async function invGuardarMovimiento() {
   const origen   = document.getElementById('mov-origen').value.trim();
   const destino  = document.getElementById('mov-destino').value.trim();
   const fecha    = document.getElementById('mov-fecha').value;
+  const guia     = document.getElementById('mov-guia').value.trim();
   const autoriza = document.getElementById('mov-autoriza').value.trim();
   const traslada = document.getElementById('mov-traslada').value.trim();
   const obs      = document.getElementById('mov-obs-salida').value.trim();
 
-  if (!destino || !fecha) { toast('Completa destino y fecha', 'error'); return; }
+  if (!fecha) { toast('La fecha del movimiento es obligatoria', 'error'); document.getElementById('mov-fecha').focus(); return; }
+  if (!destino) { toast('Completa el destino', 'error'); return; }
 
   const btn = document.querySelector('#panel-mover .pnl-action');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
@@ -1980,11 +1985,11 @@ async function invGuardarMovimiento() {
     const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
 
     // A=ID B=FECHA_SALIDA C=TIPO D=CODIGO E=NOMBRE F=ORIGEN G=DESTINO H=AUTORIZA
-    // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR
-    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:K`, [[
+    // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR L=GUIA_DESPACHO
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:L`, [[
       idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreEquipo,
       origen, destino, autoriza, traslada, obs,
-      registradoPor
+      registradoPor, guia
     ]]);
 
     // Actualizar ubicación actual del equipo de inmediato
@@ -2164,6 +2169,7 @@ function _abrirPanelMoverMulti() {
   document.getElementById('movm-origen').value = ubicaciones.size === 1 ? _movMultiItems[0].ubicacionActual : '';
   document.getElementById('movm-destino').value = '';
   document.getElementById('movm-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('movm-guia').value = '';
   document.getElementById('movm-autoriza').value = '';
   document.getElementById('movm-traslada').value = '';
   document.getElementById('movm-obs-salida').value = '';
@@ -2179,10 +2185,11 @@ function _movMultiRefrescarLista() {
   cont.innerHTML = _movMultiItems.map((item, idx) => {
     const ov = _movMultiOverrides[item.key];
     const destinoMostrado = (ov && ov.destino) ? ov.destino : (destinoGeneral || '—');
+    const personalizado = !!(ov && (ov.destino || ov.guia || ov.obs));
     return `<div class="movm-item-card" onclick="abrirOverrideItemMulti(${idx})">
       <div>
         <div class="movm-item-title">${item.tipoEquipo} — ${item.nombreEquipo}</div>
-        <div class="movm-item-sub">→ ${destinoMostrado}${ov && ov.destino ? ' (personalizado)' : ''}</div>
+        <div class="movm-item-sub">→ ${destinoMostrado}${personalizado ? ' (personalizado)' : ''}</div>
       </div>
       <span style="color:#94a3b8"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg></span>
     </div>`;
@@ -2196,6 +2203,7 @@ function abrirOverrideItemMulti(idx) {
   document.getElementById('movmi-nombre').textContent = `${item.tipoEquipo} — ${item.nombreEquipo}`;
   const ov = _movMultiOverrides[item.key] || {};
   document.getElementById('movmi-destino').value = ov.destino || '';
+  document.getElementById('movmi-guia').value = ov.guia || '';
   document.getElementById('movmi-obs').value = ov.obs || '';
   openPanel('panel-mover-multi-item');
 }
@@ -2205,9 +2213,10 @@ function guardarOverrideItemMulti() {
   const item = _movMultiItems[idx];
   if (!item) return;
   const destino = document.getElementById('movmi-destino').value.trim();
+  const guia = document.getElementById('movmi-guia').value.trim();
   const obs = document.getElementById('movmi-obs').value.trim();
-  if (destino || obs) {
-    _movMultiOverrides[item.key] = { destino, obs };
+  if (destino || guia || obs) {
+    _movMultiOverrides[item.key] = { destino, guia, obs };
   } else {
     delete _movMultiOverrides[item.key];
   }
@@ -2247,11 +2256,13 @@ async function guardarMovimientoMulti() {
   const origenGeneral   = document.getElementById('movm-origen').value.trim();
   const destinoGeneral  = document.getElementById('movm-destino').value.trim();
   const fecha            = document.getElementById('movm-fecha').value;
+  const guiaGeneral       = document.getElementById('movm-guia').value.trim();
   const autoriza          = document.getElementById('movm-autoriza').value.trim();
   const traslada           = document.getElementById('movm-traslada').value.trim();
   const obsGeneral        = document.getElementById('movm-obs-salida').value.trim();
 
-  if (!destinoGeneral || !fecha) { toast('Completa destino general y fecha', 'error'); return; }
+  if (!fecha) { toast('La fecha del movimiento es obligatoria', 'error'); document.getElementById('movm-fecha').focus(); return; }
+  if (!destinoGeneral) { toast('Completa el destino general', 'error'); return; }
   if (_movMultiItems.length === 0) { toast('No hay ítems seleccionados', 'error'); return; }
 
   const btn = document.querySelector('#panel-mover-multi .pnl-action');
@@ -2267,13 +2278,14 @@ async function guardarMovimientoMulti() {
     for (const item of _movMultiItems) {
       const ov = _movMultiOverrides[item.key] || {};
       const destino = ov.destino || destinoGeneral;
+      const guia = ov.guia || guiaGeneral;
       const obs = ov.obs || obsGeneral;
       const idMov = 'MOV-' + Date.now() + '-' + item.rowIndex;
 
       filas.push([
         idMov, fechaFmt, item.tipoEquipo, '', item.nombreEquipo,
         origenGeneral || item.ubicacionActual, destino, autoriza, traslada, obs,
-        registradoPor
+        registradoPor, guia
       ]);
 
       // Actualizar ubicación en la hoja correspondiente
@@ -2289,7 +2301,7 @@ async function guardarMovimientoMulti() {
       }
     }
 
-    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:K`, filas);
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:L`, filas);
     await Promise.all(writes);
 
     toast(`✓ ${filas.length} movimientos registrados`);
@@ -2543,7 +2555,7 @@ function movhRenderHistorial() {
         <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
         <div class="mant-body">
           <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
-          <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}</div>
+          <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
           ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
         </div>

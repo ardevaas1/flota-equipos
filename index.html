@@ -1077,8 +1077,12 @@
         <input type="text" id="mov-destino" placeholder="Ej: Obra Las Encinas">
       </div>
       <div class="form-group">
-        <label>Fecha movimiento</label>
-        <input type="date" id="mov-fecha">
+        <label>Fecha movimiento <span style="color:#dc2626">*</span></label>
+        <input type="date" id="mov-fecha" required>
+      </div>
+      <div class="form-group">
+        <label>N° Guía de despacho</label>
+        <input type="text" id="mov-guia" placeholder="Ej: 12345" inputmode="numeric">
       </div>
       <div class="form-group">
         <label>Quién autoriza</label>
@@ -1113,8 +1117,12 @@
         <input type="text" id="movm-destino" placeholder="Ej: Obra Las Encinas" oninput="_movMultiRefrescarLista()">
       </div>
       <div class="form-group">
-        <label>Fecha movimiento</label>
-        <input type="date" id="movm-fecha">
+        <label>Fecha movimiento <span style="color:#dc2626">*</span></label>
+        <input type="date" id="movm-fecha" required>
+      </div>
+      <div class="form-group">
+        <label>N° Guía de despacho</label>
+        <input type="text" id="movm-guia" placeholder="Ej: 12345 (aplica a todos, salvo ajuste individual)" inputmode="numeric">
       </div>
       <div class="form-group">
         <label>Quién autoriza</label>
@@ -1149,6 +1157,10 @@
       <div class="form-group">
         <label>Destino (deja vacío para usar el de todos)</label>
         <input type="text" id="movmi-destino" placeholder="Usar destino general">
+      </div>
+      <div class="form-group">
+        <label>N° Guía de despacho (deja vacío para usar la de todos)</label>
+        <input type="text" id="movmi-guia" placeholder="Usar guía general" inputmode="numeric">
       </div>
       <div class="form-group">
         <label>Observaciones de este ítem</label>
