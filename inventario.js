@@ -1878,23 +1878,33 @@ function _renderHistorialMovimientos(codigoEquipo) {
   return `
     <div class="ficha-section">
       <div class="ficha-sec-title">Historial de movimientos</div>
-      ${hist.map(m => `
+      ${hist.map(m => {
+        const recibido = m.estado === 'recibido';
+        const badge = recibido
+          ? `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700">Recibido</span>`
+          : `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700">En tránsito</span>`;
+        return `
         <div class="evento-card-mini">
           <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
           <div class="mant-body">
-            <div class="mant-title">${m.origen||'—'} → ${m.destino||'—'}</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+              <div class="mant-title" style="margin:0">${m.origen||'—'} → ${m.destino||'—'}</div>
+              ${badge}
+            </div>
             <div class="mant-meta">${m.fechaSalida}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
             ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza?' · Autoriza: '+m.autoriza:''}</div>` : ''}
             ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
+            ${recibido ? `<div class="evento-desc" style="color:#15803d"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Recibido el ${m.fechaRecepcion} por ${m.recibe}</div>` : ''}
           </div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
 // Carga todos los movimientos (se usa para historial)
 async function loadMovimientos() {
   try {
-    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:L2000`);
+    const rows = await fetchSheet(`'${SHEET_MOVIMIENTOS}'!A2:Q2000`);
     allMovimientos = (rows || []).map((r, i) => ({
       rowIndex: i + 2,
       id: r[0] || '',
@@ -1909,6 +1919,11 @@ async function loadMovimientos() {
       obsSalida: r[9] || '',
       registradoPor: r[10] || '',
       guiaDespacho: r[11] || '',
+      estado: r[12] || 'en_transito',       // M=ESTADO (vacío = en tránsito por compatibilidad)
+      fechaRecepcion: r[13] || '',           // N=FECHA_RECEPCION
+      recibe: r[14] || '',                   // O=RECIBE
+      obsRecepcion: r[15] || '',             // P=OBS_RECEPCION
+      fotoRecepcion: r[16] || '',            // Q=FOTO_RECEPCION
     }));
   } catch (e) {
     console.warn('[MOV] Hoja MOVIMIENTOS no encontrada, se creará al guardar el primer movimiento');
@@ -1985,11 +2000,11 @@ async function invGuardarMovimiento() {
     const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
 
     // A=ID B=FECHA_SALIDA C=TIPO D=CODIGO E=NOMBRE F=ORIGEN G=DESTINO H=AUTORIZA
-    // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR L=GUIA_DESPACHO
-    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:L`, [[
+    // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR L=GUIA_DESPACHO M=ESTADO
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:M`, [[
       idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreEquipo,
       origen, destino, autoriza, traslada, obs,
-      registradoPor, guia
+      registradoPor, guia, 'en_transito'
     ]]);
 
     // Actualizar ubicación actual del equipo de inmediato
@@ -2285,7 +2300,7 @@ async function guardarMovimientoMulti() {
       filas.push([
         idMov, fechaFmt, item.tipoEquipo, '', item.nombreEquipo,
         origenGeneral || item.ubicacionActual, destino, autoriza, traslada, obs,
-        registradoPor, guia
+        registradoPor, guia, 'en_transito'
       ]);
 
       // Actualizar ubicación en la hoja correspondiente
@@ -2301,7 +2316,7 @@ async function guardarMovimientoMulti() {
       }
     }
 
-    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:L`, filas);
+    await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:M`, filas);
     await Promise.all(writes);
 
     toast(`✓ ${filas.length} movimientos registrados`);
@@ -2346,10 +2361,13 @@ function movhInit() {
   document.querySelectorAll('.movh-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'registrar'));
   document.querySelectorAll('.movh-chip').forEach(c => c.classList.toggle('active', c.dataset.tipo === 'todos'));
   document.getElementById('movh-vista-registrar').classList.remove('hidden');
+  document.getElementById('movh-vista-pendientes').classList.add('hidden');
   document.getElementById('movh-vista-historial').classList.add('hidden');
   const dtList = document.getElementById('movh-dt-list-wrap');
+  const dtPend = document.getElementById('movh-dt-pendientes-wrap');
   const dtHist = document.getElementById('movh-dt-historial-wrap');
   if (dtList) dtList.classList.remove('hidden');
+  if (dtPend) dtPend.classList.add('hidden');
   if (dtHist) dtHist.classList.add('hidden');
   const dtTitulo = document.getElementById('movh-dt-titulo');
   if (dtTitulo) dtTitulo.textContent = 'Registrar movimiento';
@@ -2359,6 +2377,7 @@ function movhInit() {
   if (dtChips) dtChips.style.display = 'flex';
   _movhActivarDesktop();
   movhRenderLista();
+  movhRenderPendientes();
   movhRenderHistorial();
 }
 
@@ -2375,17 +2394,22 @@ function movhSetTab(tab) {
   movhTab = tab;
   document.querySelectorAll('.movh-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('movh-vista-registrar').classList.toggle('hidden', tab !== 'registrar');
+  document.getElementById('movh-vista-pendientes').classList.toggle('hidden', tab !== 'pendientes');
   document.getElementById('movh-vista-historial').classList.toggle('hidden', tab !== 'historial');
   const dtList = document.getElementById('movh-dt-list-wrap');
+  const dtPend = document.getElementById('movh-dt-pendientes-wrap');
   const dtHist = document.getElementById('movh-dt-historial-wrap');
   const dtTitulo = document.getElementById('movh-dt-titulo');
   const dtSearchWrap = document.getElementById('movh-dt-search-wrap');
   const dtChips = document.getElementById('movh-dt-chips');
   if (dtList) dtList.classList.toggle('hidden', tab !== 'registrar');
+  if (dtPend) dtPend.classList.toggle('hidden', tab !== 'pendientes');
   if (dtHist) dtHist.classList.toggle('hidden', tab !== 'historial');
-  if (dtTitulo) dtTitulo.textContent = tab === 'registrar' ? 'Registrar movimiento' : 'Historial de movimientos';
+  const titulos = { registrar: 'Registrar movimiento', pendientes: 'Pendientes de recepción', historial: 'Historial de movimientos' };
+  if (dtTitulo) dtTitulo.textContent = titulos[tab] || '';
   if (dtSearchWrap) dtSearchWrap.style.display = tab === 'registrar' ? '' : 'none';
   if (dtChips) dtChips.style.display = tab === 'registrar' ? 'flex' : 'none';
+  if (tab === 'pendientes') movhRenderPendientes();
   if (tab === 'historial') movhRenderHistorial();
 }
 
@@ -2540,6 +2564,196 @@ function movhAbrirMoverSeleccion() {
   _abrirPanelMoverMulti();
 }
 
+// Renderiza la lista de movimientos pendientes de recepción + badge en tabs
+function movhRenderPendientes() {
+  const pendientes = (allMovimientos || [])
+    .filter(m => !m.estado || m.estado === 'en_transito')
+    .sort((a, b) => b.rowIndex - a.rowIndex);
+
+  // Actualizar badges en ambas tabs (móvil y desktop)
+  const n = pendientes.length;
+  ['movh-dt-badge-pend', 'movh-mob-badge-pend'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (n > 0) { el.style.display = 'inline'; el.textContent = n; }
+    else el.style.display = 'none';
+  });
+
+  const svgCamion = `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg>`;
+
+  let html;
+  if (pendientes.length === 0) {
+    html = emptyState('Sin pendientes', 'Todos los movimientos han sido recepcionados');
+  } else {
+    html = pendientes.map(m => `
+      <div class="evento-card-mini" onclick="movAbrirRecepcion('${m.id}', ${m.rowIndex})" style="cursor:pointer">
+        <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">${svgCamion}</div>
+        <div class="mant-body" style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+            <span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>
+          </div>
+          <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
+          ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
+        </div>
+        <div style="flex-shrink:0;padding-left:6px;color:#94a3b8">
+          <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>`).join('');
+  }
+
+  const mob = document.getElementById('movh-pendientes-lista');
+  const dt  = document.getElementById('movh-dt-pendientes-lista');
+  if (mob) mob.innerHTML = html;
+  if (dt)  dt.innerHTML  = html;
+}
+
+// Variable para la foto de recepción pendiente
+let _recvFotoRef = null;
+
+// Abre el panel de recepción con los datos del movimiento
+function movAbrirRecepcion(movId, rowIndex) {
+  const m = (allMovimientos || []).find(x => x.id === movId && x.rowIndex === rowIndex)
+         || (allMovimientos || []).find(x => x.rowIndex === rowIndex);
+  if (!m) { toast('Movimiento no encontrado', 'error'); return; }
+
+  _recvFotoRef = null;
+  document.getElementById('recv-mov-id').value = m.id;
+  document.getElementById('recv-row-index').value = m.rowIndex;
+  document.getElementById('recv-fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('recv-recibe').value = '';
+  document.getElementById('recv-obs').value = '';
+  // Limpiar foto
+  const prevWrap = document.getElementById('recv-foto-preview');
+  const prevImg  = document.getElementById('recv-foto-preview-img');
+  const lblFoto  = document.getElementById('recv-foto-label');
+  const statusFoto = document.getElementById('recv-foto-status');
+  if (prevWrap) prevWrap.style.display = 'none';
+  if (prevImg)  prevImg.src = '';
+  if (lblFoto)  lblFoto.textContent = 'Seleccionar foto…';
+  if (statusFoto) statusFoto.style.display = 'none';
+  // Rellenar resumen
+  document.getElementById('recv-resumen-equipo').textContent = `${m.tipoEquipo || ''} — ${m.nombreEquipo || ''}`;
+  const metaParts = [
+    m.fechaSalida,
+    m.origen && m.destino ? `${m.origen} → ${m.destino}` : (m.destino || ''),
+    m.guiaDespacho ? `Guía N° ${m.guiaDespacho}` : '',
+    m.traslada ? `Traslada: ${m.traslada}` : '',
+  ].filter(Boolean);
+  document.getElementById('recv-resumen-meta').textContent = metaParts.join(' · ');
+
+  openPanel('panel-recepcionar');
+}
+
+// Maneja la selección de foto de recepción
+function onRecvFotoSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    _recvFotoRef = {
+      b64: reader.result.split(',')[1],
+      name: file.name,
+      mimeType: file.type || 'image/jpeg',
+      previewUrl: reader.result,
+    };
+    const prevWrap = document.getElementById('recv-foto-preview');
+    const prevImg  = document.getElementById('recv-foto-preview-img');
+    const lblFoto  = document.getElementById('recv-foto-label');
+    if (prevImg)  prevImg.src = reader.result;
+    if (prevWrap) prevWrap.style.display = 'block';
+    if (lblFoto)  lblFoto.textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+// Guarda la recepción: escribe en columnas M(estado), N, O, P, Q del Sheet
+async function movGuardarRecepcion() {
+  const movId    = document.getElementById('recv-mov-id').value;
+  const rowIndex = parseInt(document.getElementById('recv-row-index').value);
+  const fecha    = document.getElementById('recv-fecha').value;
+  const recibe   = document.getElementById('recv-recibe').value.trim();
+  const obs      = document.getElementById('recv-obs').value.trim();
+
+  if (!fecha)  { toast('La fecha de recepción es obligatoria', 'error'); document.getElementById('recv-fecha').focus(); return; }
+  if (!recibe) { toast('Indica quién recibe', 'error'); document.getElementById('recv-recibe').focus(); return; }
+
+  const btn = document.querySelector('#panel-recepcionar .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
+    let fotoNombre = '';
+
+    // Subir foto a Drive si hay una seleccionada
+    if (_recvFotoRef) {
+      const statusEl = document.getElementById('recv-foto-status');
+      if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Subiendo foto…'; }
+      try {
+        let folderId = DRIVE_INV_FOLDER;
+        try {
+          const recvFolder = await findOrCreateFolder('Recepciones_Movimientos', DRIVE_INV_FOLDER);
+          folderId = recvFolder;
+        } catch(fe) { console.warn('[RECV FOTO] Carpeta fallback:', fe.message); }
+
+        const ext      = _recvFotoRef.name.split('.').pop() || 'jpg';
+        const fileName = `RECV_${movId || rowIndex}_${fecha.replace(/-/g,'')}.${ext}`;
+        const boundary = 'lst_recv_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = [
+          '--' + boundary, 'Content-Type: application/json; charset=UTF-8', '',
+          metadata,
+          '--' + boundary, 'Content-Type: ' + _recvFotoRef.mimeType,
+          'Content-Transfer-Encoding: base64', '',
+          _recvFotoRef.b64,
+          '--' + boundary + '--',
+        ].join('\r\n');
+
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+          body,
+        });
+        if (res.ok) {
+          const result = await res.json();
+          fotoNombre = result.name;
+          if (statusEl) statusEl.textContent = 'Foto subida ✓';
+        } else {
+          const err = await res.text();
+          console.error('[RECV FOTO]', err);
+          toast('Foto no se pudo subir: ' + res.status, 'error');
+        }
+      } catch(fe) {
+        console.error('[RECV FOTO]', fe.message);
+        toast('Error subiendo foto: ' + fe.message, 'error');
+      }
+    }
+
+    // Escribir columnas M=ESTADO, N=FECHA_RECEPCION, O=RECIBE, P=OBS_RECEPCION, Q=FOTO
+    // Usamos batchUpdate escribiendo rango M:Q de la fila correspondiente
+    await writeSheet(`'${SHEET_MOVIMIENTOS}'!M${rowIndex}:Q${rowIndex}`, [[
+      'recibido', fechaFmt, recibe, obs, fotoNombre
+    ]]);
+
+    toast('Recepción confirmada ✓');
+    _origClosePanel('panel-recepcionar');
+    const idx = _panelStack.lastIndexOf('panel-recepcionar');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+
+    await loadMovimientos();
+    movhRenderPendientes();
+    movhRenderHistorial();
+    // Actualizar historial en fichas de equipos también
+    if (typeof renderInvLista === 'function') renderInvLista();
+
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
+  }
+}
+
 // Renderiza el historial global de movimientos (todos los tipos), más recientes primero
 function movhRenderHistorial() {
   const cont = document.getElementById('movh-historial-lista');
@@ -2550,16 +2764,26 @@ function movhRenderHistorial() {
   if (hist.length === 0) {
     html = emptyState('Sin movimientos','No hay traslados registrados');
   } else {
-    html = hist.map(m => `
+    html = hist.map(m => {
+      const recibido = m.estado === 'recibido';
+      const badge = recibido
+        ? `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Recibido</span>`
+        : `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>`;
+      return `
       <div class="evento-card-mini">
         <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
         <div class="mant-body">
-          <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+            <div class="mant-title" style="margin:0">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+            ${badge}
+          </div>
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
           ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
+          ${recibido ? `<div class="evento-desc" style="color:#15803d"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Recibido el ${m.fechaRecepcion} por ${m.recibe}${m.obsRecepcion ? ' · ' + m.obsRecepcion : ''}</div>` : ''}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
   if (cont) cont.innerHTML = html;
   if (contDt) contDt.innerHTML = html;

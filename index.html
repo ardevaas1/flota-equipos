@@ -865,6 +865,7 @@
       </div>
       <div class="inv-desktop-tabs">
         <button class="inv-desktop-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Registrar</button>
+        <button class="inv-desktop-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-dt-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
         <button class="inv-desktop-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Historial</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
@@ -893,6 +894,9 @@
       <div class="inv-desktop-list" id="movh-dt-list-wrap">
         <div id="movh-dt-lista"></div>
       </div>
+      <div class="inv-desktop-list hidden" id="movh-dt-pendientes-wrap">
+        <div id="movh-dt-pendientes-lista"></div>
+      </div>
       <div class="inv-desktop-list hidden" id="movh-dt-historial-wrap">
         <div id="movh-dt-historial-lista"></div>
       </div>
@@ -918,6 +922,7 @@
     </header>
     <div class="inv-tabs" id="movh-mobile-tabs">
       <button class="inv-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Registrar</button>
+      <button class="inv-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-mob-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 5px;font-size:10px;font-weight:700;margin-left:2px"></span></button>
       <button class="inv-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Historial</button>
     </div>
 
@@ -946,6 +951,13 @@
           <button onclick="movhCancelarSeleccion()" class="sel-bar-btn sel-bar-btn-ghost">Cancelar</button>
           <button onclick="movhAbrirMoverSeleccion()" class="sel-bar-btn mov-action-btn"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Mover</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Vista: Pendientes de recepción -->
+    <div id="movh-vista-pendientes" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+      <div class="pages" style="padding:10px 14px 80px">
+        <div id="movh-pendientes-lista"></div>
       </div>
     </div>
 
@@ -1167,6 +1179,49 @@
         <textarea id="movmi-obs" placeholder="Notas específicas de este ítem"></textarea>
       </div>
       <button class="action-btn" onclick="quitarItemDeSeleccionMulti()" style="background:#fee2e2;color:#dc2626">✕ Quitar de la selección</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Recepcionar movimiento ── -->
+  <div id="panel-recepcionar" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-recepcionar')">‹ Cancelar</button>
+      <span class="pnl-title">Confirmar recepción</span>
+      <button class="pnl-action" onclick="movGuardarRecepcion()">Confirmar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="recv-mov-id">
+      <input type="hidden" id="recv-row-index">
+      <!-- Resumen del movimiento (solo lectura) -->
+      <div id="recv-resumen" style="background:var(--surface-soft,#f1f5f9);border-radius:12px;padding:12px 14px;margin-bottom:16px">
+        <div id="recv-resumen-equipo" style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px"></div>
+        <div id="recv-resumen-meta" style="font-size:12px;color:var(--ink-soft)"></div>
+      </div>
+      <div class="form-group">
+        <label>Fecha de recepción <span style="color:#dc2626">*</span></label>
+        <input type="date" id="recv-fecha" required>
+      </div>
+      <div class="form-group">
+        <label>Quién recibe <span style="color:#dc2626">*</span></label>
+        <input type="text" id="recv-recibe" placeholder="Nombre de quien recepciona">
+      </div>
+      <div class="form-group">
+        <label>Observaciones de recepción</label>
+        <textarea id="recv-obs" placeholder="Condición del equipo al llegar, diferencias con lo despachado, etc." style="min-height:80px"></textarea>
+      </div>
+      <!-- Foto de recepción -->
+      <div class="form-group">
+        <label>Foto de recepción</label>
+        <div id="recv-foto-preview" style="display:none;margin-bottom:8px;background:#1e293b;border-radius:10px;overflow:hidden;max-height:180px">
+          <img id="recv-foto-preview-img" src="" alt="Previsualización" style="width:100%;height:180px;object-fit:cover;object-position:center top">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;background:var(--surface-soft,#f1f5f9);border:1.5px dashed var(--line,#e2e8f0);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:13px;color:var(--ink-soft)">
+          <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;flex-shrink:0"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+          <span id="recv-foto-label">Seleccionar foto…</span>
+          <input type="file" accept="image/*" style="display:none" onchange="onRecvFotoSelected(this)">
+        </label>
+        <div id="recv-foto-status" style="font-size:11px;color:#94a3b8;margin-top:4px;display:none"></div>
+      </div>
     </div>
   </div>
 
