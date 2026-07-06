@@ -34,6 +34,9 @@
 #mod-movimientos {
   --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
 }
+#mod-andamios {
+  --accent: #7c4dc4; --accent-dark: #5a349a; --accent-soft: #ede3fa; --accent-rgb: 124,77,196;
+}
 /* Mismo tema, pero aplicado en <body> para que alcance también a los
    paneles de editar/agregar que viven fuera del contenedor del módulo */
 body.tema-inv {
@@ -44,6 +47,9 @@ body.tema-cont {
 }
 body.tema-mov {
   --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
+}
+body.tema-and {
+  --accent: #7c4dc4; --accent-dark: #5a349a; --accent-soft: #ede3fa; --accent-rgb: 124,77,196;
 }
 
 html, body { height: 100%; background: var(--bg); font-family: var(--font-body); color: var(--ink); -webkit-tap-highlight-color: transparent; }
@@ -173,6 +179,7 @@ body.is-offline #app { padding-top: 30px; }
 .header--inv  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #b15c0c 0%, #f5a623 55%, #ffc864 100%); box-shadow: 0 2px 10px rgba(245,166,35,0.25); }
 .header--cont { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #6b462a 0%, #c08a5a 55%, #d9ad84 100%); box-shadow: 0 2px 10px rgba(192,138,90,0.25); }
 .header--mov  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%); box-shadow: 0 2px 10px rgba(47,138,77,0.25); }
+.header--and  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #5a349a 0%, #7c4dc4 55%, #a685dd 100%); box-shadow: 0 2px 10px rgba(124,77,196,0.25); }
 .header-logo { height: 36px; width: auto; object-fit: contain; }
 .header-center { flex: 1; }
 .header-title { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2; }
@@ -243,6 +250,38 @@ body.is-offline #app { padding-top: 30px; }
 }
 .btn-detalle-mini svg { width: 16px; height: 16px; }
 .btn-detalle-mini:active { transform: scale(0.92); background: #f2f6fb; }
+
+/* ── Módulo Andamios: tarjeta de conteo ── */
+.and-card {
+  background: #fff; border-radius: 14px; border: 1px solid var(--line);
+  padding: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+}
+.and-thumb {
+  width: 56px; height: 56px; border-radius: 10px; flex-shrink: 0; overflow: hidden;
+  background: var(--neutral-soft); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #b3b8c2;
+}
+.and-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.and-info { flex: 1; min-width: 0; }
+.and-nombre { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.and-obs { font-size: 11.5px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.and-counter { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.and-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: var(--accent-soft); color: var(--accent-dark); font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+  transition: transform 0.08s, background 0.15s;
+}
+.and-btn:active { transform: scale(0.88); background: var(--accent); color: #fff; }
+.and-btn--minus { background: #fde8e8; color: #c0392b; }
+.and-btn--minus:active { background: #e0554a; color: #fff; }
+.and-num { min-width: 34px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.and-total-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--accent-soft); border-radius: 12px; padding: 12px 16px; margin: 0 14px 12px;
+  color: var(--accent-dark); font-weight: 700; font-size: 14px;
+}
+.and-total-bar span:last-child { font-size: 20px; }
 
 /* ── Badges ── */
 .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }

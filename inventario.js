@@ -25,6 +25,7 @@ const INV_PANELES_SECUNDARIOS = [
   'panel-inv-detalle','panel-inv-edit','panel-gen-evento',
   'panel-cont-detalle','panel-cont-edit',
   'panel-nuevo-inv','panel-nuevo-cont',
+  'panel-and-nuevo','panel-and-edit',
 ];
 
 // Actualiza visibilidad del FAB según si hay algún panel secundario visible
@@ -1279,7 +1280,7 @@ function _setDesktopSidebarFlota(visible) {
 // ══ TRANSICIÓN DE NAVEGACIÓN (push/pop simple, una sola pantalla en movimiento) ═══════
 // PG_ANIM_MS debe ser >= la duración CSS más larga (enter: 250ms, exit: 220ms)
 const PG_ANIM_MS = 260;
-const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos'];
+const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios'];
 let _pgTimeoutId = null;
 let _pgAnimEl    = null; // elemento que está animando actualmente
 let _pgOnEnd     = null; // listener transitionend activo
@@ -1373,16 +1374,17 @@ function irAModulo(modulo) {
   document.getElementById('mod-flota').classList.add('hidden');
 
   // Ocultar instantáneamente cualquier módulo que no sea el destino (no participa en la animación)
-  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'main'].forEach(id => {
+  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'main'].forEach(id => {
     const el = document.getElementById(id);
     if (el && id !== _moduloElId(modulo)) el.classList.add('hidden');
   });
 
   // Tema de color por módulo — aplicado en <body> para que también
   // alcance a los paneles de editar/agregar (viven fuera del contenedor del módulo)
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
   if (modulo === 'containers') document.body.classList.add('tema-cont');
   else if (modulo === 'movimientos') document.body.classList.add('tema-mov');
+  else if (modulo === 'andamios') document.body.classList.add('tema-and');
   else if (modulo !== 'flota') document.body.classList.add('tema-inv');
 
   if (modulo === 'flota') {
@@ -1409,6 +1411,10 @@ function irAModulo(modulo) {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-movimientos'), 'forward');
     requestAnimationFrame(() => movhInit());
+  } else if (modulo === 'andamios') {
+    _setDesktopSidebarFlota(false);
+    _pgTransition(homeEl, document.getElementById('mod-andamios'), 'forward');
+    requestAnimationFrame(() => andInit());
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
@@ -1427,6 +1433,7 @@ function _moduloElId(modulo) {
   if (modulo === 'flota') return 'main';
   if (modulo === 'containers') return 'mod-containers';
   if (modulo === 'movimientos') return 'mod-movimientos';
+  if (modulo === 'andamios') return 'mod-andamios';
   return 'mod-inventario';
 }
 
@@ -1502,12 +1509,12 @@ function contSyncSearch() {
 
 function volverAInicio() {
   const homeEl = document.getElementById('modulos-home');
-  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'main']
+  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'main']
     .map(id => document.getElementById(id));
   const saliente = candidatos.find(el => el && !el.classList.contains('hidden'));
 
   candidatos.forEach(el => { if (el && el !== saliente) el.classList.add('hidden'); });
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');
@@ -2806,4 +2813,306 @@ function movhRenderHistorial() {
   }
   if (cont) cont.innerHTML = html;
   if (contDt) contDt.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO ANDAMIOS — Conteo de piezas
+// Hoja 'ANDAMIOS' en el mismo Sheet: A=rowIndex(fila real) B=TIPO
+// C=FOTO(nombre archivo en Drive) D=CANTIDAD E=OBS
+// ══════════════════════════════════════════════════════════════
+const SHEET_ANDAMIOS = 'ANDAMIOS';
+let allAndamios = [];      // [{ rowIndex, tipo, foto, cantidad, obs }]
+let andItemActual = null;  // ítem abierto en panel-and-edit
+let _andNuevoFoto = null;
+let _andEditFoto  = null;
+let _andGuardando = false; // evita doble-tap en +/- mientras se escribe a Sheets
+
+// Carga (o recarga) los datos desde Sheets y renderiza
+async function andCargar() {
+  try {
+    const rows = await fetchSheet(`'${SHEET_ANDAMIOS}'!A2:E500`);
+    allAndamios = (rows || [])
+      .map((r, i) => ({
+        rowIndex: i + 2, // fila real en la hoja (offset por header en fila 1)
+        tipo: r[0] || '',
+        foto: r[1] || '',
+        cantidad: parseInt(r[2]) || 0,
+        obs: r[3] || '',
+      }))
+      .filter(x => x.tipo); // ignora filas vacías
+  } catch (e) {
+    console.warn('[ANDAMIOS] Hoja no encontrada aún, se creará al guardar el primer tipo', e.message);
+    allAndamios = [];
+  }
+  andRenderLista();
+}
+
+function andInit() {
+  andCargar();
+}
+
+function andRenderLista() {
+  const searchEl = document.getElementById('and-search');
+  const txt = searchEl ? searchEl.value.toLowerCase() : '';
+
+  const filtrados = allAndamios
+    .filter(it => !txt || (it.tipo + it.obs).toLowerCase().includes(txt))
+    .sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'));
+
+  const html = filtrados.map(it => `
+    <div class="and-card">
+      <div class="and-thumb" id="and-thumb-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
+        ${it.foto ? '' : `<svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>`}
+      </div>
+      <div class="and-info" onclick="andAbrirEditar(${it.rowIndex})">
+        <div class="and-nombre">${it.tipo}</div>
+        ${it.obs ? `<div class="and-obs">${it.obs}</div>` : ''}
+      </div>
+      <div class="and-counter">
+        <button class="and-btn and-btn--minus" onclick="andCambiarCantidad(${it.rowIndex},-1)">−</button>
+        <span class="and-num" id="and-num-${it.rowIndex}">${it.cantidad}</span>
+        <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
+      </div>
+    </div>`).join('') || emptyState('Sin piezas registradas', 'Toca el botón ＋ para agregar el primer tipo de pieza');
+
+  const lista = document.getElementById('and-lista');
+  if (lista) lista.innerHTML = html;
+
+  // Cargar miniaturas de foto (async, no bloquea el render)
+  filtrados.forEach(it => { if (it.foto) invCargarMiniaturaAndamio(it.foto, `and-thumb-${it.rowIndex}`); });
+
+  const total = allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
+  const totalEl = document.getElementById('and-total');
+  if (totalEl) totalEl.textContent = total;
+}
+
+// Miniatura simplificada (reutiliza la búsqueda en Drive por nombre de archivo,
+// pero con thumb cuadrado en vez del formato "hero" de fichas)
+async function invCargarMiniaturaAndamio(fileName, thumbId) {
+  const el = document.getElementById(thumbId);
+  if (!el || !fileName) return;
+  try {
+    const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
+      { headers: { 'Authorization': 'Bearer ' + accessToken } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.files || data.files.length === 0) return;
+    const file = data.files[0];
+    const imgUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    const fallbackUrl = file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '';
+    el.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
+    el._driveFileId = file.id;
+  } catch (e) { /* silencioso: si falla, se queda el ícono placeholder */ }
+}
+
+// Abre la foto de un tipo en pantalla completa (reutiliza el modal genérico)
+function andVerFoto(rowIndex) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it || !it.foto) return;
+  invAbrirFotoModal(it.foto);
+}
+
+// ── Botones +1 / -1 ──────────────────────────────────────────
+// Actualiza en memoria y en pantalla al instante (feedback inmediato para
+// contar rápido), y escribe a Sheets en segundo plano.
+async function andCambiarCantidad(rowIndex, delta) {
+  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+
+  const nueva = Math.max(0, (it.cantidad || 0) + delta);
+  if (nueva === it.cantidad) return; // ya estaba en 0 y se intentó restar
+  it.cantidad = nueva;
+
+  // Feedback visual inmediato
+  const num = document.getElementById(`and-num-${rowIndex}`);
+  if (num) num.textContent = nueva;
+  const total = allAndamios.reduce((sum, x) => sum + (x.cantidad || 0), 0);
+  const totalEl = document.getElementById('and-total');
+  if (totalEl) totalEl.textContent = total;
+
+  // Escribir a Sheets (columna C = cantidad, fila rowIndex)
+  try {
+    await writeSheet(`'${SHEET_ANDAMIOS}'!C${rowIndex}`, [[nueva]]);
+  } catch (e) {
+    toast('No se pudo guardar el conteo: ' + e.message, 'error');
+    // revertir en memoria y en pantalla si falló el guardado
+    it.cantidad = nueva - delta;
+    if (num) num.textContent = it.cantidad;
+  }
+}
+
+// ── Nuevo tipo de pieza ────────────────────────────────────────
+function andAbrirNuevo() {
+  document.getElementById('and-nuevo-nombre').value = '';
+  document.getElementById('and-nuevo-cantidad').value = '0';
+  document.getElementById('and-nuevo-obs').value = '';
+  _andNuevoFoto = null;
+  const prev = document.getElementById('and-nuevo-foto-preview');
+  prev.innerHTML = ''; prev.style.display = 'none';
+  openPanel('panel-and-nuevo');
+}
+
+function onAndNuevoFotoSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    _andNuevoFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg' };
+    const prev = document.getElementById('and-nuevo-foto-preview');
+    prev.style.display = 'block';
+    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function andGuardarNuevo() {
+  const nombre = document.getElementById('and-nuevo-nombre').value.trim();
+  const cantidad = parseInt(document.getElementById('and-nuevo-cantidad').value) || 0;
+  const obs = document.getElementById('and-nuevo-obs').value.trim();
+  if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-nuevo-nombre').focus(); return; }
+
+  const btn = document.querySelector('#panel-and-nuevo .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    toast('Guardando...');
+    // Se agrega primero sin foto para conocer la fila real (rowIndex) donde quedó
+    await appendSheet(`'${SHEET_ANDAMIOS}'!A:D`, [[nombre, '', cantidad, obs]]);
+
+    let fotoNombre = '';
+    if (_andNuevoFoto) {
+      if (btn) btn.textContent = 'Subiendo foto...';
+      try {
+        const folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const ext = _andNuevoFoto.name.split('.').pop() || 'jpg';
+        const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
+        const boundary = 'lst_and_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_andNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_andNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
+        });
+        if (res.ok) { const r = await res.json(); fotoNombre = r.name; }
+      } catch (fe) { toast('Tipo guardado, pero la foto falló: ' + fe.message, 'error'); }
+    }
+
+    await andCargar();
+    if (fotoNombre) {
+      const it = allAndamios.find(x => x.tipo === nombre);
+      if (it) await writeSheet(`'${SHEET_ANDAMIOS}'!B${it.rowIndex}`, [[fotoNombre]]);
+      await andCargar();
+    }
+
+    toast('✓ Tipo de pieza agregado');
+    _origClosePanel('panel-and-nuevo');
+    const idx = _panelStack.lastIndexOf('panel-and-nuevo');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}
+
+// ── Editar tipo existente ───────────────────────────────────────
+function andAbrirEditar(rowIndex) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+  andItemActual = it;
+
+  document.getElementById('and-edit-row').value = it.rowIndex;
+  document.getElementById('and-edit-nombre').value = it.tipo;
+  document.getElementById('and-edit-cantidad').value = it.cantidad;
+  document.getElementById('and-edit-obs').value = it.obs || '';
+  _andEditFoto = null;
+  const prev = document.getElementById('and-edit-foto-preview');
+  prev.innerHTML = ''; prev.style.display = 'none';
+
+  openPanel('panel-and-edit');
+}
+
+function onAndEditFotoSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    _andEditFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg' };
+    const prev = document.getElementById('and-edit-foto-preview');
+    prev.style.display = 'block';
+    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function andGuardarEdit() {
+  const row = parseInt(document.getElementById('and-edit-row').value);
+  const nombre = document.getElementById('and-edit-nombre').value.trim();
+  const cantidad = parseInt(document.getElementById('and-edit-cantidad').value) || 0;
+  const obs = document.getElementById('and-edit-obs').value.trim();
+  if (!row) return;
+  if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-edit-nombre').focus(); return; }
+
+  const btn = document.querySelector('#panel-and-edit .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    toast('Guardando...');
+    await Promise.all([
+      writeSheet(`'${SHEET_ANDAMIOS}'!A${row}`, [[nombre]]),
+      writeSheet(`'${SHEET_ANDAMIOS}'!C${row}`, [[cantidad]]),
+      writeSheet(`'${SHEET_ANDAMIOS}'!D${row}`, [[obs]]),
+    ]);
+
+    if (_andEditFoto) {
+      if (btn) btn.textContent = 'Subiendo foto...';
+      try {
+        const folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const ext = _andEditFoto.name.split('.').pop() || 'jpg';
+        const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
+        const boundary = 'lst_and_' + Date.now();
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_andEditFoto.mimeType,'Content-Transfer-Encoding: base64','',_andEditFoto.b64,'--'+boundary+'--'].join('\r\n');
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
+        });
+        if (res.ok) { const r = await res.json(); await writeSheet(`'${SHEET_ANDAMIOS}'!B${row}`, [[r.name]]); }
+      } catch (fe) { toast('Guardado, pero la foto falló: ' + fe.message, 'error'); }
+    }
+
+    toast('✓ Guardado');
+    _origClosePanel('panel-and-edit');
+    const idx = _panelStack.lastIndexOf('panel-and-edit');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+    await andCargar();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}
+
+async function andEliminarTipo() {
+  const row = parseInt(document.getElementById('and-edit-row').value);
+  if (!row) return;
+  if (!confirm('¿Eliminar este tipo de pieza? Esta acción no se puede deshacer.')) return;
+
+  try {
+    toast('Eliminando...');
+    // No hay endpoint simple de "borrar fila" vía values API sin batchUpdate con sheetId;
+    // se vacían sus celdas para no dejar basura visible en el conteo.
+    await writeSheet(`'${SHEET_ANDAMIOS}'!A${row}:D${row}`, [['', '', '', '']]);
+    toast('✓ Eliminado');
+    _origClosePanel('panel-and-edit');
+    const idx = _panelStack.lastIndexOf('panel-and-edit');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+    await andCargar();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
 }
