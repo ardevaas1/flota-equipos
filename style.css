@@ -611,7 +611,8 @@ body.is-offline #app { padding-top: 30px; }
     z-index: 10;
   }
   .desktop-sidebar.dt-oculto,
-  .desktop-main.dt-oculto { display: none !important; }
+  .desktop-main.dt-oculto,
+  .desktop-detail.dt-oculto { display: none !important; }
 
   .desktop-sidebar-header {
     display: flex;

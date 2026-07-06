@@ -1268,12 +1268,15 @@ function _setDesktopSidebarFlota(visible) {
   if (!esDesktop) return;
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');
+  const d = document.getElementById('desktop-detail');
   if (visible) {
     if (s) s.classList.remove('dt-oculto');
     if (m) m.classList.remove('dt-oculto');
+    if (d) d.classList.remove('dt-oculto');
   } else {
     if (s) s.classList.add('dt-oculto');
     if (m) m.classList.add('dt-oculto');
+    if (d) d.classList.add('dt-oculto');
   }
 }
 
@@ -1519,8 +1522,10 @@ function volverAInicio() {
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');
+  const d = document.getElementById('desktop-detail');
   if (s) s.classList.add('dt-oculto');
   if (m) m.classList.add('dt-oculto');
+  if (d) d.classList.add('dt-oculto');
 
   _pgTransition(saliente, homeEl, 'back');
 }
