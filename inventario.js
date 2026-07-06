@@ -387,7 +387,7 @@ function renderInvLista() {
 }
 
 // ── Detalle ítem inventario ───────────────────────────────────
-function invAbrirDetalle(modulo, rowIndex) {
+function invAbrirDetalle(modulo, rowIndex, soloLectura) {
   const datos = modulo === 'generadores'  ? allGeneradores
               : modulo === 'maqmenor'     ? allMaqMenor
               : allHerramientas;
@@ -482,7 +482,7 @@ function invAbrirDetalle(modulo, rowIndex) {
 
     ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex))}
 
-    <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
+    <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
       <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver fotos en Drive
     </a>
@@ -2206,6 +2206,9 @@ function _movMultiRefrescarLista() {
         <div class="movm-item-title">${item.tipoEquipo} — ${item.nombreEquipo}</div>
         <div class="movm-item-sub">→ ${destinoMostrado}${personalizado ? ' (personalizado)' : ''}</div>
       </div>
+      <button type="button" class="btn-detalle-mini" title="Ver detalles y fotos" onclick="event.stopPropagation();movhVerDetalle('${item.modulo}',${item.rowIndex})">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
+      </button>
       <span style="color:#94a3b8"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg></span>
     </div>`;
   }).join('');
@@ -2509,15 +2512,31 @@ function movhRenderLista() {
       </div>
       <div class="card-right">
         <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
+        <button type="button" class="btn-detalle-mini" title="Ver detalles y fotos" onclick="event.stopPropagation();movhVerDetalle('${item.modulo}',${item.rowIndex})">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
+        </button>
       </div>
     </div>`;
   }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
+
 
   const lista = document.getElementById('movh-lista');
   const listaDt = document.getElementById('movh-dt-lista');
   if (lista) lista.innerHTML = html;
   if (listaDt) listaDt.innerHTML = html;
   _movhActualizarBarra();
+}
+
+// Abre la ficha completa (datos + fotos) de un equipo/ítem desde el módulo de Movimientos,
+// sin alterar la selección en curso. Usa el visor de detalle correcto según el módulo de origen.
+function movhVerDetalle(modulo, rowIndex) {
+  if (modulo === 'flota') {
+    const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.rowIndex === rowIndex);
+    if (!eq) { toast('Equipo no encontrado', 'error'); return; }
+    openFicha(eq.patente, true);
+  } else {
+    invAbrirDetalle(modulo, rowIndex, true);
+  }
 }
 
 function movhToggleItem(key) {
