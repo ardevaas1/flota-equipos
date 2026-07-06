@@ -139,14 +139,14 @@ body.is-offline #app { padding-top: 30px; }
 /* ── Transición de navegación entre módulos (estilo push/pop tipo Instagram/iOS) ──
    Solo en mobile: en desktop la navegación es por sidebar persistente, no "empuja" pantallas. */
 @media (max-width: 899.98px) {
-  #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos {
+  #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos, #mod-andamios {
     position: absolute;
     inset: 0;
     width: 100%;
   }
   #modulos-home { z-index: 1; }
-  #main, #mod-inventario, #mod-containers, #mod-movimientos { z-index: 2; }
-  #modulos-home.hidden, #main.hidden, #mod-inventario.hidden, #mod-containers.hidden, #mod-movimientos.hidden {
+  #main, #mod-inventario, #mod-containers, #mod-movimientos, #mod-andamios { z-index: 2; }
+  #modulos-home.hidden, #main.hidden, #mod-inventario.hidden, #mod-containers.hidden, #mod-movimientos.hidden, #mod-andamios.hidden {
     display: none !important;
   }
   /* will-change se aplica dinámicamente desde JS solo al elemento que anima,
@@ -950,7 +950,8 @@ body.is-offline #app { padding-top: 30px; }
   /* En desktop los módulos toman todo el viewport como el #app de flota */
   #mod-inventario,
   #mod-containers,
-  #mod-movimientos {
+  #mod-movimientos,
+  #mod-andamios {
     position: fixed;
     inset: 0;
     max-width: 100%;
@@ -1104,7 +1105,8 @@ body.is-offline #app { padding-top: 30px; }
 
   /* FAB en desktop: esquina inferior derecha del área central */
   #mod-inventario .fab-btn,
-  #mod-containers .fab-btn {
+  #mod-containers .fab-btn,
+  #mod-andamios .fab-btn {
     position: fixed;
     bottom: 28px;
     right: 28px;
