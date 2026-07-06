@@ -1,11 +1,11 @@
 {
-  "name": "LST Flota & Equipos",
-  "short_name": "LST Flota",
+  "name": "Constructora LST",
+  "short_name": "Constructora LST",
   "description": "Gestión de flota y maquinaria Constructora LST",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4a8fc1",
+  "background_color": "#0f172a",
+  "theme_color": "#1d4d75",
   "orientation": "portrait",
   "icons": [
     {
