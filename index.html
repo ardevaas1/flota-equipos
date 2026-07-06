@@ -982,6 +982,50 @@
 
   <!-- ══ MÓDULO ANDAMIOS (conteo de piezas) ══ -->
   <div id="mod-andamios" class="main hidden">
+
+    <!-- SIDEBAR DESKTOP -->
+    <div class="inv-desktop-sidebar" id="and-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--and">
+        <img src="logo-white.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Andamios</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div class="inv-desktop-stats cols-1" style="grid-template-columns:1fr">
+        <div class="inv-desktop-stat" style="background:var(--accent-soft);color:var(--accent-dark)">
+          <div class="inv-desktop-stat-n" id="and-dt-total">0</div>
+          <div class="inv-desktop-stat-l">Total de piezas contadas</div>
+        </div>
+      </div>
+      <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
+        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
+        <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M4 4v16M20 4v16M4 9h16M4 15h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Conteo de piezas</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn" onclick="andCargar()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="and-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title">Andamios</div>
+        <div class="inv-desktop-search">
+          <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <input type="text" id="and-dt-search" placeholder="Buscar tipo de pieza..." oninput="andSyncSearch()">
+        </div>
+      </div>
+      <div id="and-dt-import-bar" style="padding:0 24px 4px">
+        <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andImportarSeed()">⬇ Importar catálogo Andamio Europeo (una sola vez)</button>
+      </div>
+      <div class="inv-desktop-list">
+        <div id="and-dt-lista"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL -->
     <header class="header header--and" id="and-mobile-header">
       <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
@@ -992,7 +1036,7 @@
       <button class="header-btn" onclick="andCargar()">↻</button>
     </header>
 
-    <div class="and-total-bar">
+    <div class="and-total-bar" id="and-mobile-stats">
       <span>Total de piezas contadas</span>
       <span id="and-total">0</span>
     </div>
@@ -1001,19 +1045,20 @@
       <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andImportarSeed()">⬇ Importar catálogo Andamio Europeo (una sola vez)</button>
     </div>
 
-    <div style="padding:0 14px 8px">
+    <div style="padding:0 14px 8px" id="and-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
         <input type="text" id="and-search" placeholder="Buscar tipo de pieza..." oninput="andRenderLista()" style="width:100%;border:none;outline:none;font-size:14px">
       </div>
     </div>
 
-    <div class="pages" style="padding:0 14px 80px">
+    <div class="pages" style="padding:0 14px 80px" id="and-mobile-list">
       <div id="and-lista"></div>
     </div>
 
-    <button class="fab-btn" onclick="andAbrirNuevo()">＋</button>
+    <button class="fab-btn viewer-hidden" onclick="andAbrirNuevo()">＋</button>
   </div>
+
 
   <!-- ── Panel: Nuevo tipo de pieza (Andamios) ── -->
   <div id="panel-and-nuevo" class="panel hidden">

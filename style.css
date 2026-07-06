@@ -1011,6 +1011,11 @@ body.is-offline #app { padding-top: 30px; }
       radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
       linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%);
   }
+  .inv-desktop-sidebar-top--and {
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #5a349a 0%, #7c4dc4 55%, #a685dd 100%);
+  }
   .inv-desktop-sidebar-top img {
     width: 36px; height: 36px; object-fit: contain;
   }

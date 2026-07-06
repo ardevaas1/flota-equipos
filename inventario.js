@@ -1414,7 +1414,7 @@ function irAModulo(modulo) {
   } else if (modulo === 'andamios') {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-andamios'), 'forward');
-    requestAnimationFrame(() => andInit());
+    requestAnimationFrame(() => { _invActivarDesktop('andamios'); andInit(); });
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
@@ -1456,12 +1456,13 @@ function _invActivarDesktop(tipo) {
     if (mSearch)  mSearch.style.display  = esDesktop ? 'none'  : '';
     if (mList)    mList.style.display    = esDesktop ? 'none'  : '';
   } else {
-    const sidebar  = document.getElementById('cont-desktop-sidebar');
-    const content  = document.getElementById('cont-desktop-content');
-    const mHdr     = document.getElementById('cont-mobile-header');
-    const mStats   = document.getElementById('cont-mobile-stats');
-    const mSearch  = document.getElementById('cont-mobile-search');
-    const mList    = document.getElementById('cont-mobile-list');
+    const pre = tipo === 'andamios' ? 'and' : 'cont';
+    const sidebar  = document.getElementById(`${pre}-desktop-sidebar`);
+    const content  = document.getElementById(`${pre}-desktop-content`);
+    const mHdr     = document.getElementById(`${pre}-mobile-header`);
+    const mStats   = document.getElementById(`${pre}-mobile-stats`);
+    const mSearch  = document.getElementById(`${pre}-mobile-search`);
+    const mList    = document.getElementById(`${pre}-mobile-list`);
     if (sidebar)  sidebar.style.display  = esDesktop ? 'flex'  : 'none';
     if (content)  content.style.display  = esDesktop ? 'flex'  : 'none';
     if (mHdr)     mHdr.style.display     = esDesktop ? 'none'  : '';
@@ -2853,19 +2854,26 @@ function andInit() {
 
 function andRenderLista() {
   // Oculta el botón de importación inicial en cuanto ya existan piezas cargadas
+  const mostrarImport = allAndamios.length === 0 ? '' : 'none';
   const importBar = document.getElementById('and-import-bar');
-  if (importBar) importBar.style.display = allAndamios.length > 0 ? 'none' : '';
+  if (importBar) importBar.style.display = mostrarImport;
+  const importBarDt = document.getElementById('and-dt-import-bar');
+  if (importBarDt) importBarDt.style.display = mostrarImport;
 
-  const searchEl = document.getElementById('and-search');
-  const txt = searchEl ? searchEl.value.toLowerCase() : '';
+  // Sincroniza el texto de búsqueda entre el buscador móvil y el desktop
+  const searchEl   = document.getElementById('and-search');
+  const searchDtEl = document.getElementById('and-dt-search');
+  const txt = (searchEl ? searchEl.value : searchDtEl ? searchDtEl.value : '').toLowerCase();
 
   const filtrados = allAndamios
     .filter(it => !txt || (it.tipo + it.obs).toLowerCase().includes(txt))
     .sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'));
 
-  const html = filtrados.map(it => `
+  // suffix distingue los ids entre la copia móvil ('') y la copia desktop ('-dt')
+  // para que ambas puedan coexistir en el DOM sin chocar
+  const buildHtml = (suffix) => filtrados.map(it => `
     <div class="and-card">
-      <div class="and-thumb" id="and-thumb-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
+      <div class="and-thumb" id="and-thumb${suffix}-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
         ${it.foto ? '' : `<svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>`}
       </div>
       <div class="and-info" onclick="andAbrirEditar(${it.rowIndex})">
@@ -2874,20 +2882,36 @@ function andRenderLista() {
       </div>
       <div class="and-counter">
         <button class="and-btn and-btn--minus" onclick="andCambiarCantidad(${it.rowIndex},-1)">−</button>
-        <span class="and-num" id="and-num-${it.rowIndex}">${it.cantidad}</span>
+        <span class="and-num" id="and-num${suffix}-${it.rowIndex}">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
     </div>`).join('') || emptyState('Sin piezas registradas', 'Toca el botón ＋ para agregar el primer tipo de pieza');
 
-  const lista = document.getElementById('and-lista');
-  if (lista) lista.innerHTML = html;
+  const lista   = document.getElementById('and-lista');
+  const listaDt = document.getElementById('and-dt-lista');
+  if (lista)   lista.innerHTML   = buildHtml('');
+  if (listaDt) listaDt.innerHTML = buildHtml('-dt');
 
-  // Cargar miniaturas de foto (async, no bloquea el render)
-  filtrados.forEach(it => { if (it.foto) invCargarMiniaturaAndamio(it.foto, `and-thumb-${it.rowIndex}`); });
+  // Cargar miniaturas de foto (async, no bloquea el render) en ambas copias
+  filtrados.forEach(it => {
+    if (!it.foto) return;
+    invCargarMiniaturaAndamio(it.foto, `and-thumb-${it.rowIndex}`);
+    invCargarMiniaturaAndamio(it.foto, `and-thumb-dt-${it.rowIndex}`);
+  });
 
   const total = allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
   const totalEl = document.getElementById('and-total');
   if (totalEl) totalEl.textContent = total;
+  const totalDtEl = document.getElementById('and-dt-total');
+  if (totalDtEl) totalDtEl.textContent = total;
+}
+
+// Sincroniza búsqueda desktop → móvil (andRenderLista lee ambos campos)
+function andSyncSearch() {
+  const dtInput = document.getElementById('and-dt-search');
+  const mobInput = document.getElementById('and-search');
+  if (dtInput && mobInput) mobInput.value = dtInput.value;
+  andRenderLista();
 }
 
 // Miniatura simplificada (reutiliza la búsqueda en Drive por nombre de archivo,
@@ -2931,12 +2955,16 @@ async function andCambiarCantidad(rowIndex, delta) {
   if (nueva === it.cantidad) return; // ya estaba en 0 y se intentó restar
   it.cantidad = nueva;
 
-  // Feedback visual inmediato
+  // Feedback visual inmediato en ambas copias (móvil y desktop)
   const num = document.getElementById(`and-num-${rowIndex}`);
   if (num) num.textContent = nueva;
+  const numDt = document.getElementById(`and-num-dt-${rowIndex}`);
+  if (numDt) numDt.textContent = nueva;
   const total = allAndamios.reduce((sum, x) => sum + (x.cantidad || 0), 0);
   const totalEl = document.getElementById('and-total');
   if (totalEl) totalEl.textContent = total;
+  const totalDtEl = document.getElementById('and-dt-total');
+  if (totalDtEl) totalDtEl.textContent = total;
 
   // Escribir a Sheets (columna C = cantidad, fila rowIndex)
   try {
@@ -2946,6 +2974,7 @@ async function andCambiarCantidad(rowIndex, delta) {
     // revertir en memoria y en pantalla si falló el guardado
     it.cantidad = nueva - delta;
     if (num) num.textContent = it.cantidad;
+    if (numDt) numDt.textContent = it.cantidad;
   }
 }
 
@@ -3132,8 +3161,8 @@ async function andImportarSeed() {
     if (!confirm(`Se importarán ${ANDAMIOS_SEED.length} tipos de pieza con sus fotos y cantidades del proyecto. ¿Continuar?`)) return;
   }
 
-  const btn = document.querySelector('#and-import-bar .action-btn');
-  if (btn) btn.disabled = true;
+  const btns = document.querySelectorAll('#and-import-bar .action-btn, #and-dt-import-bar .action-btn');
+  btns.forEach(b => b.disabled = true);
 
   let folderId = DRIVE_INV_FOLDER;
   try { folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER); } catch (e) {}
@@ -3141,7 +3170,7 @@ async function andImportarSeed() {
   let ok = 0, fallidos = 0;
   for (let i = 0; i < ANDAMIOS_SEED.length; i++) {
     const item = ANDAMIOS_SEED[i];
-    if (btn) btn.textContent = `Importando ${i + 1}/${ANDAMIOS_SEED.length}: ${item.tipo}...`;
+    btns.forEach(b => b.textContent = `Importando ${i + 1}/${ANDAMIOS_SEED.length}: ${item.tipo}...`);
     toast(`Importando: ${item.tipo}`);
 
     let fotoNombre = '';
@@ -3167,7 +3196,7 @@ async function andImportarSeed() {
     }
   }
 
-  if (btn) { btn.disabled = false; btn.textContent = '⬇ Importar catálogo Andamio Europeo (una sola vez)'; }
+  btns.forEach(b => { b.disabled = false; b.textContent = '⬇ Importar catálogo Andamio Europeo (una sola vez)'; });
   toast(`✓ Importación terminada: ${ok} piezas agregadas${fallidos ? `, ${fallidos} con error` : ''}`);
   await andCargar();
 }
