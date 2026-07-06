@@ -2852,6 +2852,10 @@ function andInit() {
 }
 
 function andRenderLista() {
+  // Oculta el botón de importación inicial en cuanto ya existan piezas cargadas
+  const importBar = document.getElementById('and-import-bar');
+  if (importBar) importBar.style.display = allAndamios.length > 0 ? 'none' : '';
+
   const searchEl = document.getElementById('and-search');
   const txt = searchEl ? searchEl.value.toLowerCase() : '';
 
@@ -3115,4 +3119,55 @@ async function andEliminarTipo() {
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   }
+}
+
+// ── Importación inicial del catálogo Andamio Europeo (Alzatec) ──────────
+// Sube cada foto a Drive y agrega la fila correspondiente en la hoja ANDAMIOS.
+// Pensada para ejecutarse una sola vez; el botón se oculta solo apenas hay datos.
+async function andImportarSeed() {
+  if (typeof ANDAMIOS_SEED === 'undefined') { toast('No se encontró el catálogo a importar', 'error'); return; }
+  if (allAndamios.length > 0) {
+    if (!confirm('Ya hay piezas cargadas. ¿Importar de todos modos? Esto puede crear tipos duplicados.')) return;
+  } else {
+    if (!confirm(`Se importarán ${ANDAMIOS_SEED.length} tipos de pieza con sus fotos y cantidades del proyecto. ¿Continuar?`)) return;
+  }
+
+  const btn = document.querySelector('#and-import-bar .action-btn');
+  if (btn) btn.disabled = true;
+
+  let folderId = DRIVE_INV_FOLDER;
+  try { folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER); } catch (e) {}
+
+  let ok = 0, fallidos = 0;
+  for (let i = 0; i < ANDAMIOS_SEED.length; i++) {
+    const item = ANDAMIOS_SEED[i];
+    if (btn) btn.textContent = `Importando ${i + 1}/${ANDAMIOS_SEED.length}: ${item.tipo}...`;
+    toast(`Importando: ${item.tipo}`);
+
+    let fotoNombre = '';
+    if (item.fotoB64) {
+      try {
+        const fileName = `AND_${item.tipo.replace(/[^a-zA-Z0-9]+/g, '_')}.jpg`;
+        const boundary = 'lst_and_seed_' + Date.now() + '_' + i;
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const body = ['--' + boundary, 'Content-Type: application/json; charset=UTF-8', '', metadata, '--' + boundary, 'Content-Type: image/jpeg', 'Content-Transfer-Encoding: base64', '', item.fotoB64, '--' + boundary + '--'].join('\r\n');
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
+        });
+        if (res.ok) { const r = await res.json(); fotoNombre = r.name; }
+      } catch (fe) { console.warn('[ANDAMIOS SEED] Foto falló para', item.tipo, fe.message); }
+    }
+
+    try {
+      await appendSheet(`'${SHEET_ANDAMIOS}'!A:D`, [[item.tipo, fotoNombre, item.cantidad, item.obs || '']]);
+      ok++;
+    } catch (e) {
+      fallidos++;
+      console.warn('[ANDAMIOS SEED] Fila falló para', item.tipo, e.message);
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '⬇ Importar catálogo Andamio Europeo (una sola vez)'; }
+  toast(`✓ Importación terminada: ${ok} piezas agregadas${fallidos ? `, ${fallidos} con error` : ''}`);
+  await andCargar();
 }
