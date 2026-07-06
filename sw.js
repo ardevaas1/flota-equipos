@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v3';
+const CACHE_NAME = 'lst-flota-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const APP_SHELL = [
   './config.js',
   './app-v2.js',
   './inventario.js',
+  './andamios-seed.js',
   './manifest.json',
   './logo.png',
   './logo-white.png',
