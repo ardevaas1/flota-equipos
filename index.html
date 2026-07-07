@@ -39,6 +39,13 @@
     /* Botones marcados para ocultarse en modo solo-lectura (viewer y mover) */
     body.viewer-mode .viewer-hidden { display: none !important; }
 
+    /* ── Módulo Andamios: los botones +/- de conteo y el tap-to-edit de
+       cantidad NO pasaban por ningún filtro de rol (ni viewer ni mover
+       debían poder tocarlos). Se ocultan igual que el resto de controles
+       de edición en modo solo-lectura. */
+    body.viewer-mode .and-btn { display: none !important; }
+    body.viewer-mode .and-num { pointer-events: none; cursor: default !important; }
+
     /* ── Selección/registro en el módulo Movimientos ── */
     /* Por defecto (viewer-mode) ocultamos checkboxes y barra de mover */
     body.viewer-mode .movh-checkbox { display: none !important; }
@@ -1165,7 +1172,7 @@
       </div>
 
       <div class="form-sec">Foto de referencia</div>
-      <div class="form-group">
+      <div class="form-group" id="and-edit-foto-row">
         <div class="foto-add-row">
           <label class="foto-add-btn">
             <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><rect x="3" y="4" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 16l5-5 3 3 4-4 6 6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Elegir de galería

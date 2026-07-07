@@ -2853,6 +2853,15 @@ let _andNuevoFoto = null;
 let _andEditFoto  = null;
 let _andGuardando = false; // evita doble-tap en +/- mientras se escribe a Sheets
 let andFiltroSistema = ''; // '' = todos, 'Europeo', 'Multidireccional'
+
+// Andamios no tiene un rol propio: usa el mismo esquema del resto de la app,
+// donde solo 'admin' puede modificar. 'mover' existe para poder registrar
+// movimientos en el módulo Movimientos, pero eso NO debería darle permiso
+// para editar/contar piezas acá — antes esta función solo revisaba 'viewer'
+// y dejaba a 'mover' con vía libre para todo en este módulo.
+function _andSoloLectura() {
+  return typeof userRole !== 'undefined' && (userRole === 'viewer' || userRole === 'mover');
+}
 const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita re-consultar Drive en cada render
 
 // Carga (o recarga) los datos desde Sheets y renderiza
@@ -3018,7 +3027,7 @@ function andVerFoto(rowIndex) {
 // Actualiza en memoria y en pantalla al instante (feedback inmediato para
 // contar rápido), y escribe a Sheets en segundo plano.
 async function andCambiarCantidad(rowIndex, delta) {
-  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const it = allAndamios.find(x => x.rowIndex === rowIndex);
   if (!it) return;
 
@@ -3053,7 +3062,7 @@ async function andCambiarCantidad(rowIndex, delta) {
 // Reemplaza el número por un input numérico en línea; al confirmar
 // (blur o Enter) guarda el valor absoluto. Esc cancela sin guardar.
 function andEditarCantidadInline(rowIndex, spanEl) {
-  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   if (spanEl.tagName === 'INPUT') return; // ya está en edición
 
   const valorActual = spanEl.textContent;
@@ -3100,6 +3109,7 @@ async function andSetCantidadAbsoluta(rowIndex, nueva) {
 
 // ── Nuevo tipo de pieza ────────────────────────────────────────
 function andAbrirNuevo() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   document.getElementById('and-nuevo-nombre').value = '';
   document.getElementById('and-nuevo-cantidad').value = '0';
   document.getElementById('and-nuevo-obs').value = '';
@@ -3125,6 +3135,7 @@ function onAndNuevoFotoSelected(input) {
 }
 
 async function andGuardarNuevo() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const nombre = document.getElementById('and-nuevo-nombre').value.trim();
   const cantidad = parseInt(document.getElementById('and-nuevo-cantidad').value) || 0;
   const obs = document.getElementById('and-nuevo-obs').value.trim();
@@ -3189,6 +3200,16 @@ function andAbrirEditar(rowIndex) {
   const prev = document.getElementById('and-edit-foto-preview');
   prev.innerHTML = ''; prev.style.display = 'none';
 
+  // Sin vista separada de "solo ver" en este panel: para viewer/mover se
+  // deshabilitan los campos en vez de dejarlos editables sin poder guardar.
+  const soloLectura = _andSoloLectura();
+  ['and-edit-nombre', 'and-edit-cantidad', 'and-edit-obs', 'and-edit-sistema'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = soloLectura;
+  });
+  const fotoRow = document.getElementById('and-edit-foto-row');
+  if (fotoRow) fotoRow.style.display = soloLectura ? 'none' : '';
+
   openPanel('panel-and-edit');
 }
 
@@ -3207,6 +3228,7 @@ function onAndEditFotoSelected(input) {
 }
 
 async function andGuardarEdit() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const row = parseInt(document.getElementById('and-edit-row').value);
   const nombre = document.getElementById('and-edit-nombre').value.trim();
   const cantidad = parseInt(document.getElementById('and-edit-cantidad').value) || 0;
@@ -3256,6 +3278,7 @@ async function andGuardarEdit() {
 }
 
 async function andEliminarTipo() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const row = parseInt(document.getElementById('and-edit-row').value);
   if (!row) return;
   if (!confirm('¿Eliminar este tipo de pieza? Esta acción no se puede deshacer.')) return;
@@ -3294,6 +3317,7 @@ function _andCargarSeedScript() {
 }
 
 async function andImportarSeed() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   if (typeof ANDAMIOS_SEED === 'undefined') {
     toast('Cargando catálogo (una vez)...');
     const ok = await _andCargarSeedScript();
@@ -3351,7 +3375,7 @@ async function andImportarSeed() {
 // Pensado para reimportar limpio cuando quedaron tipos duplicados.
 async function andVaciarTodo() {
   document.querySelectorAll('.and-menu-opciones').forEach(m => m.classList.add('hidden'));
-  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   if (!allAndamios.length) { toast('El catálogo ya está vacío'); return; }
   if (!confirm(`Se borrarán las ${allAndamios.length} piezas registradas en el catálogo de Andamios (tipos y conteos). Las fotos ya subidas a Drive NO se eliminan. Esta acción no se puede deshacer. ¿Continuar?`)) return;
   if (!confirm('Confirma una vez más: se vaciará TODA la hoja ANDAMIOS. ¿Estás seguro?')) return;
