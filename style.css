@@ -1031,6 +1031,7 @@ body.is-offline #app { padding-top: 30px; }
   #mod-andamios {
     position: fixed;
     inset: 0;
+    width: 100vw !important;
     max-width: 100%;
     flex-direction: row !important;
     overflow: hidden;
@@ -1219,6 +1220,17 @@ body.is-offline #app { padding-top: 30px; }
   #mod-movimientos .searchbox,
   #movh-selbar,
   #mod-movimientos > .header {
+    display: none !important;
+  }
+
+  /* Vistas móviles de Movimientos (Registrar/Pendientes/Historial): son
+     contenedores con flex:1 en su propio estilo inline. Al ser hijos directos
+     de #mod-movimientos (que en desktop es un flex-row), competían por el
+     ancho junto al panel de escritorio real aunque estuvieran "vacías" por
+     dentro — eso era la causa del hueco en blanco a la derecha de la lista. */
+  #movh-vista-registrar,
+  #movh-vista-pendientes,
+  #movh-vista-historial {
     display: none !important;
   }
 
