@@ -483,6 +483,16 @@ function hideSplash() {
   }, 400);
 }
 
+// ── Debounce genérico para buscadores ──────────────────────────
+// Evita que cada buscador re-dibuje toda la lista en CADA tecla; espera un
+// pequeño instante de pausa antes de ejecutar. 'key' identifica cada buscador
+// para que no se pisen los timers entre módulos distintos.
+const _debTimers = {};
+function _deb(key, fn, wait = 180) {
+  clearTimeout(_debTimers[key]);
+  _debTimers[key] = setTimeout(fn, wait);
+}
+
 // ── Google Sheets API ─────────────────────────────────────────
 async function fetchSheet(range) {
   await ensureToken();

@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v4';
+const CACHE_NAME = 'lst-flota-shell-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -14,11 +14,16 @@ const APP_SHELL = [
   './config.js',
   './app-v2.js',
   './inventario.js',
-  './andamios-seed.js',
   './manifest.json',
   './logo.png',
   './logo-white.png',
 ];
+// Nota: andamios-seed.js (~800KB, catálogo con fotos) ya NO se precachea aquí
+// a propósito — ahora se carga bajo demanda solo cuando alguien toca "Importar
+// catálogo" en el módulo Andamios (ver andImportarSeed() en inventario.js), para
+// no cargarle ese peso a todos los usuarios en cada apertura de la app. Si se
+// pide, el manejador de "fetch" de más abajo lo cachea igual como cualquier
+// otro archivo del mismo origen.
 
 // Instalar: precachear el esqueleto de la app
 self.addEventListener('install', (event) => {

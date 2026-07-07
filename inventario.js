@@ -2853,6 +2853,7 @@ let _andNuevoFoto = null;
 let _andEditFoto  = null;
 let _andGuardando = false; // evita doble-tap en +/- mientras se escribe a Sheets
 let andFiltroSistema = ''; // '' = todos, 'Europeo', 'Multidireccional'
+const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita re-consultar Drive en cada render
 
 // Carga (o recarga) los datos desde Sheets y renderiza
 async function andCargar() {
@@ -2976,6 +2977,14 @@ function andSyncSearch() {
 async function invCargarMiniaturaAndamio(fileName, thumbId) {
   const el = document.getElementById(thumbId);
   if (!el || !fileName) return;
+
+  // Ya se había resuelto esta foto antes (misma foto en otro render): usar directo, sin llamar a Drive de nuevo
+  if (_andThumbCache[fileName]) {
+    const { imgUrl, fallbackUrl } = _andThumbCache[fileName];
+    el.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
+    return;
+  }
+
   try {
     const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
     const res = await fetch(
@@ -2988,8 +2997,13 @@ async function invCargarMiniaturaAndamio(fileName, thumbId) {
     const file = data.files[0];
     const imgUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
     const fallbackUrl = file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '';
-    el.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
-    el._driveFileId = file.id;
+    _andThumbCache[fileName] = { imgUrl, fallbackUrl }; // cachear para los próximos renders
+
+    // El elemento pudo haber sido reemplazado por un re-render mientras esperábamos
+    // la respuesta de Drive (ej: el usuario siguió escribiendo en el buscador);
+    // se vuelve a buscar por id antes de pintar para no escribir sobre un nodo viejo.
+    const elAhora = document.getElementById(thumbId);
+    if (elAhora) elAhora.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
   } catch (e) { /* silencioso: si falla, se queda el ícono placeholder */ }
 }
 
@@ -3264,8 +3278,27 @@ async function andEliminarTipo() {
 // ── Importación inicial del catálogo Andamio Europeo (Alzatec) ──────────
 // Sube cada foto a Drive y agrega la fila correspondiente en la hoja ANDAMIOS.
 // Pensada para ejecutarse una sola vez; el botón se oculta solo apenas hay datos.
+// Carga andamios-seed.js bajo demanda (800KB con las fotos del catálogo).
+// Ya no se incluye como <script> fijo en index.html para que el resto de la
+// app (Flota, Inventario, Containers, Movimientos) no tenga que descargar y
+// parsear ese peso en CADA apertura, aunque el catálogo ya esté importado.
+function _andCargarSeedScript() {
+  if (typeof ANDAMIOS_SEED !== 'undefined') return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'andamios-seed.js';
+    s.onload = () => resolve(typeof ANDAMIOS_SEED !== 'undefined');
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
 async function andImportarSeed() {
-  if (typeof ANDAMIOS_SEED === 'undefined') { toast('No se encontró el catálogo a importar', 'error'); return; }
+  if (typeof ANDAMIOS_SEED === 'undefined') {
+    toast('Cargando catálogo (una vez)...');
+    const ok = await _andCargarSeedScript();
+    if (!ok) { toast('No se pudo cargar el catálogo a importar. Revisa tu conexión.', 'error'); return; }
+  }
   if (allAndamios.length > 0) {
     if (!confirm('Ya hay piezas cargadas. ¿Importar de todos modos? Esto puede crear tipos duplicados.')) return;
   } else {
