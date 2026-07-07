@@ -1027,8 +1027,11 @@
       <div id="and-dt-import-bar" style="padding:0 24px 4px">
         <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andImportarSeed()">⬇ Importar catálogo completo (Europeo + Multidireccional)</button>
       </div>
-      <div id="and-dt-vaciar-bar" style="padding:0 24px 4px">
-        <button class="action-btn" style="background:#fde8e8;color:#c0392b;border:none" onclick="andVaciarTodo()">🗑 Vaciar catálogo completo</button>
+      <div id="and-dt-opciones-wrap" style="position:relative;padding:0 24px 4px">
+        <button class="action-btn" style="background:var(--neutral-soft);color:var(--ink-soft);border:none" onclick="andToggleMenuOpciones('and-dt-menu-opciones')">⋮ Opciones</button>
+        <div id="and-dt-menu-opciones" class="and-menu-opciones hidden">
+          <button class="and-menu-vaciar-btn" onclick="andVaciarTodo()">🗑 Vaciar catálogo completo</button>
+        </div>
       </div>
       <div class="inv-desktop-list">
         <div id="and-dt-lista"></div>
@@ -1055,8 +1058,11 @@
       <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andImportarSeed()">⬇ Importar catálogo completo (Europeo + Multidireccional)</button>
     </div>
 
-    <div id="and-vaciar-bar" style="padding:0 14px 10px">
-      <button class="action-btn" style="background:#fde8e8;color:#c0392b;border:none" onclick="andVaciarTodo()">🗑 Vaciar catálogo completo</button>
+    <div id="and-opciones-wrap" style="position:relative;padding:0 14px 10px">
+      <button class="action-btn" style="background:var(--neutral-soft);color:var(--ink-soft);border:none" onclick="andToggleMenuOpciones('and-menu-opciones')">⋮ Opciones</button>
+      <div id="and-menu-opciones" class="and-menu-opciones hidden">
+        <button class="and-menu-vaciar-btn" onclick="andVaciarTodo()">🗑 Vaciar catálogo completo</button>
+      </div>
     </div>
 
     <div style="padding:0 14px 8px" id="and-mobile-search">

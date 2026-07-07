@@ -2907,7 +2907,7 @@ function andRenderLista() {
       </div>
       <div class="and-counter">
         <button class="and-btn and-btn--minus" onclick="andCambiarCantidad(${it.rowIndex},-1)">−</button>
-        <span class="and-num" id="and-num${suffix}-${it.rowIndex}">${it.cantidad}</span>
+        <span class="and-num" id="and-num${suffix}-${it.rowIndex}" onclick="andEditarCantidadInline(${it.rowIndex}, this)">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
     </div>`;
@@ -3014,6 +3014,55 @@ async function andCambiarCantidad(rowIndex, delta) {
     it.cantidad = nueva - delta;
     if (num) num.textContent = it.cantidad;
     if (numDt) numDt.textContent = it.cantidad;
+  }
+}
+
+// ── Editar cantidad exacta con un tap (útil para conteos grandes) ──────
+// Reemplaza el número por un input numérico en línea; al confirmar
+// (blur o Enter) guarda el valor absoluto. Esc cancela sin guardar.
+function andEditarCantidadInline(rowIndex, spanEl) {
+  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  if (spanEl.tagName === 'INPUT') return; // ya está en edición
+
+  const valorActual = spanEl.textContent;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.className = 'and-num-input';
+  input.value = valorActual;
+  input.id = spanEl.id;
+  spanEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let resuelto = false;
+  const confirmar = () => {
+    if (resuelto) return;
+    resuelto = true;
+    const nueva = Math.max(0, parseInt(input.value) || 0);
+    andSetCantidadAbsoluta(rowIndex, nueva);
+  };
+  input.addEventListener('blur', confirmar);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { resuelto = true; andRenderLista(); }
+  });
+}
+
+async function andSetCantidadAbsoluta(rowIndex, nueva) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+  const anterior = it.cantidad;
+  it.cantidad = nueva;
+  andRenderLista(); // restaura el span (ya no input) y recalcula el total con el valor nuevo
+
+  try {
+    await writeSheet(`'${SHEET_ANDAMIOS}'!C${rowIndex}`, [[nueva]]);
+    toast('✓ Cantidad actualizada');
+  } catch (e) {
+    it.cantidad = anterior;
+    toast('No se pudo guardar: ' + e.message, 'error');
+    andRenderLista();
   }
 }
 
@@ -3250,12 +3299,13 @@ async function andImportarSeed() {
 // (no borra las fotos ya subidas a Drive, solo las filas del Sheet).
 // Pensado para reimportar limpio cuando quedaron tipos duplicados.
 async function andVaciarTodo() {
+  document.querySelectorAll('.and-menu-opciones').forEach(m => m.classList.add('hidden'));
   if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
   if (!allAndamios.length) { toast('El catálogo ya está vacío'); return; }
   if (!confirm(`Se borrarán las ${allAndamios.length} piezas registradas en el catálogo de Andamios (tipos y conteos). Las fotos ya subidas a Drive NO se eliminan. Esta acción no se puede deshacer. ¿Continuar?`)) return;
   if (!confirm('Confirma una vez más: se vaciará TODA la hoja ANDAMIOS. ¿Estás seguro?')) return;
 
-  const btns = document.querySelectorAll('#and-vaciar-bar .action-btn, #and-dt-vaciar-bar .action-btn');
+  const btns = document.querySelectorAll('.and-menu-vaciar-btn');
   btns.forEach(b => { b.disabled = true; b.textContent = 'Vaciando...'; });
 
   try {
@@ -3270,3 +3320,17 @@ async function andVaciarTodo() {
     btns.forEach(b => { b.disabled = false; b.textContent = '🗑 Vaciar catálogo completo'; });
   }
 }
+
+// Abre/cierra el pequeño menú "⋮ Opciones" que esconde acciones destructivas
+// (por ahora solo Vaciar catálogo) para que no se toquen sin querer.
+function andToggleMenuOpciones(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const yaAbierto = !el.classList.contains('hidden');
+  document.querySelectorAll('.and-menu-opciones').forEach(m => m.classList.add('hidden'));
+  if (!yaAbierto) el.classList.remove('hidden');
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#and-opciones-wrap, #and-dt-opciones-wrap')) return;
+  document.querySelectorAll('.and-menu-opciones').forEach(m => m.classList.add('hidden'));
+});
