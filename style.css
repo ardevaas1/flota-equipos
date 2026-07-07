@@ -66,6 +66,12 @@ button:active, .modulo-card:active, .equipo-card:active, .inv-card:active, .cont
   transform: scale(0.96);
   opacity: 0.85;
 }
+/* Resaltado de color al tocar tarjetas de lista (mismo lenguaje visual que el
+   hover en PC: borde con el color de acento del módulo) */
+.and-card:active, .cont-card:active, .equipo-card:active, .movh-card:active {
+  border-color: var(--accent);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.07);
+}
 
 #offline-banner {
   position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
@@ -354,6 +360,7 @@ body.is-offline #app { padding-top: 30px; }
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
 .chip:active { transform: scale(0.96); }
+.chip:active:not(.active) { background: var(--neutral-soft); }
 .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 3px 8px rgba(var(--accent-rgb),0.3); }
 .chip-ic { width: 14px; height: 14px; flex-shrink: 0; }
 
@@ -1285,7 +1292,7 @@ body.is-offline #app { padding-top: 30px; }
 .modulo-card--mov::before   { background: #2f8a4d; }
 .modulo-card--and::before   { background: #9c2f2f; }
 
-.modulo-card:active { transform: scale(0.97); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+.modulo-card:active { transform: scale(0.97); box-shadow: 0 4px 14px rgba(0,0,0,0.1); border-color: var(--accent); }
 .modulo-icon {
   width: 48px; height: 48px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
