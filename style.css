@@ -605,6 +605,38 @@ body.is-offline #app { padding-top: 30px; }
 
 @media (min-width: 900px) {
 
+  /* ── Pantalla de inicio (selección de módulos): en desktop se ven como
+     cuadrados en una sola fila en vez del grid 2 columnas de móvil, para
+     que la pantalla grande no se vea vacía ── */
+  .modulos-header {
+    padding: 44px 20px 36px;
+  }
+  .modulos-lista {
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    padding: 40px 24px;
+  }
+  /* Cancela el "ancho completo" del último módulo impar (regla pensada
+     solo para el layout móvil de 2 columnas) */
+  .modulo-card:nth-last-child(1):nth-child(odd) {
+    grid-column: auto;
+  }
+  .modulo-card {
+    align-items: center;
+    text-align: center;
+    aspect-ratio: 1 / 1;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .modulo-icon {
+    width: 60px; height: 60px; border-radius: 16px;
+  }
+  .modulo-icon svg { width: 30px; height: 30px; }
+  .modulo-info { flex: none; }
+
   /* ── Shell: ocultar todo lo móvil ── */
   #main  { display: none !important; }
   .nav   { display: none !important; }
