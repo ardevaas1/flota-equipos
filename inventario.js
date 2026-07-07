@@ -1316,8 +1316,26 @@ function _pgTransition(saliente, entrante, direccion) {
   // Cancelar animación anterior y dejar DOM limpio
   _pgAbortAnim();
 
-  // Desktop o misma pantalla: cambio instantáneo, sin animación
-  if (window.innerWidth >= 900 || !saliente || saliente === entrante) {
+  // Desktop: fundido suave (crossfade) en vez del slide de móvil —
+  // la navegación es por sidebar persistente, no "empuja" pantallas,
+  // pero sí queda con una transición sutil en vez de un salto seco.
+  if (window.innerWidth >= 900) {
+    PG_CONTAINERS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el !== entrante) el.classList.add('hidden');
+    });
+    entrante.classList.remove('hidden');
+    entrante.classList.add('pg-fade-enter');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      entrante.classList.remove('pg-fade-enter');
+      entrante.classList.add('pg-fade-enter-active');
+      setTimeout(() => entrante.classList.remove('pg-fade-enter-active'), 220);
+    }));
+    return;
+  }
+
+  // Misma pantalla: cambio instantáneo, sin animación
+  if (!saliente || saliente === entrante) {
     PG_CONTAINERS.forEach(id => {
       const el = document.getElementById(id);
       if (el && el !== entrante) el.classList.add('hidden');

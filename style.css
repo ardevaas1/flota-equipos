@@ -59,8 +59,8 @@ input, select, textarea { font-family: inherit; }
 
 /* ── Feedback táctil ── leve "hundimiento" al presionar botones, tarjetas e ítems,
    para que se sienta que uno está realmente apretando algo (estilo apps nativas). */
-button, .modulo-card, .equipo-card, .inv-card, .cont-card, .movh-card, [onclick] {
-  transition: transform .12s ease, opacity .12s ease;
+button, .modulo-card, .equipo-card, .inv-card, .cont-card, .movh-card, .and-card, .fab-btn, .chip, [onclick] {
+  transition: transform .12s ease, opacity .12s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
 }
 button:active, .modulo-card:active, .equipo-card:active, .inv-card:active, .cont-card:active, .movh-card:active, [onclick]:active {
   transform: scale(0.96);
@@ -137,7 +137,8 @@ body.is-offline #app { padding-top: 30px; }
 .main { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
 
 /* ── Transición de navegación entre módulos (estilo push/pop tipo Instagram/iOS) ──
-   Solo en mobile: en desktop la navegación es por sidebar persistente, no "empuja" pantallas. */
+   El slide es solo en mobile: en desktop la navegación es por sidebar persistente,
+   no "empuja" pantallas — pero sí tiene su propio fundido suave (ver más abajo). */
 @media (max-width: 899.98px) {
   #modulos-home, #main, #mod-inventario, #mod-containers, #mod-movimientos, #mod-andamios {
     position: absolute;
@@ -163,6 +164,15 @@ body.is-offline #app { padding-top: 30px; }
   .pg-pop-exit-active {
     transition: transform .22s cubic-bezier(0.4, 0, 1, 1);
     transform: translateX(100%);
+  }
+}
+
+/* ── Transición de navegación en desktop: fundido suave (crossfade) ── */
+@media (min-width: 900px) {
+  .pg-fade-enter { opacity: 0; }
+  .pg-fade-enter-active {
+    opacity: 1;
+    transition: opacity .2s ease-out;
   }
 }
 
@@ -1192,6 +1202,26 @@ body.is-offline #app { padding-top: 30px; }
 
   /* Barra de selección de Movimientos: en desktop se ancla al área central, no a todo el viewport */
   #movh-selbar-desktop.show { display: flex !important; }
+
+  /* ── Feedback de hover (mouse) en desktop ──
+     En mobile el toque ya "avisa" con :active; en desktop, al no haber
+     toque, se agrega hover con mouse para que se note que algo es
+     clicable antes de hacer el clic, además del :active que ya existe. */
+  .modulo-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.09);
+    border-color: var(--accent);
+  }
+  .and-card:hover, .cont-card:hover, .equipo-card:hover, .movh-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  }
+  .action-btn:hover { background: var(--accent-soft); cursor: pointer; }
+  .chip:hover:not(.active) { background: var(--neutral-soft); cursor: pointer; }
+  .fab-btn:hover { transform: scale(1.06); box-shadow: 0 6px 18px rgba(var(--accent-rgb),0.45); }
+  .and-btn:hover { filter: brightness(0.96); }
+  .and-menu-vaciar-btn:hover { background: #fde8e8; }
+  .desktop-tab:hover, .inv-desktop-tab:hover { cursor: pointer; }
 
 }
 
