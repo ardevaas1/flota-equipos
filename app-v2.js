@@ -232,7 +232,23 @@ function initOAuth() {
 
     isRenewing = true;
     const prevCb = tokenClient.callback;
+    let resuelto = false;
+
+    // Watchdog: si el callback silencioso nunca se dispara (problema conocido
+    // en Safari/iOS), sin esto 'isRenewing' quedaría en true para siempre y
+    // esta renovación jamás se volvería a intentar — el token expira y la
+    // sesión queda rota en silencio hasta que la persona recargue la página.
+    const watchdog = setTimeout(() => {
+      if (resuelto) return;
+      resuelto = true;
+      tokenClient.callback = prevCb;
+      isRenewing = false;
+    }, 8000);
+
     tokenClient.callback = (response) => {
+      if (resuelto) return;
+      resuelto = true;
+      clearTimeout(watchdog);
       tokenClient.callback = prevCb;
       isRenewing = false;
       if (response.error) { return; }
@@ -251,9 +267,34 @@ function signIn() {
   const savedEmail  = localStorage.getItem(EMAIL_KEY) || '';
   // Primera vez: consent para obtener todos los permisos
   // Veces siguientes: silencioso con login_hint para evitar popup de cuenta
-  const opts = (hadLogin && hasAllScopes)
+  const esSilencioso = hadLogin && hasAllScopes;
+  const opts = esSilencioso
     ? { prompt: '', login_hint: savedEmail }
     : { prompt: 'consent', include_granted_scopes: 'true' };
+
+  if (esSilencioso) {
+    // Watchdog: si el intento silencioso nunca dispara callback (problema
+    // conocido en Safari/iOS), el botón quedaría pegado en "Conectando..."
+    // para siempre. Si pasan 6s sin respuesta, se reintenta pidiendo consent
+    // visible en vez de quedar colgado.
+    let resuelto = false;
+    const prevCb = tokenClient.callback;
+    const watchdog = setTimeout(() => {
+      if (resuelto) return;
+      resuelto = true;
+      tokenClient.callback = prevCb;
+      document.getElementById('login-hint').textContent = 'Conectando...';
+      tokenClient.requestAccessToken({ prompt: 'consent', include_granted_scopes: 'true' });
+    }, 6000);
+    tokenClient.callback = (response) => {
+      if (resuelto) return;
+      resuelto = true;
+      clearTimeout(watchdog);
+      tokenClient.callback = prevCb;
+      if (prevCb) prevCb(response);
+    };
+  }
+
   tokenClient.requestAccessToken(opts);
 }
 
@@ -267,7 +308,28 @@ function ensureToken() {
     function intentarRenovar() {
       intentos++;
       const prevCallback = tokenClient.callback;
+      let resuelto = false;
+
+      // Watchdog: en Safari/iOS el callback silencioso puede no dispararse
+      // NUNCA (ni éxito ni error) — problema conocido de Google Identity
+      // Services ahí. Sin este timeout, esta Promise quedaría pendiente para
+      // siempre y CUALQUIER acción de la app (guardar, cargar, mover, etc.)
+      // se vería "pegada" indefinidamente en ese dispositivo.
+      const watchdog = setTimeout(() => {
+        if (resuelto) return;
+        resuelto = true;
+        tokenClient.callback = prevCallback;
+        if (intentos < 2) {
+          setTimeout(intentarRenovar, 1500);
+        } else {
+          reject(new Error('timeout_renovacion_silenciosa'));
+        }
+      }, 6000);
+
       tokenClient.callback = (response) => {
+        if (resuelto) return;
+        resuelto = true;
+        clearTimeout(watchdog);
         tokenClient.callback = prevCallback;
         if (response.error) {
           if (intentos < 2 && response.error !== 'access_denied') {
@@ -1952,7 +2014,29 @@ function enterApp() {
       intentosInit++;
       if (tokenClient) {
         const prevCb = tokenClient.callback;
+        let resuelto = false;
+
+        // Watchdog: en Safari/iOS, requestAccessToken con prompt:'' (silencioso)
+        // puede quedar colgado sin disparar el callback NI de éxito NI de error
+        // (problema conocido de Google Identity Services en Safari, relacionado
+        // con el bloqueo de cookies/almacenamiento de terceros). Sin este timeout
+        // la app se queda pegada en "Sincronizando..." para siempre en esos casos.
+        const watchdog = setTimeout(() => {
+          if (resuelto) return;
+          resuelto = true;
+          tokenClient.callback = prevCb;
+          if (intentosInit < 3) {
+            setTimeout(intentarSilencioso, 1500);
+          } else {
+            splashEl.classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+          }
+        }, 6000);
+
         tokenClient.callback = (response) => {
+          if (resuelto) return;
+          resuelto = true;
+          clearTimeout(watchdog);
           tokenClient.callback = prevCb;
           if (response.error) {
             if (intentosInit < 3 && response.error !== 'access_denied') {
