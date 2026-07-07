@@ -1465,12 +1465,14 @@ function _invActivarDesktop(tipo) {
     const mHdr     = document.getElementById(`${pre}-mobile-header`);
     const mStats   = document.getElementById(`${pre}-mobile-stats`);
     const mSearch  = document.getElementById(`${pre}-mobile-search`);
+    const mChips   = document.getElementById(`${pre}-mobile-chips`);
     const mList    = document.getElementById(`${pre}-mobile-list`);
     if (sidebar)  sidebar.style.display  = esDesktop ? 'flex'  : 'none';
     if (content)  content.style.display  = esDesktop ? 'flex'  : 'none';
     if (mHdr)     mHdr.style.display     = esDesktop ? 'none'  : '';
     if (mStats)   mStats.style.display   = esDesktop ? 'none'  : '';
     if (mSearch)  mSearch.style.display  = esDesktop ? 'none'  : '';
+    if (mChips)   mChips.style.display   = esDesktop ? 'none'  : '';
     if (mList)    mList.style.display    = esDesktop ? 'none'  : '';
   }
 }
@@ -3241,4 +3243,30 @@ async function andImportarSeed() {
   btns.forEach(b => { b.disabled = false; b.textContent = '⬇ Importar catálogo completo (Europeo + Multidireccional)'; });
   toast(`✓ Importación terminada: ${ok} piezas agregadas${fallidos ? `, ${fallidos} con error` : ''}`);
   await andCargar();
+}
+
+// ── Vaciar catálogo completo ─────────────────────────────────────
+// Borra el contenido de TODAS las filas de datos de la hoja ANDAMIOS
+// (no borra las fotos ya subidas a Drive, solo las filas del Sheet).
+// Pensado para reimportar limpio cuando quedaron tipos duplicados.
+async function andVaciarTodo() {
+  if (typeof userRole !== 'undefined' && userRole === 'viewer') { toast('Sin permisos para modificar', 'error'); return; }
+  if (!allAndamios.length) { toast('El catálogo ya está vacío'); return; }
+  if (!confirm(`Se borrarán las ${allAndamios.length} piezas registradas en el catálogo de Andamios (tipos y conteos). Las fotos ya subidas a Drive NO se eliminan. Esta acción no se puede deshacer. ¿Continuar?`)) return;
+  if (!confirm('Confirma una vez más: se vaciará TODA la hoja ANDAMIOS. ¿Estás seguro?')) return;
+
+  const btns = document.querySelectorAll('#and-vaciar-bar .action-btn, #and-dt-vaciar-bar .action-btn');
+  btns.forEach(b => { b.disabled = true; b.textContent = 'Vaciando...'; });
+
+  try {
+    toast('Vaciando catálogo...');
+    const filasVacias = Array.from({ length: 500 }, () => ['', '', '', '', '']);
+    await writeSheet(`'${SHEET_ANDAMIOS}'!A2:E501`, filasVacias);
+    toast('✓ Catálogo vaciado. Ya puedes reimportar limpio.');
+    await andCargar();
+  } catch (err) {
+    toast('Error al vaciar: ' + err.message, 'error');
+  } finally {
+    btns.forEach(b => { b.disabled = false; b.textContent = '🗑 Vaciar catálogo completo'; });
+  }
 }
