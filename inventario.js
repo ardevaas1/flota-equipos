@@ -2862,6 +2862,27 @@ let andFiltroSistema = ''; // '' = todos, 'Europeo', 'Multidireccional'
 function _andSoloLectura() {
   return typeof userRole !== 'undefined' && (userRole === 'viewer' || userRole === 'mover');
 }
+
+// Envía una escritura de Andamios al Apps Script en vez de escribir directo a
+// Sheets con el token del usuario. El script valida el rol server-side (contra
+// la hoja USUARIOS) y escribe con SUS PROPIOS permisos — así alguien con rol
+// 'andamios' puede contar/editar piezas sin necesitar que le compartan la
+// planilla como Editor. Requiere que APPS_SCRIPT_URL (app-v2.js) apunte a la
+// implementación con el código de APPS_SCRIPT_ACTUALIZADO.js.
+async function _andEscrituraRemota(accion, params) {
+  await ensureToken();
+  const qs = new URLSearchParams({ accion, accessToken, ...params }).toString();
+  let res;
+  try {
+    res = await fetch(`${APPS_SCRIPT_URL}?${qs}`);
+  } catch (e) {
+    throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
+  }
+  if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Error desconocido al guardar');
+  return data;
+}
 const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita re-consultar Drive en cada render
 
 // Carga (o recarga) los datos desde Sheets y renderiza
@@ -3060,9 +3081,10 @@ async function andCambiarCantidad(rowIndex, delta) {
   const totalDtEl = document.getElementById('and-dt-total');
   if (totalDtEl) totalDtEl.textContent = total;
 
-  // Escribir a Sheets (columna C = cantidad, fila rowIndex)
+  // Escribir la cantidad vía el Apps Script (no requiere que el usuario
+  // tenga permiso de Editor directo sobre la planilla)
   try {
-    await writeSheet(`'${SHEET_ANDAMIOS}'!C${rowIndex}`, [[nueva]]);
+    await _andEscrituraRemota('and_set_cantidad', { row: rowIndex, cantidad: nueva });
   } catch (e) {
     toast('No se pudo guardar el conteo: ' + e.message, 'error');
     // revertir en memoria y en pantalla si falló el guardado
@@ -3112,7 +3134,7 @@ async function andSetCantidadAbsoluta(rowIndex, nueva) {
   andRenderLista(); // restaura el span (ya no input) y recalcula el total con el valor nuevo
 
   try {
-    await writeSheet(`'${SHEET_ANDAMIOS}'!C${rowIndex}`, [[nueva]]);
+    await _andEscrituraRemota('and_set_cantidad', { row: rowIndex, cantidad: nueva });
     toast('✓ Cantidad actualizada');
   } catch (e) {
     it.cantidad = anterior;
@@ -3162,7 +3184,8 @@ async function andGuardarNuevo() {
   try {
     toast('Guardando...');
     // Se agrega primero sin foto para conocer la fila real (rowIndex) donde quedó
-    await appendSheet(`'${SHEET_ANDAMIOS}'!A:E`, [[nombre, '', cantidad, obs, sistema]]);
+    const resp = await _andEscrituraRemota('and_nuevo', { tipo: nombre, cantidad, obs, sistema });
+    const nuevaFila = resp.row;
 
     let fotoNombre = '';
     if (_andNuevoFoto) {
@@ -3177,14 +3200,17 @@ async function andGuardarNuevo() {
         const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
           method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
         });
-        if (res.ok) { const r = await res.json(); fotoNombre = r.name; }
+        if (res.ok) {
+          const r = await res.json(); fotoNombre = r.name;
+        } else {
+          throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
+        }
       } catch (fe) { toast('Tipo guardado, pero la foto falló: ' + fe.message, 'error'); }
     }
 
     await andCargar();
-    if (fotoNombre) {
-      const it = allAndamios.find(x => x.tipo === nombre);
-      if (it) await writeSheet(`'${SHEET_ANDAMIOS}'!B${it.rowIndex}`, [[fotoNombre]]);
+    if (fotoNombre && nuevaFila) {
+      await _andEscrituraRemota('and_set_foto', { row: nuevaFila, foto: fotoNombre });
       await andCargar();
     }
 
@@ -3256,12 +3282,7 @@ async function andGuardarEdit() {
 
   try {
     toast('Guardando...');
-    await Promise.all([
-      writeSheet(`'${SHEET_ANDAMIOS}'!A${row}`, [[nombre]]),
-      writeSheet(`'${SHEET_ANDAMIOS}'!C${row}`, [[cantidad]]),
-      writeSheet(`'${SHEET_ANDAMIOS}'!D${row}`, [[obs]]),
-      writeSheet(`'${SHEET_ANDAMIOS}'!E${row}`, [[sistema]]),
-    ]);
+    await _andEscrituraRemota('and_editar', { row, tipo: nombre, cantidad, obs, sistema });
 
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
@@ -3275,7 +3296,12 @@ async function andGuardarEdit() {
         const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
           method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
         });
-        if (res.ok) { const r = await res.json(); await writeSheet(`'${SHEET_ANDAMIOS}'!B${row}`, [[r.name]]); }
+        if (res.ok) {
+          const r = await res.json();
+          await _andEscrituraRemota('and_set_foto', { row, foto: r.name });
+        } else {
+          throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
+        }
       } catch (fe) { toast('Guardado, pero la foto falló: ' + fe.message, 'error'); }
     }
 
@@ -3299,9 +3325,7 @@ async function andEliminarTipo() {
 
   try {
     toast('Eliminando...');
-    // No hay endpoint simple de "borrar fila" vía values API sin batchUpdate con sheetId;
-    // se vacían sus celdas para no dejar basura visible en el conteo.
-    await writeSheet(`'${SHEET_ANDAMIOS}'!A${row}:E${row}`, [['', '', '', '', '']]);
+    await _andEscrituraRemota('and_eliminar', { row });
     toast('✓ Eliminado');
     _origClosePanel('panel-and-edit');
     const idx = _panelStack.lastIndexOf('panel-and-edit');
@@ -3370,7 +3394,10 @@ async function andImportarSeed() {
     }
 
     try {
-      await appendSheet(`'${SHEET_ANDAMIOS}'!A:E`, [[item.tipo, fotoNombre, item.cantidad, item.obs || '', item.sistema || 'Europeo']]);
+      const resp = await _andEscrituraRemota('and_nuevo', { tipo: item.tipo, cantidad: item.cantidad, obs: item.obs || '', sistema: item.sistema || 'Europeo' });
+      if (fotoNombre && resp.row) {
+        await _andEscrituraRemota('and_set_foto', { row: resp.row, foto: fotoNombre });
+      }
       ok++;
     } catch (e) {
       fallidos++;
@@ -3399,8 +3426,7 @@ async function andVaciarTodo() {
 
   try {
     toast('Vaciando catálogo...');
-    const filasVacias = Array.from({ length: 500 }, () => ['', '', '', '', '']);
-    await writeSheet(`'${SHEET_ANDAMIOS}'!A2:E501`, filasVacias);
+    await _andEscrituraRemota('and_vaciar', {});
     toast('✓ Catálogo vaciado. Ya puedes reimportar limpio.');
     await andCargar();
   } catch (err) {
