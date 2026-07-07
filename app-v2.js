@@ -563,11 +563,33 @@ function _deb(key, fn, wait = 180) {
 }
 
 // ── Google Sheets API ─────────────────────────────────────────
+// Traduce errores crudos de la API de Google Sheets/Drive (JSON feo, en inglés)
+// a un mensaje claro y accionable en español. Se usa en fetchSheet/writeSheet/
+// appendSheet para que cualquier error de permisos, cuota, etc. se vea legible
+// en los toasts en vez de un bloque de JSON en rojo.
+function _friendlyGoogleApiError(status, rawBody) {
+  let googleMsg = '';
+  try { googleMsg = ((JSON.parse(rawBody) || {}).error || {}).message || ''; } catch (e) {}
+  if (status === 403) {
+    return 'Sin permiso para editar la planilla. Pide que te compartan el Google Sheet como "Editor" (el rol dentro de la app no basta, Google también tiene que darte acceso).';
+  }
+  if (status === 401) {
+    return 'Tu sesión de Google expiró. Cierra y vuelve a abrir la app para iniciar sesión de nuevo.';
+  }
+  if (status === 404) {
+    return 'No se encontró la hoja o el archivo en Google (¿se movió, se renombró o se borró?).';
+  }
+  if (status === 429) {
+    return 'Demasiadas solicitudes a la vez a Google Sheets. Espera un momento y vuelve a intentar.';
+  }
+  return `Error ${status} de Google${googleMsg ? ': ' + googleMsg : ''}`;
+}
+
 async function fetchSheet(range) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
   const res = await fetch(url, { headers: authHeader() });
-  if (!res.ok) throw new Error(`Sheets ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
   return (await res.json()).values || [];
 }
 
@@ -579,7 +601,7 @@ async function writeSheet(range, values) {
     headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
   });
-  if (!res.ok) throw new Error(`Sheets write ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
   return res.json();
 }
 
@@ -591,7 +613,7 @@ async function appendSheet(range, values) {
     headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
   });
-  if (!res.ok) throw new Error(`Sheets append ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
   return res.json();
 }
 
@@ -605,7 +627,7 @@ async function findOrCreateFolder(name, parentId) {
   // 1. Buscar si ya existe
   const q = encodeURIComponent(`'${parentId}' in parents and name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   const searchRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeader() });
-  if (!searchRes.ok) throw new Error(`Drive search ${searchRes.status}: ${await searchRes.text()}`);
+  if (!searchRes.ok) throw new Error(_friendlyGoogleApiError(searchRes.status, await searchRes.text()));
   const searchData = await searchRes.json();
   if (searchData.files && searchData.files.length > 0) {
     console.log('[FOLDER] Encontrada:', name, searchData.files[0].id);
@@ -626,7 +648,7 @@ async function findOrCreateFolder(name, parentId) {
   if (!createRes.ok) {
     const err = await createRes.text();
     console.error('[FOLDER] Error:', err);
-    throw new Error(`Drive mkdir ${createRes.status}: ${err.slice(0,200)}`);
+    throw new Error(_friendlyGoogleApiError(createRes.status, err));
   }
   const folder = await createRes.json();
   console.log('[FOLDER] Creada OK:', name, folder.id);
@@ -723,7 +745,7 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
   if (!res.ok) {
     const err = await res.text();
     console.error('[UPLOAD] error body:', err);
-    throw new Error('Drive error ' + res.status + ': ' + err.slice(0, 300));
+    throw new Error(_friendlyGoogleApiError(res.status, err));
   }
 
   const result = await res.json();

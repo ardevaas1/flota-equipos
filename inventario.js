@@ -3000,9 +3000,23 @@ async function invCargarMiniaturaAndamio(fileName, thumbId) {
       `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
       { headers: { 'Authorization': 'Bearer ' + accessToken } }
     );
-    if (!res.ok) return;
+    if (!res.ok) {
+      // No se avisa con un toast por cada foto (serían decenas de avisos), pero
+      // queda clarísimo en consola, y si es específicamente un problema de
+      // permisos (403) se avisa UNA sola vez por sesión con un toast — es la
+      // causa más común de "no me salen las fotos" y antes quedaba invisible.
+      console.warn(`[ANDAMIOS] No se pudo cargar foto "${fileName}": ${_friendlyGoogleApiError(res.status, await res.text())}`);
+      if (res.status === 403 && !window._andAvisoPermisoFotos) {
+        window._andAvisoPermisoFotos = true;
+        toast('No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan', 'error');
+      }
+      return;
+    }
     const data = await res.json();
-    if (!data.files || data.files.length === 0) return;
+    if (!data.files || data.files.length === 0) {
+      console.warn(`[ANDAMIOS] Foto "${fileName}" no encontrada en Drive (¿nombre distinto o archivo movido/borrado?)`);
+      return;
+    }
     const file = data.files[0];
     const imgUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
     const fallbackUrl = file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '';
