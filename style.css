@@ -611,7 +611,7 @@ body.is-offline #app { padding-top: 30px; }
   .modulos-header {
     padding: 44px 20px 36px;
   }
-  .modulos-lista {
+  #modulos-home .modulos-lista {
     max-width: 1180px;
     margin: 0 auto;
     width: 100%;
@@ -621,21 +621,21 @@ body.is-offline #app { padding-top: 30px; }
   }
   /* Cancela el "ancho completo" del último módulo impar (regla pensada
      solo para el layout móvil de 2 columnas) */
-  .modulo-card:nth-last-child(1):nth-child(odd) {
+  #modulos-home .modulo-card:nth-last-child(1):nth-child(odd) {
     grid-column: auto;
   }
-  .modulo-card {
+  #modulos-home .modulo-card {
     align-items: center;
     text-align: center;
     aspect-ratio: 1 / 1;
     justify-content: center;
     padding: 24px 16px;
   }
-  .modulo-icon {
+  #modulos-home .modulo-icon {
     width: 60px; height: 60px; border-radius: 16px;
   }
-  .modulo-icon svg { width: 30px; height: 30px; }
-  .modulo-info { flex: none; }
+  #modulos-home .modulo-icon svg { width: 30px; height: 30px; }
+  #modulos-home .modulo-info { flex: none; }
 
   /* ── Shell: ocultar todo lo móvil ── */
   #main  { display: none !important; }
