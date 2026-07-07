@@ -109,7 +109,7 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => actualizarBannerOffline(true));
 
 // ── Roles de usuario ──────────────────────────────────────────
-let userRole  = null;   // 'admin' | 'viewer'
+let userRole  = null;   // 'admin' | 'mover' | 'andamios' | 'viewer'
 let userEmail = null;
 
 const ROLE_KEY  = 'lst_user_role';
@@ -352,8 +352,9 @@ function ensureToken() {
 // ── Control de roles ──────────────────────────────────────────
 // Busca el email en la hoja USUARIOS (col A=email, col B=rol).
 // Roles soportados: 'admin' (todo) · 'mover' (solo lectura + puede
-// registrar movimientos en el módulo Movimientos) · cualquier otro
-// valor o ausencia de match → 'viewer' (solo lectura, sin poder mover).
+// registrar movimientos en el módulo Movimientos) · 'andamios' (solo
+// lectura + puede modificar todo dentro del módulo Andamios) ·
+// cualquier otro valor o ausencia de match → 'viewer' (solo lectura).
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -368,6 +369,8 @@ async function checkUserRole() {
       userRole = 'admin';
     } else if (rolHoja === 'mover') {
       userRole = 'mover';
+    } else if (rolHoja === 'andamios') {
+      userRole = 'andamios';
     } else {
       userRole = 'viewer';
     }
@@ -385,16 +388,20 @@ async function checkUserRole() {
 }
 
 // Aplica las clases de modo en el body según el rol:
-// - admin  → sin clases (acceso total)
-// - mover  → 'viewer-mode' (todo en solo lectura) + 'mover-mode' (puede usar
-//            los controles del módulo Movimientos, marcados con .mov-action-btn)
-// - viewer → solo 'viewer-mode' (ni siquiera puede registrar movimientos)
+// - admin    → sin clases (acceso total)
+// - mover    → 'viewer-mode' (todo en solo lectura) + 'mover-mode' (puede usar
+//              los controles del módulo Movimientos, marcados con .mov-action-btn)
+// - andamios → 'viewer-mode' (todo en solo lectura) + 'andamios-mode' (puede
+//              usar los controles del módulo Andamios, marcados con .and-action-btn)
+// - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
 function applyViewerMode() {
-  document.body.classList.remove('viewer-mode', 'mover-mode');
+  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode');
   if (userRole === 'viewer') {
     document.body.classList.add('viewer-mode');
   } else if (userRole === 'mover') {
     document.body.classList.add('viewer-mode', 'mover-mode');
+  } else if (userRole === 'andamios') {
+    document.body.classList.add('viewer-mode', 'andamios-mode');
   }
 }
 
