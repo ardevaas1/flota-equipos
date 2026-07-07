@@ -257,15 +257,20 @@ body.is-offline #app { padding-top: 30px; }
 .card-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .card-arrow { color: #ccc; font-size: 20px; flex-shrink: 0; }
 
-/* ── Botón de detalles/fotos (módulo Movimientos) ── */
+/* ── Botón de detalles/fotos (módulo Movimientos) ──
+   Antes era un círculo blanco casi invisible sobre el fondo blanco de la
+   tarjeta, y se confundía con el ícono del tipo de equipo (que no es un
+   botón). Ahora tiene fondo de color propio, más grande y con más contraste,
+   para que se note claramente que es algo que se puede tocar. */
 .btn-detalle-mini {
-  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
-  border: 1px solid var(--line); background: #fff; color: var(--accent);
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  border: none; background: var(--accent-soft); color: var(--accent);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  padding: 0; transition: background 0.15s, transform 0.1s;
+  padding: 0; transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
-.btn-detalle-mini svg { width: 16px; height: 16px; }
-.btn-detalle-mini:active { transform: scale(0.92); background: #f2f6fb; }
+.btn-detalle-mini svg { width: 19px; height: 19px; }
+.btn-detalle-mini:active { transform: scale(0.9); background: var(--accent); color: #fff; }
 
 .and-menu-opciones {
   position: absolute; top: calc(100% + 4px); left: 14px; z-index: 40;
@@ -1173,7 +1178,22 @@ body.is-offline #app { padding-top: 30px; }
   .inv-desktop-list {
     flex: 1; overflow-y: auto;
     padding: 16px 24px 24px;
+    width: 100%;
   }
+  .inv-desktop-content-header, .inv-desktop-search, .chips-wrap {
+    width: 100%;
+  }
+
+  /* Lista de "Registrar movimiento": son filas cortas y simples (equipo + ubicación
+     + botón de detalle), así que en pantallas anchas se acomodan en varias columnas
+     en vez de una sola columna angosta con un vacío enorme al lado. */
+  #movh-dt-lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    align-content: start;
+    gap: 10px;
+  }
+  #movh-dt-lista .card { margin-bottom: 0; }
 
   /* FAB en desktop: esquina inferior derecha del área central */
   #mod-inventario .fab-btn,
@@ -1229,6 +1249,7 @@ body.is-offline #app { padding-top: 30px; }
   .and-btn:hover { filter: brightness(0.96); }
   .and-menu-vaciar-btn:hover { background: #fde8e8; }
   .desktop-tab:hover, .inv-desktop-tab:hover { cursor: pointer; }
+  .btn-detalle-mini:hover { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(var(--accent-rgb),0.35); }
 
 }
 
