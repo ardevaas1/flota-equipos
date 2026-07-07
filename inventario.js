@@ -2823,15 +2823,16 @@ function movhRenderHistorial() {
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO ANDAMIOS — Conteo de piezas
-// Hoja 'ANDAMIOS' en el mismo Sheet: A=rowIndex(fila real) B=TIPO
-// C=FOTO(nombre archivo en Drive) D=CANTIDAD E=OBS
+// Hoja 'ANDAMIOS' en el mismo Sheet: A=TIPO B=FOTO(nombre archivo en Drive)
+// C=CANTIDAD D=OBS E=SISTEMA ('Europeo' | 'Multidireccional')
 // ══════════════════════════════════════════════════════════════
 const SHEET_ANDAMIOS = 'ANDAMIOS';
-let allAndamios = [];      // [{ rowIndex, tipo, foto, cantidad, obs }]
+let allAndamios = [];      // [{ rowIndex, tipo, foto, cantidad, obs, sistema }]
 let andItemActual = null;  // ítem abierto en panel-and-edit
 let _andNuevoFoto = null;
 let _andEditFoto  = null;
 let _andGuardando = false; // evita doble-tap en +/- mientras se escribe a Sheets
+let andFiltroSistema = ''; // '' = todos, 'Europeo', 'Multidireccional'
 
 // Carga (o recarga) los datos desde Sheets y renderiza
 async function andCargar() {
@@ -2844,6 +2845,7 @@ async function andCargar() {
         foto: r[1] || '',
         cantidad: parseInt(r[2]) || 0,
         obs: r[3] || '',
+        sistema: r[4] || 'Europeo', // filas antiguas sin columna E se asumen Europeo
       }))
       .filter(x => x.tipo); // ignora filas vacías
   } catch (e) {
@@ -2872,11 +2874,27 @@ function andRenderLista() {
 
   const filtrados = allAndamios
     .filter(it => !txt || (it.tipo + it.obs).toLowerCase().includes(txt))
-    .sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'));
+    .filter(it => !andFiltroSistema || it.sistema === andFiltroSistema)
+    .sort((a, b) => {
+      // Agrupa por sistema (Europeo primero, luego Multidireccional) y alfabético dentro de cada grupo
+      if (a.sistema !== b.sistema) return a.sistema === 'Europeo' ? -1 : 1;
+      return a.tipo.localeCompare(b.tipo, 'es');
+    });
 
   // suffix distingue los ids entre la copia móvil ('') y la copia desktop ('-dt')
   // para que ambas puedan coexistir en el DOM sin chocar
-  const buildHtml = (suffix) => filtrados.map(it => `
+  const buildHtml = (suffix) => {
+    if (!filtrados.length) return emptyState('Sin piezas registradas', 'Toca el botón ＋ para agregar el primer tipo de pieza');
+    let html = '';
+    let sistemaActual = null;
+    filtrados.forEach(it => {
+      // Encabezado de sección al cambiar de sistema (solo tiene sentido mostrarlo con el filtro "Todos")
+      if (!andFiltroSistema && it.sistema !== sistemaActual) {
+        sistemaActual = it.sistema;
+        const etiqueta = sistemaActual === 'Multidireccional' ? 'Andamio Multidireccional' : 'Andamio Europeo';
+        html += `<div class="and-section-header">${etiqueta}</div>`;
+      }
+      html += `
     <div class="and-card">
       <div class="and-thumb" id="and-thumb${suffix}-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
         ${it.foto ? '' : `<svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>`}
@@ -2890,7 +2908,10 @@ function andRenderLista() {
         <span class="and-num" id="and-num${suffix}-${it.rowIndex}">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
-    </div>`).join('') || emptyState('Sin piezas registradas', 'Toca el botón ＋ para agregar el primer tipo de pieza');
+    </div>`;
+    });
+    return html;
+  };
 
   const lista   = document.getElementById('and-lista');
   const listaDt = document.getElementById('and-dt-lista');
@@ -2904,11 +2925,22 @@ function andRenderLista() {
     invCargarMiniaturaAndamio(it.foto, `and-thumb-dt-${it.rowIndex}`);
   });
 
+  // El total general siempre suma TODAS las piezas (ambos sistemas), sin importar el filtro activo
   const total = allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
   const totalEl = document.getElementById('and-total');
   if (totalEl) totalEl.textContent = total;
   const totalDtEl = document.getElementById('and-dt-total');
   if (totalDtEl) totalDtEl.textContent = total;
+}
+
+// Cambia el filtro por sistema (Todos / Europeo / Multidireccional) y sincroniza
+// el estado visual "active" entre los chips móvil y desktop (son dos copias en el DOM)
+function andSetFiltroSistema(sistema, btnEl) {
+  andFiltroSistema = sistema;
+  document.querySelectorAll('#and-chips .chip, #and-dt-chips .chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.sistema === sistema);
+  });
+  andRenderLista();
 }
 
 // Sincroniza búsqueda desktop → móvil (andRenderLista lee ambos campos)
@@ -2988,6 +3020,7 @@ function andAbrirNuevo() {
   document.getElementById('and-nuevo-nombre').value = '';
   document.getElementById('and-nuevo-cantidad').value = '0';
   document.getElementById('and-nuevo-obs').value = '';
+  document.getElementById('and-nuevo-sistema').value = 'Europeo';
   _andNuevoFoto = null;
   const prev = document.getElementById('and-nuevo-foto-preview');
   prev.innerHTML = ''; prev.style.display = 'none';
@@ -3012,6 +3045,7 @@ async function andGuardarNuevo() {
   const nombre = document.getElementById('and-nuevo-nombre').value.trim();
   const cantidad = parseInt(document.getElementById('and-nuevo-cantidad').value) || 0;
   const obs = document.getElementById('and-nuevo-obs').value.trim();
+  const sistema = document.getElementById('and-nuevo-sistema').value || 'Europeo';
   if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-nuevo-nombre').focus(); return; }
 
   const btn = document.querySelector('#panel-and-nuevo .pnl-action');
@@ -3020,7 +3054,7 @@ async function andGuardarNuevo() {
   try {
     toast('Guardando...');
     // Se agrega primero sin foto para conocer la fila real (rowIndex) donde quedó
-    await appendSheet(`'${SHEET_ANDAMIOS}'!A:D`, [[nombre, '', cantidad, obs]]);
+    await appendSheet(`'${SHEET_ANDAMIOS}'!A:E`, [[nombre, '', cantidad, obs, sistema]]);
 
     let fotoNombre = '';
     if (_andNuevoFoto) {
@@ -3067,6 +3101,7 @@ function andAbrirEditar(rowIndex) {
   document.getElementById('and-edit-nombre').value = it.tipo;
   document.getElementById('and-edit-cantidad').value = it.cantidad;
   document.getElementById('and-edit-obs').value = it.obs || '';
+  document.getElementById('and-edit-sistema').value = it.sistema || 'Europeo';
   _andEditFoto = null;
   const prev = document.getElementById('and-edit-foto-preview');
   prev.innerHTML = ''; prev.style.display = 'none';
@@ -3093,6 +3128,7 @@ async function andGuardarEdit() {
   const nombre = document.getElementById('and-edit-nombre').value.trim();
   const cantidad = parseInt(document.getElementById('and-edit-cantidad').value) || 0;
   const obs = document.getElementById('and-edit-obs').value.trim();
+  const sistema = document.getElementById('and-edit-sistema').value || 'Europeo';
   if (!row) return;
   if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-edit-nombre').focus(); return; }
 
@@ -3105,6 +3141,7 @@ async function andGuardarEdit() {
       writeSheet(`'${SHEET_ANDAMIOS}'!A${row}`, [[nombre]]),
       writeSheet(`'${SHEET_ANDAMIOS}'!C${row}`, [[cantidad]]),
       writeSheet(`'${SHEET_ANDAMIOS}'!D${row}`, [[obs]]),
+      writeSheet(`'${SHEET_ANDAMIOS}'!E${row}`, [[sistema]]),
     ]);
 
     if (_andEditFoto) {
@@ -3144,7 +3181,7 @@ async function andEliminarTipo() {
     toast('Eliminando...');
     // No hay endpoint simple de "borrar fila" vía values API sin batchUpdate con sheetId;
     // se vacían sus celdas para no dejar basura visible en el conteo.
-    await writeSheet(`'${SHEET_ANDAMIOS}'!A${row}:D${row}`, [['', '', '', '']]);
+    await writeSheet(`'${SHEET_ANDAMIOS}'!A${row}:E${row}`, [['', '', '', '', '']]);
     toast('✓ Eliminado');
     _origClosePanel('panel-and-edit');
     const idx = _panelStack.lastIndexOf('panel-and-edit');
@@ -3163,7 +3200,7 @@ async function andImportarSeed() {
   if (allAndamios.length > 0) {
     if (!confirm('Ya hay piezas cargadas. ¿Importar de todos modos? Esto puede crear tipos duplicados.')) return;
   } else {
-    if (!confirm(`Se importarán ${ANDAMIOS_SEED.length} tipos de pieza con sus fotos y cantidades del proyecto. ¿Continuar?`)) return;
+    if (!confirm(`Se importarán ${ANDAMIOS_SEED.length} tipos de pieza (Andamio Europeo + Multidireccional) con sus fotos y cantidades del proyecto. Los tipos sin foto disponible se crean igual, solo sin miniatura. ¿Continuar?`)) return;
   }
 
   const btns = document.querySelectorAll('#and-import-bar .action-btn, #and-dt-import-bar .action-btn');
@@ -3193,7 +3230,7 @@ async function andImportarSeed() {
     }
 
     try {
-      await appendSheet(`'${SHEET_ANDAMIOS}'!A:D`, [[item.tipo, fotoNombre, item.cantidad, item.obs || '']]);
+      await appendSheet(`'${SHEET_ANDAMIOS}'!A:E`, [[item.tipo, fotoNombre, item.cantidad, item.obs || '', item.sistema || 'Europeo']]);
       ok++;
     } catch (e) {
       fallidos++;
@@ -3201,7 +3238,7 @@ async function andImportarSeed() {
     }
   }
 
-  btns.forEach(b => { b.disabled = false; b.textContent = '⬇ Importar catálogo Andamio Europeo (una sola vez)'; });
+  btns.forEach(b => { b.disabled = false; b.textContent = '⬇ Importar catálogo completo (Europeo + Multidireccional)'; });
   toast(`✓ Importación terminada: ${ok} piezas agregadas${fallidos ? `, ${fallidos} con error` : ''}`);
   await andCargar();
 }
