@@ -35,7 +35,7 @@
   --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
 }
 #mod-andamios {
-  --accent: #7c4dc4; --accent-dark: #5a349a; --accent-soft: #ede3fa; --accent-rgb: 124,77,196;
+  --accent: #d64545; --accent-dark: #9c2f2f; --accent-soft: #fbe2e2; --accent-rgb: 214,69,69;
 }
 /* Mismo tema, pero aplicado en <body> para que alcance también a los
    paneles de editar/agregar que viven fuera del contenedor del módulo */
@@ -49,7 +49,7 @@ body.tema-mov {
   --accent: #2f8a4d; --accent-dark: #1f6b39; --accent-soft: #dff3e4; --accent-rgb: 47,138,77;
 }
 body.tema-and {
-  --accent: #7c4dc4; --accent-dark: #5a349a; --accent-soft: #ede3fa; --accent-rgb: 124,77,196;
+  --accent: #d64545; --accent-dark: #9c2f2f; --accent-soft: #fbe2e2; --accent-rgb: 214,69,69;
 }
 
 html, body { height: 100%; background: var(--bg); font-family: var(--font-body); color: var(--ink); -webkit-tap-highlight-color: transparent; }
@@ -179,7 +179,7 @@ body.is-offline #app { padding-top: 30px; }
 .header--inv  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #b15c0c 0%, #f5a623 55%, #ffc864 100%); box-shadow: 0 2px 10px rgba(245,166,35,0.25); }
 .header--cont { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #6b462a 0%, #c08a5a 55%, #d9ad84 100%); box-shadow: 0 2px 10px rgba(192,138,90,0.25); }
 .header--mov  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%); box-shadow: 0 2px 10px rgba(47,138,77,0.25); }
-.header--and  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #5a349a 0%, #7c4dc4 55%, #a685dd 100%); box-shadow: 0 2px 10px rgba(124,77,196,0.25); }
+.header--and  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #9c2f2f 0%, #d64545 55%, #e79494 100%); box-shadow: 0 2px 10px rgba(214,69,69,0.25); }
 .header-logo { height: 36px; width: auto; object-fit: contain; }
 .header-center { flex: 1; }
 .header-title { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2; }
@@ -1039,7 +1039,7 @@ body.is-offline #app { padding-top: 30px; }
   .inv-desktop-sidebar-top--and {
     background:
       radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
-      linear-gradient(135deg, #5a349a 0%, #7c4dc4 55%, #a685dd 100%);
+      linear-gradient(135deg, #9c2f2f 0%, #d64545 55%, #e79494 100%);
   }
   .inv-desktop-sidebar-top img {
     width: 36px; height: 36px; object-fit: contain;
@@ -1196,6 +1196,13 @@ body.is-offline #app { padding-top: 30px; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* Cuando el número de módulos es impar, el último queda solo en su fila;
+   se le da el ancho completo para que la grilla se vea simétrica en vez
+   de dejar un hueco vacío al lado. Funciona automáticamente sin importar
+   cuántos módulos se agreguen a futuro. */
+.modulo-card:nth-last-child(1):nth-child(odd) {
+  grid-column: 1 / -1;
+}
 .modulo-card {
   background: #fff; border-radius: 20px; border: 1px solid var(--line);
   padding: 20px 16px 18px;
@@ -1214,6 +1221,7 @@ body.is-offline #app { padding-top: 30px; }
 .modulo-card--inv::before   { background: #d9790e; }
 .modulo-card--cont::before  { background: #93613a; }
 .modulo-card--mov::before   { background: #2f8a4d; }
+.modulo-card--and::before   { background: #9c2f2f; }
 
 .modulo-card:active { transform: scale(0.97); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
 .modulo-icon {
@@ -1226,6 +1234,7 @@ body.is-offline #app { padding-top: 30px; }
 .modulo-icon--inv   { background: linear-gradient(145deg, #f5a623, #d9790e); }
 .modulo-icon--cont  { background: linear-gradient(145deg, #c08a5a, #93613a); }
 .modulo-icon--mov   { background: linear-gradient(145deg, #5fb878, #2f8a4d); }
+.modulo-icon--and   { background: linear-gradient(145deg, #d64545, #9c2f2f); }
 .modulo-info { flex: 1; }
 .modulo-nombre { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.2; }
 .modulo-desc { font-size: 11.5px; color: #888; margin-top: 4px; line-height: 1.4; }
