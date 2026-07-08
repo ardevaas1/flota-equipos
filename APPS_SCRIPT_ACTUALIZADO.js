@@ -104,19 +104,38 @@ function _jsonOut(obj) {
 
 // Le pregunta a Google a qué cuenta pertenece este access_token.
 // Devuelve el email en minúsculas, o null si el token no es válido/expiró.
+//
+// Usa 'tokeninfo' primero (NO requiere que el token tenga scope de
+// email/profile — funciona siempre con cualquier token válido, es el mismo
+// método que ya usa el cliente para esto). 'userinfo' queda solo de
+// respaldo, porque ese sí necesita scope adicional y puede fallar con
+// "insufficient scope" aunque el token sea válido.
 function _emailVerificadoDesdeToken(accessToken) {
   if (!accessToken) return null;
   try {
-    const res = UrlFetchApp.fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    const res = UrlFetchApp.fetch(
+      'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
+      { muteHttpExceptions: true }
+    );
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      const email = (data.email || '').toLowerCase().trim();
+      if (email) return email;
+    }
+  } catch (err) { /* sigue al respaldo */ }
+
+  try {
+    const res2 = UrlFetchApp.fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: 'Bearer ' + accessToken },
       muteHttpExceptions: true,
     });
-    if (res.getResponseCode() !== 200) return null;
-    const data = JSON.parse(res.getContentText());
-    return (data.email || '').toLowerCase().trim() || null;
-  } catch (err) {
-    return null;
-  }
+    if (res2.getResponseCode() === 200) {
+      const data2 = JSON.parse(res2.getContentText());
+      return (data2.email || '').toLowerCase().trim() || null;
+    }
+  } catch (err) { /* nada más que intentar */ }
+
+  return null;
 }
 
 // Busca el rol de un email en la hoja USUARIOS (col A=email, col B=rol).
