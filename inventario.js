@@ -53,7 +53,7 @@ const SHEET_GENERADORES  = 'GENERADORES';
 const SHEET_MAQ_MENOR    = 'MAQUINARIA MENOR';
 const SHEET_HERRAMIENTAS = 'HERRAMIENTAS';
 const SHEET_CONTAINERS   = 'CONTENEDORES';
-const SHEET_GEN_EVENTOS  = 'MANTENCIONES_GEN'; // hoja de eventos generadores
+const SHEET_GEN_EVENTOS  = 'MANT-GEN'; // hoja de eventos generadores (nombre real de la pestaña en el Sheet)
 const SHEET_MOVIMIENTOS  = 'MOVIMIENTOS'; // hoja de movimientos entre obras/bodega
 
 // ── Datos en memoria ─────────────────────────────────────────
@@ -302,7 +302,7 @@ async function loadInventario() {
     toast('Error cargando inventario: ' + e.message, 'error');
   }
 
-  // Cargar eventos de generadores (hoja MANTENCIONES_GEN si existe, si no usar MANTENCIONES con prefijo GEN-)
+  // Cargar eventos de generadores (hoja MANT-GEN)
   try {
     const rowsGE = await fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
     allGenEventos = rowsGE
@@ -323,8 +323,11 @@ async function loadInventario() {
         return pd(b.fechaEvento) - pd(a.fechaEvento);
       });
   } catch(e) {
-    // La hoja puede no existir aún — es normal la primera vez
-    console.warn('[INV] Hoja MANTENCIONES_GEN no encontrada, se creará al guardar el primer evento');
+    // Ojo: si esto falla, NO es "normal la primera vez" — appendSheet/fetchSheet
+    // no crean pestañas nuevas en Google Sheets. Si la pestaña MANT-GEN no existe
+    // con ese nombre exacto, tanto la lectura como el guardado van a fallar (400
+    // "Unable to parse range"). Verificar el nombre real de la pestaña en el Sheet.
+    console.warn('[INV] No se pudo leer la hoja MANT-GEN — revisar que la pestaña exista con ese nombre exacto');
     allGenEventos = [];
   }
 }
@@ -1017,7 +1020,7 @@ async function invGuardarEventoGen() {
     const gen = allGeneradores.find(g => g.codigo === codigo);
     const nombreGen = gen ? [gen.marca, gen.modelo].filter(Boolean).join(' ') || gen.equipo : codigo;
 
-    // Guardar en hoja MANTENCIONES_GEN
+    // Guardar en hoja MANT-GEN
     // Columnas: A=FECHA_REG B=CODIGO C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
     await appendSheet(`'${SHEET_GEN_EVENTOS}'!A:H`, [[
       fechaReg, codigo, nombreGen, horometro, tipo, obs, fechaFmt, fotosSubidas.join(' | ')
