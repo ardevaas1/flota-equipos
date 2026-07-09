@@ -93,6 +93,7 @@ function iniciarModoOffline() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('main').classList.add('hidden');
   document.getElementById('modulos-home').classList.remove('hidden');
+  actualizarChipUsuario();
   actualizarBannerOffline(true);
   if (habiaCache) {
     _renderTodoDesdeMemoria();
@@ -384,6 +385,7 @@ async function checkUserRole() {
     localStorage.setItem(EMAIL_KEY, userEmail || '');
   } catch(e) {}
   applyViewerMode();
+  actualizarChipUsuario();
   console.log('[ROLE] Email:', userEmail, '→ Rol:', userRole);
 }
 
@@ -407,6 +409,47 @@ function applyViewerMode() {
 
 function authHeader() {
   return { 'Authorization': 'Bearer ' + accessToken };
+}
+
+// ── Chip de usuario (email + cerrar sesión) ─────────────────────
+// Se muestra en la pantalla de inicio (modulos-home), que es la única
+// pantalla común a mobile y desktop.
+function actualizarChipUsuario() {
+  const el = document.getElementById('user-chip-email');
+  if (el) el.textContent = userEmail || localStorage.getItem(EMAIL_KEY) || '';
+}
+
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión? Vas a tener que iniciar sesión con Google de nuevo para volver a usar la app.')) return;
+
+  try {
+    if (accessToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+      google.accounts.oauth2.revoke(accessToken, () => {});
+    }
+  } catch(e) {}
+
+  clearToken();
+  try {
+    localStorage.removeItem('lst_had_login');
+    localStorage.removeItem('lst_has_drive_scope');
+    localStorage.removeItem(EMAIL_KEY);
+    localStorage.removeItem(ROLE_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(EXPIRY_KEY);
+  } catch(e) {}
+
+  userEmail = null;
+  userRole  = null;
+  tokenClient = null; // fuerza a initOAuth() a crear un tokenClient nuevo en el próximo login
+
+  const modulosHome = document.getElementById('modulos-home');
+  const mainEl      = document.getElementById('main');
+  if (modulosHome) modulosHome.classList.add('hidden');
+  if (mainEl)      mainEl.classList.add('hidden');
+
+  const loginHint = document.getElementById('login-hint');
+  if (loginHint) loginHint.textContent = 'Inicia sesión para acceder a los datos';
+  document.getElementById('login-screen').classList.remove('hidden');
 }
 
 // ── Utilidades ────────────────────────────────────────────────
@@ -2081,7 +2124,7 @@ function enterApp() {
           try {
             const sr = localStorage.getItem(ROLE_KEY);
             const se = localStorage.getItem(EMAIL_KEY);
-            if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); }
+            if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); actualizarChipUsuario(); }
           } catch(e) {}
           // Cargar datos — loadData() ya maneja el splash y al final muestra modulos-home
           loadData();
