@@ -416,7 +416,11 @@ function authHeader() {
 // pantalla común a mobile y desktop.
 function actualizarChipUsuario() {
   const el = document.getElementById('user-chip-email');
-  if (el) el.textContent = userEmail || localStorage.getItem(EMAIL_KEY) || '';
+  if (!el) return;
+  const email = userEmail || localStorage.getItem(EMAIL_KEY) || '';
+  if (!email) { el.innerHTML = ''; return; }
+  const inicial = email.charAt(0).toUpperCase();
+  el.innerHTML = `<span class="mfu-avatar">${inicial}</span><span class="mfu-email">${email}</span>`;
 }
 
 function cerrarSesion() {

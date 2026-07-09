@@ -722,10 +722,16 @@
         <span class="modulo-arrow">›</span>
       </div>
     </div>
-    <div style="text-align:center;padding:16px 0">
-      <button class="header-btn" onclick="loadData()" style="margin:0 auto;display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:20px;font-size:13px;background:var(--neutral-soft);color:var(--accent)">↻ Actualizar datos</button>
-      <div style="margin-top:14px;font-size:12px;color:#999" id="user-chip-email"></div>
-      <button class="header-btn" onclick="cerrarSesion()" style="margin:8px auto 0;display:flex;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;font-size:12px;background:transparent;color:#c0392b;border:1px solid #e0b4b4">Cerrar sesión</button>
+    <div class="modulos-footer">
+      <div class="modulos-footer-user" id="user-chip-email"></div>
+      <div class="modulos-footer-actions">
+        <button class="modulos-footer-btn modulos-footer-btn--refresh" onclick="loadData()">
+          <span class="mfb-ic">↻</span> Actualizar datos
+        </button>
+        <button class="modulos-footer-btn modulos-footer-btn--logout" onclick="cerrarSesion()">
+          <span class="mfb-ic">⎋</span> Cerrar sesión
+        </button>
+      </div>
     </div>
   </div>
 
