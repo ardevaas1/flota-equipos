@@ -66,12 +66,20 @@
        dentro del módulo Andamios. Se revierte, DENTRO de #mod-andamios,
        todo lo que el modo viewer-mode general esconde — sin tocar los
        mismos controles (.action-btn, .pnl-action, etc.) en el resto de
-       los módulos, que deben seguir ocultos. */
+       los módulos, que deben seguir ocultos.
+       OJO: #panel-and-nuevo y #panel-and-edit son paneles HERMANOS de
+       #mod-andamios (no descendientes), por eso van con su propio
+       selector aparte — si solo se usara "#mod-andamios .pnl-action"
+       el botón Guardar de esos dos paneles queda oculto. */
     body.andamios-mode #mod-andamios .action-btn,
     body.andamios-mode #mod-andamios .pnl-action,
     body.andamios-mode #mod-andamios .viewer-hidden,
     body.andamios-mode #mod-andamios .and-btn,
-    body.andamios-mode #mod-andamios .and-menu-vaciar-btn {
+    body.andamios-mode #mod-andamios .and-menu-vaciar-btn,
+    body.andamios-mode #panel-and-nuevo .pnl-action,
+    body.andamios-mode #panel-and-nuevo .action-btn,
+    body.andamios-mode #panel-and-edit .pnl-action,
+    body.andamios-mode #panel-and-edit .action-btn {
       display: inline-flex !important;
     }
     body.andamios-mode #mod-andamios .fab-btn.viewer-hidden { display: flex !important; }
