@@ -635,6 +635,10 @@ async function invAbrirFotoModal(fileName) {
       `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
       { headers: { 'Authorization': 'Bearer ' + accessToken } }
     );
+    if (res.status === 403) {
+      document.getElementById('foto-modal-spinner').textContent = '⚠️ No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan';
+      return;
+    }
     const data = res.ok ? await res.json() : { files: [] };
     if (data.files && data.files.length > 0) {
       const f = data.files[0];
