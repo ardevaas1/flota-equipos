@@ -242,14 +242,6 @@ function manejarAccionAndamios(p) {
         return _jsonOut({ success: true });
       }
 
-      // Eliminar un tipo (vaciar la fila completa)
-      case 'and_eliminar': {
-        const row = parseInt(p.row, 10);
-        if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
-        sh.getRange(row, 1, 1, 5).setValues([['', '', '', '', '']]);
-        return _jsonOut({ success: true });
-      }
-
       default:
         return _jsonOut({ success: false, error: 'Acción desconocida: ' + p.accion });
     }

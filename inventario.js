@@ -3375,25 +3375,6 @@ async function andGuardarEdit() {
   }
 }
 
-async function andEliminarTipo() {
-  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
-  const row = parseInt(document.getElementById('and-edit-row').value);
-  if (!row) return;
-  if (!confirm('¿Eliminar este tipo de pieza? Esta acción no se puede deshacer.')) return;
-
-  try {
-    toast('Eliminando...');
-    await _andEscrituraRemota('and_eliminar', { row });
-    toast('✓ Eliminado');
-    _origClosePanel('panel-and-edit');
-    const idx = _panelStack.lastIndexOf('panel-and-edit');
-    if (idx !== -1) _panelStack.splice(idx, 1);
-    await andCargar();
-  } catch (err) {
-    toast('Error: ' + err.message, 'error');
-  }
-}
-
 // ── Importación inicial del catálogo Andamio Europeo (Alzatec) ──────────
 // Sube cada foto a Drive y agrega la fila correspondiente en la hoja ANDAMIOS.
 // Pensada para ejecutarse una sola vez; el botón se oculta solo apenas hay datos.
