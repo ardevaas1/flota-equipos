@@ -272,17 +272,6 @@ body.is-offline #app { padding-top: 30px; }
 .btn-detalle-mini svg { width: 19px; height: 19px; }
 .btn-detalle-mini:active { transform: scale(0.9); background: var(--accent); color: #fff; }
 
-.and-menu-opciones {
-  position: absolute; top: calc(100% + 4px); left: 14px; z-index: 40;
-  background: #fff; border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 6px; min-width: 220px;
-}
-.and-menu-vaciar-btn {
-  width: 100%; text-align: left; background: none; border: none; padding: 10px 12px;
-  border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #c0392b; cursor: pointer;
-}
-.and-menu-vaciar-btn:active { background: #fde8e8; }
-
 /* ── Módulo Andamios: tarjeta de conteo ── */
 .and-section-header {
   font-size: 11px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase;
@@ -1266,7 +1255,6 @@ body.is-offline #app { padding-top: 30px; }
   .chip:hover:not(.active) { background: var(--neutral-soft); cursor: pointer; }
   .fab-btn:hover { transform: scale(1.06); box-shadow: 0 6px 18px rgba(var(--accent-rgb),0.45); }
   .and-btn:hover { filter: brightness(0.96); }
-  .and-menu-vaciar-btn:hover { background: #fde8e8; }
   .desktop-tab:hover, .inv-desktop-tab:hover { cursor: pointer; }
   .btn-detalle-mini:hover { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(var(--accent-rgb),0.35); }
 

@@ -250,13 +250,6 @@ function manejarAccionAndamios(p) {
         return _jsonOut({ success: true });
       }
 
-      // Vaciar TODO el catálogo (botón "Vaciar catálogo completo")
-      case 'and_vaciar': {
-        const last = sh.getLastRow();
-        if (last >= 2) sh.getRange(2, 1, last - 1, 5).clearContent();
-        return _jsonOut({ success: true });
-      }
-
       default:
         return _jsonOut({ success: false, error: 'Acción desconocida: ' + p.accion });
     }
