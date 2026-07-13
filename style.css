@@ -314,6 +314,13 @@ body.is-offline #app { padding-top: 30px; }
 .and-btn--minus { background: #fde8e8; color: #c0392b; }
 .and-btn--minus:active { background: #e0554a; color: #fff; }
 .and-num { min-width: 34px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; cursor: text; }
+.and-hist-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: var(--neutral-soft); color: #7a7f88;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.08s, background 0.15s;
+}
+.and-hist-btn:active { transform: scale(0.88); background: var(--accent-soft); color: var(--accent-dark); }
 .and-num-input {
   width: 52px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink);
   border: 1.5px solid var(--accent); border-radius: 8px; padding: 2px 4px;

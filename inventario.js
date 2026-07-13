@@ -2854,6 +2854,7 @@ function movhRenderHistorial() {
 // C=CANTIDAD D=OBS E=SISTEMA ('Europeo' | 'Multidireccional')
 // ══════════════════════════════════════════════════════════════
 const SHEET_ANDAMIOS = 'ANDAMIOS';
+const SHEET_AND_HIST = 'AND-HISTORIAL'; // historial de cambios de cantidad (lo escribe el Apps Script)
 let allAndamios = [];      // [{ rowIndex, tipo, foto, cantidad, obs, sistema }]
 let andItemActual = null;  // ítem abierto en panel-and-edit
 let _andNuevoFoto = null;
@@ -2966,6 +2967,9 @@ function andRenderLista() {
         <span class="and-num" id="and-num${suffix}-${it.rowIndex}" onclick="andEditarCantidadInline(${it.rowIndex}, this)">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
+      <button class="and-hist-btn" onclick="event.stopPropagation();andVerHistorial(${it.rowIndex})" title="Ver historial de cambios">
+        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>`;
     });
     return html;
@@ -2989,6 +2993,53 @@ function andRenderLista() {
   if (totalEl) totalEl.textContent = total;
   const totalDtEl = document.getElementById('and-dt-total');
   if (totalDtEl) totalDtEl.textContent = total;
+}
+
+// ── Historial de cambios de cantidad (por pieza) ─────────────────────────
+// Lee AND-HISTORIAL directo desde Sheets (igual que se lee ANDAMIOS: con el
+// token del propio usuario, no requiere pasar por el Apps Script porque es
+// solo lectura). Cada fila la escribe el Apps Script cuando alguien cambia
+// una cantidad, con el email verificado de quien hizo el cambio.
+async function andVerHistorial(rowIndex) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  const titEl = document.getElementById('and-historial-titulo');
+  if (titEl) titEl.textContent = it ? `Historial — ${it.tipo}` : 'Historial de cambios';
+
+  const cont = document.getElementById('and-historial-lista');
+  if (cont) cont.innerHTML = '<div class="empty">Cargando...</div>';
+  openPanel('panel-and-historial');
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_HIST}'!A2:G5000`);
+    const entradas = (rows || [])
+      .filter(r => parseInt(r[1], 10) === rowIndex)
+      .reverse(); // la hoja crece hacia abajo (más nuevo al final) → mostrar más reciente primero
+
+    if (!entradas.length) {
+      cont.innerHTML = emptyState(
+        'Sin cambios registrados todavía',
+        'Los cambios de cantidad que se hagan de ahora en adelante van a quedar guardados acá, con fecha y quién los hizo.'
+      );
+      return;
+    }
+
+    cont.innerHTML = entradas.map(r => {
+      const [fecha, , , anterior, nueva, diff, usuario] = r;
+      const subio = (diff || '').toString().trim().startsWith('+');
+      const colorTxt = subio ? '#1a8a4a' : '#c0392b';
+      return `<div class="evento-card-mini">
+        <div class="evento-tipo-icon ${subio ? 'green' : 'red'}">
+          <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="${subio ? 'M12 19V5M6 11l6-6 6 6' : 'M12 5v14M6 13l6 6 6-6'}" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="mant-body">
+          <div class="mant-title">${anterior} → ${nueva} <span style="font-weight:800;color:${colorTxt}">(${diff})</span></div>
+          <div class="mant-meta">${fecha}${usuario ? ' · ' + usuario : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    if (cont) cont.innerHTML = emptyState('No se pudo cargar el historial', e.message);
+  }
 }
 
 // Cambia el filtro por sistema (Todos / Europeo / Multidireccional) y sincroniza

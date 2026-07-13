@@ -11,6 +11,7 @@
 const SHEET_ID = '1H95qzHeDfnJ0AWc5SK0jU_QkLGolg9_NzNbu4eTRIaw';
 const SHEET_ANDAMIOS = 'ANDAMIOS';
 const SHEET_USUARIOS = 'USUARIOS';
+const SHEET_AND_HIST = 'AND-HISTORIAL'; // historial de cambios de cantidad de Andamios
 
 function doGet(e) {
   if (e.parameter && e.parameter.accion) {
@@ -148,6 +149,35 @@ function _rolDe(email) {
   return rol || 'viewer';
 }
 
+// Devuelve la hoja AND-HISTORIAL, creándola (con encabezados) la primera vez
+// que se necesita — así no hay que crearla a mano en la planilla.
+function _hojaHistorialAnd() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName(SHEET_AND_HIST);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_AND_HIST);
+    sh.appendRow(['Fecha', 'Fila', 'Tipo', 'Cantidad anterior', 'Cantidad nueva', 'Diferencia', 'Usuario']);
+  }
+  return sh;
+}
+
+// Registra un cambio de cantidad en AND-HISTORIAL (una fila por cambio).
+// No registra nada si la cantidad no cambió realmente (ej: se guardó el
+// mismo valor). Si falla el registro del historial, NO debe hacer fallar
+// el guardado de la cantidad en sí — solo queda un warning en el log.
+function _registrarHistorialAnd(row, tipo, anterior, nueva, email) {
+  if (anterior === nueva) return;
+  try {
+    const sh = _hojaHistorialAnd();
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const fecha = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm');
+    const diff = nueva - anterior;
+    sh.appendRow([fecha, row, tipo || '', anterior, nueva, (diff > 0 ? '+' : '') + diff, email]);
+  } catch (err) {
+    console.log('No se pudo registrar historial de Andamios:', err);
+  }
+}
+
 function manejarAccionAndamios(p) {
   try {
     const email = _emailVerificadoDesdeToken(p.accessToken);
@@ -169,7 +199,11 @@ function manejarAccionAndamios(p) {
       case 'and_set_cantidad': {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
-        sh.getRange(row, 3).setValue(parseInt(p.cantidad, 10) || 0); // C = cantidad
+        const anterior = parseInt(sh.getRange(row, 3).getValue(), 10) || 0;
+        const nueva = parseInt(p.cantidad, 10) || 0;
+        const tipo = sh.getRange(row, 1).getValue();
+        sh.getRange(row, 3).setValue(nueva); // C = cantidad
+        _registrarHistorialAnd(row, tipo, anterior, nueva, email);
         return _jsonOut({ success: true });
       }
 
@@ -197,11 +231,14 @@ function manejarAccionAndamios(p) {
       case 'and_editar': {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
+        const anterior = parseInt(sh.getRange(row, 3).getValue(), 10) || 0;
+        const nueva = parseInt(p.cantidad, 10) || 0;
         sh.getRange(row, 1).setValue(p.tipo || '');
-        sh.getRange(row, 3).setValue(parseInt(p.cantidad, 10) || 0);
+        sh.getRange(row, 3).setValue(nueva);
         sh.getRange(row, 4).setValue(p.obs || '');
         sh.getRange(row, 5).setValue(p.sistema || 'Europeo');
         if (p.foto) sh.getRange(row, 2).setValue(p.foto);
+        _registrarHistorialAnd(row, p.tipo || '', anterior, nueva, email);
         return _jsonOut({ success: true });
       }
 
