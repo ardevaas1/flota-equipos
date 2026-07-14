@@ -2923,6 +2923,20 @@ function andInit() {
   andCargar();
 }
 
+// Orden y etiqueta de cada sistema de andamio — un solo lugar para agregar
+// nuevos sistemas en el futuro sin tener que tocar varios ternarios sueltos.
+const AND_SISTEMAS = {
+  Europeo:          { orden: 0, etiqueta: 'Andamio Europeo' },
+  Multidireccional: { orden: 1, etiqueta: 'Andamio Multidireccional' },
+  Nacional:         { orden: 2, etiqueta: 'Andamio Nacional' },
+};
+function andEtiquetaSistema(sistema) {
+  return (AND_SISTEMAS[sistema] || AND_SISTEMAS.Europeo).etiqueta;
+}
+function andOrdenSistema(sistema) {
+  return (AND_SISTEMAS[sistema] || AND_SISTEMAS.Europeo).orden;
+}
+
 function andRenderLista() {
   // Oculta el botón de importación inicial en cuanto ya existan piezas cargadas
   const mostrarImport = allAndamios.length === 0 ? '' : 'none';
@@ -2942,8 +2956,8 @@ function andRenderLista() {
     .filter(it => !txt || (it.tipo + it.obs).toLowerCase().includes(txt))
     .filter(it => modoBaja || !andFiltroSistema || it.sistema === andFiltroSistema)
     .sort((a, b) => {
-      // Agrupa por sistema (Europeo primero, luego Multidireccional) y alfabético dentro de cada grupo
-      if (a.sistema !== b.sistema) return a.sistema === 'Europeo' ? -1 : 1;
+      // Agrupa por sistema (Europeo, luego Multidireccional, luego Nacional) y alfabético dentro de cada grupo
+      if (a.sistema !== b.sistema) return andOrdenSistema(a.sistema) - andOrdenSistema(b.sistema);
       return a.tipo.localeCompare(b.tipo, 'es');
     });
 
@@ -2957,7 +2971,7 @@ function andRenderLista() {
       // Encabezado de sección al cambiar de sistema (con "Todos" o en modo Bajas, para saber a cuál sistema pertenece cada pieza)
       if ((!andFiltroSistema || modoBaja) && it.sistema !== sistemaActual) {
         sistemaActual = it.sistema;
-        const etiqueta = sistemaActual === 'Multidireccional' ? 'Andamio Multidireccional' : 'Andamio Europeo';
+        const etiqueta = andEtiquetaSistema(sistemaActual);
         html += `<div class="and-section-header">${etiqueta}</div>`;
       }
       html += modoBaja ? `
