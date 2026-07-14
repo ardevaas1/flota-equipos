@@ -1850,14 +1850,25 @@ async function contGuardarNuevo() {
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
     const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
-    await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
+    const appendRes = await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
+
+    // Fila real donde Google Sheets confirma que quedó el container recién
+    // creado (NO un cálculo adivinado en el cliente: si la lista local
+    // estaba desactualizada — otro container agregado/borrado mientras
+    // tenías el formulario abierto — adivinar la fila podía escribir la
+    // foto encima de OTRO container ya existente).
+    const updatedRange = appendRes && appendRes.updates && appendRes.updates.updatedRange;
+    const mRow = updatedRange && updatedRange.match(/![A-Z]+(\d+)/);
+    const newRow = mRow ? parseInt(mRow[1], 10) : null;
 
     // Subir foto de referencia si se seleccionó
     if (_contNuevoFoto) {
+      if (!newRow) {
+        toast('El container se creó, pero no se pudo confirmar su fila para subir la foto — edítalo y súbela de nuevo', 'error');
+      } else {
       toast('Subiendo foto de referencia...');
       try {
-        const newRow = (allContainers.length > 0 ? Math.max(...allContainers.map(i => i.rowIndex||0)) : 2) + 1;
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
         const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
@@ -1874,6 +1885,7 @@ async function contGuardarNuevo() {
           toast('Foto subida ✓');
         }
       } catch(fe) { console.error('[CONT NUEVO FOTO]', fe); }
+      }
       _contNuevoFoto = null;
     }
 
