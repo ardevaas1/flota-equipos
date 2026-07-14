@@ -2574,6 +2574,10 @@ function movhVerDetalle(modulo, rowIndex) {
     const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.rowIndex === rowIndex);
     if (!eq) { toast('Equipo no encontrado', 'error'); return; }
     openFicha(eq.patente, true);
+  } else if (modulo === 'cont') {
+    const c = (typeof allContainers !== 'undefined' ? allContainers : []).find(i => i.rowIndex === rowIndex);
+    if (!c) { toast('Container no encontrado', 'error'); return; }
+    contAbrirDetalle(rowIndex);
   } else {
     invAbrirDetalle(modulo, rowIndex, true);
   }
