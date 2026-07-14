@@ -859,7 +859,6 @@
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
-        <button class="desktop-refresh-btn admin-only-btn" style="margin-top:6px;background:#fde8e8;color:#c0392b;display:none" onclick="contRepararFotos()">🔧 Reparar fotos desincronizadas</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
@@ -898,9 +897,6 @@
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
-    </div>
-    <div style="padding:0 14px 8px" id="cont-mobile-repair">
-      <button class="action-btn admin-only-btn" style="background:#fde8e8;color:#c0392b;border:none;display:none" onclick="contRepararFotos()">🔧 Reparar fotos desincronizadas</button>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
       <div id="cont-lista"></div>
