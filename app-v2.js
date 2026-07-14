@@ -405,6 +405,11 @@ function applyViewerMode() {
   } else if (userRole === 'andamios') {
     document.body.classList.add('viewer-mode', 'andamios-mode');
   }
+  // Controles reservados para admin (ej: herramientas de reparación de datos)
+  // — ocultos por defecto en el HTML, se muestran solo si el rol es admin.
+  document.querySelectorAll('.admin-only-btn').forEach(el => {
+    el.style.display = (userRole === 'admin') ? '' : 'none';
+  });
 }
 
 function authHeader() {
@@ -1186,9 +1191,13 @@ async function loadData(background = false) {
         fotoRef:     (() => {
           const u = r[21] || '';
           if (!u) return '';
-          // Convertir URL antigua uc?export=view al formato thumbnail que sí carga en <img>
-          const m = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-          if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`;
+          // Convertir cualquier link "de ver" de Drive (pegado a mano o generado por
+          // versiones viejas de la app) al formato thumbnail que sí carga en <img>.
+          // Reconoce tanto ".../file/d/ID/view" como "uc?export=view&id=ID".
+          const mPath  = u.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+          const mQuery = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+          const fileId = (mPath && mPath[1]) || (mQuery && mQuery[1]);
+          if (fileId) return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
           return u;
         })(),
       }));

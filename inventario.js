@@ -473,7 +473,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
       <div style="padding:4px 0"
-           onclick="${imgSrc.startsWith('http') ? `invAbrirFotoModalUrl('${imgSrc.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')` }">
+           onclick="invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')">
         <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative">
           <div style="min-height:60px;display:flex;align-items:center;justify-content:center">
             <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
@@ -1140,7 +1140,7 @@ function contAbrirDetalle(rowIndex) {
     ${c.foto?`
     <div class="ficha-section">
       <div class="ficha-sec-title">Foto de referencia</div>
-      <div style="padding:8px 0" onclick="${c.foto.startsWith('http') ? `invAbrirFotoModalUrl('${c.foto.replace(/'/g,"\\'")}')` : `invAbrirFotoModal('${c.foto.replace(/'/g,"\\'")}')` }">
+      <div style="padding:8px 0" onclick="invAbrirFotoModal('${c.foto.replace(/'/g,"\\'")}')">
         <div id="cont-foto-thumb-${c.rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;min-height:60px;display:flex;align-items:center;justify-content:center">
           <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
         </div>
@@ -1898,6 +1898,80 @@ async function contGuardarNuevo() {
     toast('Error: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+  }
+}
+
+// ── Reparar fotos desincronizadas (solo admin) ──────────────────────────
+// Bug histórico: al crear un container nuevo con foto, la fila donde se
+// guardaba la foto se adivinaba en el cliente en vez de confirmarse con la
+// API (ya corregido en contGuardarNuevo). Mientras existió ese bug, subir
+// la foto de un container nuevo podía terminar escribiendo su nombre de
+// archivo en la fila de OTRO container ya existente, pisando su foto.
+//
+// Como los archivos siempre se suben con el nombre "CONT_<número>_<fecha>",
+// el número de container real queda codificado en el propio nombre del
+// archivo en Drive — así que se puede reparar el desorden sin adivinar:
+// se listan las fotos de la carpeta "Containers", se agrupan por número
+// (quedándose con la más reciente si hay varias para el mismo número), y
+// se reescribe la columna Foto de cada container para que apunte a SU
+// propio archivo. Solo toca filas donde encuentra una coincidencia seria
+// por número — si no encuentra nada para un container, lo deja como está
+// y lo reporta al final para subir la foto de nuevo a mano.
+async function contRepararFotos() {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (!confirm('Esto revisa la carpeta "Containers" en Drive y vuelve a vincular la foto correcta de cada container según el número que tiene en su nombre de archivo (CONT_<número>_...). Solo actualiza filas donde encuentra una coincidencia clara. ¿Continuar?')) return;
+
+  const btns = document.querySelectorAll('[onclick="contRepararFotos()"]');
+  btns.forEach(b => { b.disabled = true; b.textContent = 'Reparando...'; });
+
+  try {
+    toast('Buscando carpeta "Containers" en Drive...');
+    const folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+
+    toast('Listando fotos...');
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=1000`,
+      { headers: { 'Authorization': 'Bearer ' + accessToken } }
+    );
+    if (!res.ok) throw new Error('Error Drive ' + res.status);
+    const data = await res.json();
+    const files = data.files || [];
+
+    // Agrupa por número de container, quedándose con el archivo más reciente
+    // si hay varias fotos subidas a lo largo del tiempo para el mismo número.
+    const porNumero = {};
+    files.forEach(f => {
+      const m = f.name.match(/^CONT_(\d+)_/);
+      if (!m) return;
+      const num = String(parseInt(m[1], 10));
+      if (!porNumero[num] || new Date(f.createdTime) > new Date(porNumero[num].createdTime)) {
+        porNumero[num] = f;
+      }
+    });
+
+    let corregidos = 0, yaEstabanBien = 0, sinFotoEnDrive = 0;
+    const corregidosDetalle = [];
+    for (const it of allContainers) {
+      const match = porNumero[String(parseInt(it.num, 10))];
+      if (!match) { sinFotoEnDrive++; continue; }
+      if (match.name === it.foto) { yaEstabanBien++; continue; }
+      await writeSheet(`'${SHEET_CONTAINERS}'!C${it.rowIndex}`, [[match.name]]);
+      corregidos++;
+      corregidosDetalle.push(`N°${it.num}`);
+    }
+
+    toast(`✓ Reparación terminada: ${corregidos} corregidos, ${yaEstabanBien} ya estaban bien, ${sinFotoEnDrive} sin foto en Drive`);
+    if (corregidos > 0) console.log('[CONT REPARAR] Corregidos:', corregidosDetalle.join(', '));
+    await loadInventario();
+    renderContainers();
+  } catch (err) {
+    toast('Error al reparar: ' + err.message, 'error');
+  } finally {
+    btns.forEach(b => { b.disabled = false; b.textContent = '🔧 Reparar fotos desincronizadas'; });
   }
 }
 
