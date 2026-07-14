@@ -156,23 +156,28 @@ function _hojaHistorialAnd() {
   let sh = ss.getSheetByName(SHEET_AND_HIST);
   if (!sh) {
     sh = ss.insertSheet(SHEET_AND_HIST);
-    sh.appendRow(['Fecha', 'Fila', 'Tipo', 'Cantidad anterior', 'Cantidad nueva', 'Diferencia', 'Usuario']);
+    sh.appendRow(['Fecha', 'Fila', 'Tipo', 'Cantidad anterior', 'Cantidad nueva', 'Diferencia', 'Usuario', 'Campo']);
+  } else if (!sh.getRange(1, 8).getValue()) {
+    // Hojas creadas antes de agregar "Bajas": completa el encabezado que falta.
+    sh.getRange(1, 8).setValue('Campo');
   }
   return sh;
 }
 
-// Registra un cambio de cantidad en AND-HISTORIAL (una fila por cambio).
-// No registra nada si la cantidad no cambió realmente (ej: se guardó el
-// mismo valor). Si falla el registro del historial, NO debe hacer fallar
-// el guardado de la cantidad en sí — solo queda un warning en el log.
-function _registrarHistorialAnd(row, tipo, anterior, nueva, email) {
+// Registra un cambio en AND-HISTORIAL (una fila por cambio). "campo" indica
+// si el cambio fue en la columna Cantidad (piezas buenas) o Bajas (piezas
+// dadas de baja) — así ambos tipos de cambio quedan en la misma hoja pero
+// se pueden distinguir. No registra nada si el valor no cambió realmente.
+// Si falla el registro del historial, NO debe hacer fallar el guardado en
+// sí — solo queda un warning en el log.
+function _registrarHistorialAnd(row, tipo, anterior, nueva, email, campo) {
   if (anterior === nueva) return;
   try {
     const sh = _hojaHistorialAnd();
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const fecha = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm');
     const diff = nueva - anterior;
-    sh.appendRow([fecha, row, tipo || '', anterior, nueva, (diff > 0 ? '+' : '') + diff, email]);
+    sh.appendRow([fecha, row, tipo || '', anterior, nueva, (diff > 0 ? '+' : '') + diff, email, campo || 'Cantidad']);
   } catch (err) {
     console.log('No se pudo registrar historial de Andamios:', err);
   }
@@ -203,7 +208,7 @@ function manejarAccionAndamios(p) {
         const nueva = parseInt(p.cantidad, 10) || 0;
         const tipo = sh.getRange(row, 1).getValue();
         sh.getRange(row, 3).setValue(nueva); // C = cantidad
-        _registrarHistorialAnd(row, tipo, anterior, nueva, email);
+        _registrarHistorialAnd(row, tipo, anterior, nueva, email, 'Cantidad');
         return _jsonOut({ success: true });
       }
 
@@ -215,6 +220,7 @@ function manejarAccionAndamios(p) {
           parseInt(p.cantidad, 10) || 0,
           p.obs || '',
           p.sistema || 'Europeo',
+          0, // F = bajas, siempre arranca en 0 para una pieza nueva
         ]);
         return _jsonOut({ success: true, row: sh.getLastRow() });
       }
@@ -224,6 +230,18 @@ function manejarAccionAndamios(p) {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
         sh.getRange(row, 2).setValue(p.foto || ''); // B = foto
+        return _jsonOut({ success: true });
+      }
+
+      // Cambiar solo las bajas (botones +/- y tap-to-edit, en la vista "Dados de baja")
+      case 'and_set_baja': {
+        const row = parseInt(p.row, 10);
+        if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
+        const anterior = parseInt(sh.getRange(row, 6).getValue(), 10) || 0;
+        const nueva = parseInt(p.bajas, 10) || 0;
+        const tipo = sh.getRange(row, 1).getValue();
+        sh.getRange(row, 6).setValue(nueva); // F = bajas
+        _registrarHistorialAnd(row, tipo, anterior, nueva, email, 'Baja');
         return _jsonOut({ success: true });
       }
 
@@ -238,7 +256,7 @@ function manejarAccionAndamios(p) {
         sh.getRange(row, 4).setValue(p.obs || '');
         sh.getRange(row, 5).setValue(p.sistema || 'Europeo');
         if (p.foto) sh.getRange(row, 2).setValue(p.foto);
-        _registrarHistorialAnd(row, p.tipo || '', anterior, nueva, email);
+        _registrarHistorialAnd(row, p.tipo || '', anterior, nueva, email, 'Cantidad');
         return _jsonOut({ success: true });
       }
 

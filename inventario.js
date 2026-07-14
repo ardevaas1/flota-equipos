@@ -2900,7 +2900,7 @@ const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita
 // Carga (o recarga) los datos desde Sheets y renderiza
 async function andCargar() {
   try {
-    const rows = await fetchSheet(`'${SHEET_ANDAMIOS}'!A2:E500`);
+    const rows = await fetchSheet(`'${SHEET_ANDAMIOS}'!A2:F500`);
     allAndamios = (rows || [])
       .map((r, i) => ({
         rowIndex: i + 2, // fila real en la hoja (offset por header en fila 1)
@@ -2909,6 +2909,7 @@ async function andCargar() {
         cantidad: parseInt(r[2]) || 0,
         obs: r[3] || '',
         sistema: r[4] || 'Europeo', // filas antiguas sin columna E se asumen Europeo
+        bajas: parseInt(r[5]) || 0, // filas antiguas sin columna F se asumen 0
       }))
       .filter(x => x.tipo); // ignora filas vacías
   } catch (e) {
@@ -2935,9 +2936,11 @@ function andRenderLista() {
   const searchDtEl = document.getElementById('and-dt-search');
   const txt = (searchEl ? searchEl.value : searchDtEl ? searchDtEl.value : '').toLowerCase();
 
+  const modoBaja = andFiltroSistema === 'BAJA';
+
   const filtrados = allAndamios
     .filter(it => !txt || (it.tipo + it.obs).toLowerCase().includes(txt))
-    .filter(it => !andFiltroSistema || it.sistema === andFiltroSistema)
+    .filter(it => modoBaja || !andFiltroSistema || it.sistema === andFiltroSistema)
     .sort((a, b) => {
       // Agrupa por sistema (Europeo primero, luego Multidireccional) y alfabético dentro de cada grupo
       if (a.sistema !== b.sistema) return a.sistema === 'Europeo' ? -1 : 1;
@@ -2951,13 +2954,30 @@ function andRenderLista() {
     let html = '';
     let sistemaActual = null;
     filtrados.forEach(it => {
-      // Encabezado de sección al cambiar de sistema (solo tiene sentido mostrarlo con el filtro "Todos")
-      if (!andFiltroSistema && it.sistema !== sistemaActual) {
+      // Encabezado de sección al cambiar de sistema (con "Todos" o en modo Bajas, para saber a cuál sistema pertenece cada pieza)
+      if ((!andFiltroSistema || modoBaja) && it.sistema !== sistemaActual) {
         sistemaActual = it.sistema;
         const etiqueta = sistemaActual === 'Multidireccional' ? 'Andamio Multidireccional' : 'Andamio Europeo';
         html += `<div class="and-section-header">${etiqueta}</div>`;
       }
-      html += `
+      html += modoBaja ? `
+    <div class="and-card and-card--baja">
+      <div class="and-thumb" id="and-thumb${suffix}-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
+        ${it.foto ? '' : `<svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>`}
+      </div>
+      <div class="and-info" onclick="andAbrirEditar(${it.rowIndex})">
+        <div class="and-nombre">${it.tipo}</div>
+        <div class="and-obs">${it.cantidad} buenas</div>
+      </div>
+      <div class="and-counter and-counter--baja">
+        <button class="and-btn and-btn--minus" onclick="andCambiarBaja(${it.rowIndex},-1)">−</button>
+        <span class="and-num" id="and-baja${suffix}-${it.rowIndex}" onclick="andEditarBajaInline(${it.rowIndex}, this)">${it.bajas}</span>
+        <button class="and-btn and-btn--baja" onclick="andCambiarBaja(${it.rowIndex},1)">+</button>
+      </div>
+      <button class="and-hist-btn" onclick="event.stopPropagation();andVerHistorial(${it.rowIndex})" title="Ver historial de cambios">
+        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>` : `
     <div class="and-card">
       <div class="and-thumb" id="and-thumb${suffix}-${it.rowIndex}" onclick="andVerFoto(${it.rowIndex})">
         ${it.foto ? '' : `<svg viewBox="0 0 24 24" fill="none" style="width:24px;height:24px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>`}
@@ -2991,12 +3011,18 @@ function andRenderLista() {
     invCargarMiniaturaAndamio(it.foto, `and-thumb-dt-${it.rowIndex}`);
   });
 
-  // El total general siempre suma TODAS las piezas (ambos sistemas), sin importar el filtro activo
-  const total = allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
+  // El total: en modo normal suma las piezas BUENAS (cantidad) de todo el catálogo,
+  // sin importar el filtro de sistema activo; en modo "Dados de baja" muestra el
+  // total de piezas dadas de baja en su lugar.
+  const total = modoBaja
+    ? allAndamios.reduce((sum, it) => sum + (it.bajas || 0), 0)
+    : allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
   const totalEl = document.getElementById('and-total');
   if (totalEl) totalEl.textContent = total;
   const totalDtEl = document.getElementById('and-dt-total');
   if (totalDtEl) totalDtEl.textContent = total;
+  const totalLabelEls = document.querySelectorAll('.and-total-label');
+  totalLabelEls.forEach(el => { el.textContent = modoBaja ? 'Total dadas de baja' : 'Total de piezas contadas'; });
 }
 
 // ── Historial de cambios de cantidad (por pieza) ─────────────────────────
@@ -3014,7 +3040,7 @@ async function andVerHistorial(rowIndex) {
   openPanel('panel-and-historial');
 
   try {
-    const rows = await fetchSheet(`'${SHEET_AND_HIST}'!A2:G5000`);
+    const rows = await fetchSheet(`'${SHEET_AND_HIST}'!A2:H5000`);
     const entradas = (rows || [])
       .filter(r => parseInt(r[1], 10) === rowIndex)
       .reverse(); // la hoja crece hacia abajo (más nuevo al final) → mostrar más reciente primero
@@ -3022,21 +3048,23 @@ async function andVerHistorial(rowIndex) {
     if (!entradas.length) {
       cont.innerHTML = emptyState(
         'Sin cambios registrados todavía',
-        'Los cambios de cantidad que se hagan de ahora en adelante van a quedar guardados acá, con fecha y quién los hizo.'
+        'Los cambios de cantidad y de bajas que se hagan de ahora en adelante van a quedar guardados acá, con fecha y quién los hizo.'
       );
       return;
     }
 
     cont.innerHTML = entradas.map(r => {
-      const [fecha, , , anterior, nueva, diff, usuario] = r;
+      const [fecha, , , anterior, nueva, diff, usuario, campo] = r;
+      const esBaja = (campo || '').toString().trim() === 'Baja';
       const subio = (diff || '').toString().trim().startsWith('+');
       const colorTxt = subio ? '#1a8a4a' : '#c0392b';
+      const etiquetaCampo = esBaja ? 'Bajas' : 'Cantidad';
       return `<div class="evento-card-mini">
-        <div class="evento-tipo-icon ${subio ? 'green' : 'red'}">
+        <div class="evento-tipo-icon ${esBaja ? 'gray' : (subio ? 'green' : 'red')}">
           <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="${subio ? 'M12 19V5M6 11l6-6 6 6' : 'M12 5v14M6 13l6 6 6-6'}" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div class="mant-body">
-          <div class="mant-title">${anterior} → ${nueva} <span style="font-weight:800;color:${colorTxt}">(${diff})</span></div>
+          <div class="mant-title">${etiquetaCampo}: ${anterior} → ${nueva} <span style="font-weight:800;color:${colorTxt}">(${diff})</span></div>
           <div class="mant-meta">${fecha}${usuario ? ' · ' + usuario : ''}</div>
         </div>
       </div>`;
@@ -3200,6 +3228,84 @@ async function andSetCantidadAbsoluta(rowIndex, nueva) {
     toast('✓ Cantidad actualizada');
   } catch (e) {
     it.cantidad = anterior;
+    toast('No se pudo guardar: ' + e.message, 'error');
+    andRenderLista();
+  }
+}
+
+// ── Bajas (piezas dadas de baja) — mismo patrón que el contador de cantidad,
+// pero es un contador independiente por pieza: no resta de "cantidad", solo
+// lleva la cuenta aparte de cuántas de ese tipo están dadas de baja. ─────
+async function andCambiarBaja(rowIndex, delta) {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+
+  const nueva = Math.max(0, (it.bajas || 0) + delta);
+  if (nueva === it.bajas) return;
+  it.bajas = nueva;
+
+  const num = document.getElementById(`and-baja-${rowIndex}`);
+  if (num) num.textContent = nueva;
+  const numDt = document.getElementById(`and-baja-dt-${rowIndex}`);
+  if (numDt) numDt.textContent = nueva;
+  const total = allAndamios.reduce((sum, x) => sum + (x.bajas || 0), 0);
+  const totalEl = document.getElementById('and-total');
+  if (totalEl) totalEl.textContent = total;
+  const totalDtEl = document.getElementById('and-dt-total');
+  if (totalDtEl) totalDtEl.textContent = total;
+
+  try {
+    await _andEscrituraRemota('and_set_baja', { row: rowIndex, bajas: nueva });
+  } catch (e) {
+    toast('No se pudo guardar: ' + e.message, 'error');
+    it.bajas = nueva - delta;
+    if (num) num.textContent = it.bajas;
+    if (numDt) numDt.textContent = it.bajas;
+  }
+}
+
+function andEditarBajaInline(rowIndex, spanEl) {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
+  if (spanEl.tagName === 'INPUT') return;
+
+  const valorActual = spanEl.textContent;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.className = 'and-num-input';
+  input.value = valorActual;
+  input.id = spanEl.id;
+  spanEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let resuelto = false;
+  const confirmar = () => {
+    if (resuelto) return;
+    resuelto = true;
+    const nueva = Math.max(0, parseInt(input.value) || 0);
+    andSetBajaAbsoluta(rowIndex, nueva);
+  };
+  input.addEventListener('blur', confirmar);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { resuelto = true; andRenderLista(); }
+  });
+}
+
+async function andSetBajaAbsoluta(rowIndex, nueva) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+  const anterior = it.bajas;
+  it.bajas = nueva;
+  andRenderLista();
+
+  try {
+    await _andEscrituraRemota('and_set_baja', { row: rowIndex, bajas: nueva });
+    toast('✓ Bajas actualizadas');
+  } catch (e) {
+    it.bajas = anterior;
     toast('No se pudo guardar: ' + e.message, 'error');
     andRenderLista();
   }

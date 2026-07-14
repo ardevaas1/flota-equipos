@@ -310,6 +310,14 @@ body.is-offline #app { padding-top: 30px; }
   transition: transform 0.08s, background 0.15s;
 }
 .and-hist-btn:active { transform: scale(0.88); background: var(--accent-soft); color: var(--accent-dark); }
+
+/* Vista "Dados de baja": misma tarjeta, pero con acento rojo para diferenciarla
+   claramente del conteo normal (que representa piezas buenas). */
+.and-card--baja { background: #fffaf9; border: 1px solid #fbe4e1; border-radius: 12px; }
+.and-counter--baja .and-num { color: #c0392b; }
+.and-btn--baja { background: #fde8e8; color: #c0392b; }
+.and-btn--baja:active { background: #c0392b; color: #fff; }
+
 .and-num-input {
   width: 52px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink);
   border: 1.5px solid var(--accent); border-radius: 8px; padding: 2px 4px;
@@ -363,6 +371,7 @@ body.is-offline #app { padding-top: 30px; }
 .chip:active { transform: scale(0.96); }
 .chip:active:not(.active) { background: var(--neutral-soft); }
 .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 3px 8px rgba(var(--accent-rgb),0.3); }
+.chip--baja.active { background: #fde8e8; color: #c0392b; border-color: #f3b9b3; box-shadow: none; }
 .chip-ic { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* ── Nav ── */

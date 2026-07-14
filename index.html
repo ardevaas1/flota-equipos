@@ -1040,7 +1040,7 @@
       <div class="inv-desktop-stats cols-1" style="grid-template-columns:1fr">
         <div class="inv-desktop-stat" style="background:var(--accent-soft);color:var(--accent-dark)">
           <div class="inv-desktop-stat-n" id="and-dt-total">0</div>
-          <div class="inv-desktop-stat-l">Total de piezas contadas</div>
+          <div class="inv-desktop-stat-l and-total-label">Total de piezas contadas</div>
         </div>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
@@ -1067,6 +1067,7 @@
           <button class="chip active" data-sistema="" onclick="andSetFiltroSistema('', this)">Todos</button>
           <button class="chip" data-sistema="Europeo" onclick="andSetFiltroSistema('Europeo', this)">Andamio Europeo</button>
           <button class="chip" data-sistema="Multidireccional" onclick="andSetFiltroSistema('Multidireccional', this)">Andamio Multidireccional</button>
+          <button class="chip chip--baja" data-sistema="BAJA" onclick="andSetFiltroSistema('BAJA', this)">🚫 Dados de baja</button>
         </div>
       </div>
       <div id="and-dt-import-bar" style="padding:0 24px 4px">
@@ -1089,7 +1090,7 @@
     </header>
 
     <div class="and-total-bar" id="and-mobile-stats">
-      <span>Total de piezas contadas</span>
+      <span class="and-total-label">Total de piezas contadas</span>
       <span id="and-total">0</span>
     </div>
 
@@ -1109,6 +1110,7 @@
         <button class="chip active" data-sistema="" onclick="andSetFiltroSistema('', this)">Todos</button>
         <button class="chip" data-sistema="Europeo" onclick="andSetFiltroSistema('Europeo', this)">Andamio Europeo</button>
         <button class="chip" data-sistema="Multidireccional" onclick="andSetFiltroSistema('Multidireccional', this)">Andamio Multidireccional</button>
+        <button class="chip chip--baja" data-sistema="BAJA" onclick="andSetFiltroSistema('BAJA', this)">🚫 Dados de baja</button>
       </div>
     </div>
 
