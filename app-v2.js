@@ -1075,9 +1075,16 @@ async function _actualizarDocumentacionFicha(docId, e) {
     if (siguientesNoVacios.length < 2) return;
     const [fragFecha, fragEstado] = siguientesNoVacios;
 
-    requests.push({ deleteContentRange: { range: { startIndex: fragEstado.start, endIndex: fragEstado.end } } });
+    // Si el fragmento incluye el salto de línea final del párrafo (pasa
+    // cuando es el único texto de esa celda), no se puede borrar completo
+    // — Docs API exige que cada celda conserve al menos un párrafo con su
+    // salto de línea. Se recorta el rango a borrar para dejarlo intacto.
+    const finEstado = fragEstado.text.endsWith('\n') ? fragEstado.end - 1 : fragEstado.end;
+    const finFecha  = fragFecha.text.endsWith('\n')  ? fragFecha.end - 1  : fragFecha.end;
+
+    requests.push({ deleteContentRange: { range: { startIndex: fragEstado.start, endIndex: finEstado } } });
     requests.push({ insertText: { location: { index: fragEstado.start }, text: estadoNuevo } });
-    requests.push({ deleteContentRange: { range: { startIndex: fragFecha.start, endIndex: fragFecha.end } } });
+    requests.push({ deleteContentRange: { range: { startIndex: fragFecha.start, endIndex: finFecha } } });
     requests.push({ insertText: { location: { index: fragFecha.start }, text: parsearFecha(c.fecha) } });
   });
 
