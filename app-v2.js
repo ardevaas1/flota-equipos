@@ -1038,7 +1038,7 @@ async function actualizarFichaTecnica(patente) {
   } catch (err) {
     console.error('[FICHA TECNICA]', err);
     if (err.message.includes('403')) {
-      toast('Sin permiso para editar Docs — cerrá sesión y volvé a entrar para autorizarlo', 'error');
+      toast('Sin permiso para editar Docs — cierra sesión y vuelve a entrar para autorizarlo', 'error');
     } else {
       toast('No se pudo actualizar la ficha técnica: ' + err.message, 'error');
     }
