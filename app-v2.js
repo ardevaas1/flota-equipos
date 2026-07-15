@@ -926,6 +926,267 @@ function renderHistorialEquipo(patente) {
   }).join('');
 }
 
+// ══ Ficha Técnica (Google Docs) — actualización automática ═══════════════
+// Actualiza el Doc de "Ficha Técnica" de un vehículo con 3 cosas, y SOLO
+// esas 3 (decisión explícita, no tocar lo demás del Doc):
+//   1) Vigencia de SOAP / Permiso de circulación / Revisión técnica
+//   2) La foto de referencia (la misma que se ve en la app)
+//   3) Mantenciones nuevas en "Historial de eventos mayores"
+// Requiere el scope de Docs API (agregado en config.js) — si un usuario ya
+// había iniciado sesión antes de agregar ese scope, hay que pedirle que
+// cierre sesión y vuelva a entrar para que Google le pida el permiso nuevo.
+// ⚠️ No probado contra la API real (no hay forma de probarlo fuera de la
+// app) — probar primero con UN vehículo antes de confiar en esto para todos.
+
+async function docsApiFetch(method, path, body) {
+  const res = await fetch(`https://docs.googleapis.com/v1/documents/${path}`, {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Docs API ${res.status}: ${errText.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+function _extraerDocId(url) {
+  const m = (url || '').match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+// Recorre el documento entero (incluyendo el interior de las tablas) y arma
+// una lista plana de fragmentos de texto con su rango [start,end) real —
+// evita tener que caminar el árbol del documento de nuevo cada vez que hay
+// que ubicar una etiqueta o un valor.
+function _docFlatten(doc) {
+  const frags = [];
+  function walkContent(content) {
+    (content || []).forEach(item => {
+      if (item.paragraph) {
+        (item.paragraph.elements || []).forEach(el => {
+          if (el.textRun) frags.push({ start: el.startIndex, end: el.endIndex, text: el.textRun.content });
+        });
+      }
+      if (item.table) {
+        item.table.tableRows.forEach(row => row.tableCells.forEach(cell => walkContent(cell.content)));
+      }
+    });
+  }
+  walkContent(doc.body.content);
+  return frags;
+}
+
+function _docCeldaTexto(cell) {
+  return (cell.content || [])
+    .map(p => (p.paragraph?.elements || []).map(el => el.textRun?.content || '').join(''))
+    .join('');
+}
+
+// Ubica la primera tabla cuya fila de encabezado contiene `textoEncabezado`
+function _docBuscarTabla(doc, textoEncabezado) {
+  let found = null;
+  function walk(content) {
+    (content || []).forEach(item => {
+      if (item.table && !found) {
+        const textoPrimeraFila = (item.table.tableRows[0]?.tableCells || [])
+          .map(_docCeldaTexto).join('');
+        if (textoPrimeraFila.toUpperCase().includes(textoEncabezado)) found = item;
+      }
+      if (item.table) {
+        item.table.tableRows.forEach(row => row.tableCells.forEach(cell => walk(cell.content)));
+      }
+    });
+  }
+  walk(doc.body.content);
+  return found;
+}
+
+// Ubica la primera celda (de cualquier tabla) cuyo texto contiene `texto`
+function _docBuscarCeldaConTexto(doc, texto) {
+  let found = null;
+  function walk(content) {
+    (content || []).forEach(item => {
+      if (item.table) {
+        item.table.tableRows.forEach(row => row.tableCells.forEach(cell => {
+          if (!found && _docCeldaTexto(cell).includes(texto)) found = cell;
+          walk(cell.content);
+        }));
+      }
+    });
+  }
+  walk(doc.body.content);
+  return found;
+}
+
+async function actualizarFichaTecnica(patente) {
+  const e = allEquipos.find(x => x.patente === patente);
+  if (!e || !e.linkFicha) { toast('Este vehículo no tiene ficha técnica vinculada', 'error'); return; }
+  const docId = _extraerDocId(e.linkFicha);
+  if (!docId) { toast('No se pudo leer el link de la ficha técnica', 'error'); return; }
+
+  toast('Actualizando ficha técnica...');
+  try {
+    await _actualizarDocumentacionFicha(docId, e);
+    if (e.fotoRef) await _actualizarFotoFicha(docId, e);
+    await _actualizarHistorialFicha(docId, e);
+    toast('✓ Ficha técnica actualizada');
+  } catch (err) {
+    console.error('[FICHA TECNICA]', err);
+    if (err.message.includes('403')) {
+      toast('Sin permiso para editar Docs — cerrá sesión y volvé a entrar para autorizarlo', 'error');
+    } else {
+      toast('No se pudo actualizar la ficha técnica: ' + err.message, 'error');
+    }
+  }
+}
+
+// 1) Documentación: SOAP / Permiso / Revisión técnica — fecha + estado
+async function _actualizarDocumentacionFicha(docId, e) {
+  const doc = await docsApiFetch('GET', docId);
+  const frags = _docFlatten(doc);
+
+  const campos = [
+    { label: 'SEGURO OBLIGATORIO', fecha: e.soap },
+    { label: 'PERMISO DE CIRCULACIÓN', fecha: e.permiso },
+    { label: 'REVISIÓN TÉCNICA', fecha: e.revision },
+  ];
+
+  const requests = [];
+  campos.forEach(c => {
+    if (!c.fecha) return;
+    const dias = diasRestantes(c.fecha);
+    if (dias === null) return; // sin fecha parseable, no tocar esa fila
+    const estadoNuevo = dias < 0 ? 'VENCIDO' : 'VIGENTE';
+
+    const idxLabel = frags.findIndex(f => f.text.toUpperCase().includes(c.label));
+    if (idxLabel === -1) return;
+    // Los próximos dos fragmentos no vacíos después de la etiqueta son:
+    // fecha de vencimiento actual, y estado actual (mismo orden que la tabla).
+    const siguientesNoVacios = [];
+    for (let i = idxLabel + 1; i < frags.length && siguientesNoVacios.length < 2; i++) {
+      const t = frags[i].text.replace(/[\n\t]/g, '').trim();
+      if (t) siguientesNoVacios.push(frags[i]);
+    }
+    if (siguientesNoVacios.length < 2) return;
+    const [fragFecha, fragEstado] = siguientesNoVacios;
+
+    requests.push({ deleteContentRange: { range: { startIndex: fragEstado.start, endIndex: fragEstado.end } } });
+    requests.push({ insertText: { location: { index: fragEstado.start }, text: estadoNuevo } });
+    requests.push({ deleteContentRange: { range: { startIndex: fragFecha.start, endIndex: fragFecha.end } } });
+    requests.push({ insertText: { location: { index: fragFecha.start }, text: parsearFecha(c.fecha) } });
+  });
+
+  if (!requests.length) return;
+  // De mayor índice a menor: así cada delete/insert no corre el índice de
+  // los requests que todavía faltan aplicar dentro del mismo batchUpdate.
+  requests.sort((a, b) => {
+    const ia = a.deleteContentRange ? a.deleteContentRange.range.startIndex : a.insertText.location.index;
+    const ib = b.deleteContentRange ? b.deleteContentRange.range.startIndex : b.insertText.location.index;
+    return ib - ia;
+  });
+
+  await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
+}
+
+// 2) Foto de referencia: la misma que se ve en la app, insertada dentro de
+// la celda de "Registro fotográfico" (identificada porque tiene el link a
+// la carpeta con la patente como texto). Si ya había una foto de una
+// actualización anterior, se reemplaza en vez de acumular fotos viejas.
+async function _actualizarFotoFicha(docId, e) {
+  const doc = await docsApiFetch('GET', docId);
+  const celda = _docBuscarCeldaConTexto(doc, e.patente);
+  if (!celda) return; // no se encontró esa celda, no se toca nada
+
+  let imagenExistente = null;
+  (celda.content || []).forEach(p => {
+    (p.paragraph?.elements || []).forEach(el => {
+      if (el.inlineObjectElement) imagenExistente = el;
+    });
+  });
+
+  const requests = [];
+  if (imagenExistente) {
+    requests.push({ deleteContentRange: { range: { startIndex: imagenExistente.startIndex, endIndex: imagenExistente.endIndex } } });
+  } else {
+    // Primera vez: agrega la foto en su propio párrafo, debajo del link a la carpeta
+    requests.push({ insertText: { location: { index: celda.endIndex - 1 }, text: '\n' } });
+  }
+  const indiceImagen = imagenExistente ? imagenExistente.startIndex : celda.endIndex;
+  requests.push({
+    insertInlineImage: {
+      location: { index: indiceImagen },
+      uri: e.fotoRef,
+      objectSize: { height: { magnitude: 200, unit: 'PT' }, width: { magnitude: 260, unit: 'PT' } },
+    },
+  });
+
+  await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
+}
+
+// 3) Historial de eventos mayores: agrega solo las mantenciones que todavía
+// no aparecen en el Doc (se identifican por fecha — si esa fecha ya
+// aparece en algún lado del documento, se asume que esa fila ya existe).
+// Cada fila nueva se inserta con su propio ida y vuelta a la API para no
+// tener que calcular a mano cómo se corren los índices de TODO el
+// documento con cada fila — más lento, pero mucho más seguro.
+async function _actualizarHistorialFicha(docId, e) {
+  const eventos = allEventos.filter(ev => ev.patente === e.patente);
+  if (!eventos.length) return;
+
+  const doc = await docsApiFetch('GET', docId);
+  const textoDoc = _docFlatten(doc).map(f => f.text).join('');
+  const nuevos = eventos.filter(ev => ev.fechaEvento && !textoDoc.includes(ev.fechaEvento));
+  if (!nuevos.length) return;
+
+  const tabla = _docBuscarTabla(doc, 'HISTORIAL DE EVENTOS');
+  if (!tabla) return; // el Doc no tiene esa tabla — no se rompe nada, solo no se agrega
+
+  for (const ev of nuevos.slice(0, 10)) { // tope por corrida, por las dudas
+    const docActual = await docsApiFetch('GET', docId);
+    const tablaActual = _docBuscarTabla(docActual, 'HISTORIAL DE EVENTOS');
+    if (!tablaActual) break;
+    const filas = tablaActual.table.tableRows;
+    const ultimaFilaIdx = filas.length - 1;
+
+    await docsApiFetch('POST', `${docId}:batchUpdate`, {
+      requests: [{
+        insertTableRow: {
+          tableCellLocation: {
+            tableStartLocation: { index: tablaActual.startIndex },
+            rowIndex: ultimaFilaIdx,
+            columnIndex: 0,
+          },
+          insertBelow: true,
+        },
+      }],
+    });
+
+    const docConFila = await docsApiFetch('GET', docId);
+    const tablaConFila = _docBuscarTabla(docConFila, 'HISTORIAL DE EVENTOS');
+    const filaNueva = tablaConFila?.table.tableRows[ultimaFilaIdx + 1];
+    if (!filaNueva) continue;
+
+    const valores = [
+      ev.fechaEvento || '-',
+      ev.horometro ? formatNum(ev.horometro) : '-',
+      ev.tipo || '-',
+      ev.descripcion || '-',
+      '-', // costo: no existe en la app hoy, queda para completar a mano
+    ];
+
+    const requests = filaNueva.tableCells
+      .map((cell, i) => ({ insertText: { location: { index: cell.startIndex }, text: valores[i] ?? '-' } }))
+      .reverse(); // de la última celda a la primera, para no correr los índices propios
+
+    await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
+  }
+}
+
 // ── Panel evento ───────────────────────────────────────────────
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
@@ -1446,6 +1707,10 @@ function openFicha(patente, soloLectura) {
     </div>
 
     ${fichaBtn}
+    ${e.linkFicha ? `
+    <button class="ficha-link-btn" onclick="actualizarFichaTecnica('${e.patente}')" style="cursor:pointer;margin-top:6px;width:100%;display:flex;align-items:center;gap:8px;background:#eafaf0;color:#1a8a4a;border:1px solid #bfe8cf">
+      <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 12a8 8 0 0 1 13.66-5.66L20 8M4 12a8 8 0 0 0 13.66 5.66L20 16M20 4v4h-4M4 20v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Actualizar ficha técnica
+    </button>` : ''}
     <a class="ficha-link-btn" onclick="abrirCarpetaDrive('${e.patente}')" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5">
       <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Abrir carpeta en Drive
     </a>

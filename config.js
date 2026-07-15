@@ -10,6 +10,6 @@ const CONFIG = {
   // Carpeta Registro Fotográfico — contiene subcarpetas por patente
   DRIVE_ROOT_FOLDER: '1IyfEVZPqGfCrji5lAySeH-cUJFZlM7N_',
   // Scopes necesarios
-  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file',
+  SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents',
   DIAS_ALERTA: 60,
 };
