@@ -1434,9 +1434,16 @@ function _extraerFilasTabla(tabla) {
     .filter(r => r.label);
 }
 
-// Convierte una tabla de 2 columnas en un objeto { ETIQUETA: valor }
-function _extraerTablaComoObjeto(doc, textoAncla) {
-  const tabla = _docBuscarTabla(doc, textoAncla);
+// Convierte una tabla de 2 columnas en un objeto { ETIQUETA: valor }.
+// Prueba varias anclas porque _docBuscarTabla solo mira el texto de la
+// PRIMERA fila de la tabla — "EQUIPO" es la primera fila real de la tabla
+// de datos generales, "PATENTE" es una fila más abajo.
+function _extraerTablaComoObjeto(doc, ...anclas) {
+  let tabla = null;
+  for (const ancla of anclas) {
+    tabla = _docBuscarTabla(doc, ancla);
+    if (tabla) break;
+  }
   if (!tabla) return {};
   const out = {};
   _extraerFilasTabla(tabla).forEach(r => { out[r.label.toUpperCase()] = r.value; });
@@ -1578,7 +1585,7 @@ async function migrarFichaTecnicaVisual(patente) {
   console.log(`[MIGRAR] ${patente}: leyendo doc viejo...`);
   const oldDoc = await docsApiFetch('GET', oldDocId);
 
-  const datosGenerales = _extraerTablaComoObjeto(oldDoc, 'PATENTE');
+  const datosGenerales = _extraerTablaComoObjeto(oldDoc, 'EQUIPO', 'PATENTE');
   const tablaSpecs = _docTablaEntre(oldDoc, 'ESPECIFICACIONES TÉCNICAS', 'DOCUMENTACIÓN');
   const specsRows = _extraerFilasTabla(tablaSpecs);
   console.log('[MIGRAR] Datos generales encontrados:', datosGenerales);
