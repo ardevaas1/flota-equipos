@@ -1073,6 +1073,7 @@ async function actualizarFichaTecnica(patente) {
 
   toast('Actualizando ficha técnica...');
   try {
+    if (!allEventos.length) await loadEventos(); // por si no se visitó Mantenciones en esta sesión
     await _actualizarDocumentacionFicha(docId, e);
     await _actualizarUbicacionFicha(docId, e);
     await _actualizarFallasFicha(docId, e);
@@ -1347,12 +1348,12 @@ async function _actualizarHistorialFicha(docId, e) {
   const nuevos = eventos.filter(ev => ev.fechaEvento && !textoDoc.includes(ev.fechaEvento));
   if (!nuevos.length) return;
 
-  const tabla = _docBuscarTabla(doc, 'HISTORIAL DE EVENTOS');
+  const tabla = _docTablaEntre(doc, 'HISTORIAL DE EVENTOS');
   if (!tabla) return; // el Doc no tiene esa tabla — no se rompe nada, solo no se agrega
 
   for (const ev of nuevos.slice(0, 10)) { // tope por corrida, por las dudas
     const docActual = await docsApiFetch('GET', docId);
-    const tablaActual = _docBuscarTabla(docActual, 'HISTORIAL DE EVENTOS');
+    const tablaActual = _docTablaEntre(docActual, 'HISTORIAL DE EVENTOS');
     if (!tablaActual) break;
     const filas = tablaActual.table.tableRows;
     const ultimaFilaIdx = filas.length - 1;
@@ -1371,7 +1372,7 @@ async function _actualizarHistorialFicha(docId, e) {
     });
 
     const docConFila = await docsApiFetch('GET', docId);
-    const tablaConFila = _docBuscarTabla(docConFila, 'HISTORIAL DE EVENTOS');
+    const tablaConFila = _docTablaEntre(docConFila, 'HISTORIAL DE EVENTOS');
     const filaNueva = tablaConFila?.table.tableRows[ultimaFilaIdx + 1];
     if (!filaNueva) continue;
 
@@ -1407,14 +1408,15 @@ async function _actualizarHistorialFicha(docId, e) {
 // ⚠️ No probado contra la API real.
 
 // Busca la primera tabla que aparece DESPUÉS de un texto ancla y ANTES de
-// otro texto límite (para ubicar la tabla de "Especificaciones técnicas",
-// que no tiene ningún texto propio en su primera fila que la identifique
-// — el título está en un párrafo aparte, arriba de la tabla).
+// otro texto límite (para ubicar la tabla de "Especificaciones técnicas" o
+// "Historial de eventos mayores", que no tienen ningún texto propio en su
+// primera fila que las identifique — el título está en un párrafo aparte,
+// arriba de la tabla). Si no se pasa textoFin, busca hasta el final del doc.
 function _docTablaEntre(doc, textoInicio, textoFin) {
   const frags = _docFlatten(doc);
   const idxInicio = frags.findIndex(f => f.text.toUpperCase().includes(textoInicio));
   if (idxInicio === -1) return null;
-  const idxFin = frags.findIndex((f, i) => i > idxInicio && f.text.toUpperCase().includes(textoFin));
+  const idxFin = textoFin ? frags.findIndex((f, i) => i > idxInicio && f.text.toUpperCase().includes(textoFin)) : -1;
   const desde = frags[idxInicio].end;
   const hasta = idxFin !== -1 ? frags[idxFin].start : Infinity;
 
@@ -1665,6 +1667,12 @@ async function migrarFichaTecnicaVisual(patente) {
 // cuáles no (para revisar esos a mano o reintentar).
 //   migrarTodasLasFichasTecnicas()
 async function migrarTodasLasFichasTecnicas() {
+  if (!allEventos.length) {
+    console.log('[MIGRAR TODAS] Cargando mantenciones (allEventos estaba vacío)...');
+    await loadEventos();
+    console.log(`[MIGRAR TODAS] ${allEventos.length} evento(s) de mantención cargados.`);
+  }
+
   const pendientes = allEquipos.filter(e => e.linkFicha);
   console.log(`[MIGRAR TODAS] ${pendientes.length} vehículo(s) con ficha vinculada. Arrancando...`);
 
