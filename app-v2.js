@@ -1474,7 +1474,7 @@ async function loadData(background = false) {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:V200`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:X200`);
     if (!background) splash(70, 'Procesando equipos...');
 
     allEquipos = rows
@@ -1514,6 +1514,8 @@ async function loadData(background = false) {
           if (fileId) return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
           return u;
         })(),
+        fallaOperativa: r[22] || '',
+        fallaEstetica:  r[23] || '',
       }));
 
     if (!background) splash(80, 'Cargando eventos...');
@@ -1900,6 +1902,8 @@ function openEditPanel() {
   document.getElementById('edit-permiso').value   = e.permiso;
   document.getElementById('edit-revision').value  = e.revision;
   document.getElementById('edit-obs').value       = e.obs;
+  if (document.getElementById('edit-falla-operativa')) document.getElementById('edit-falla-operativa').value = e.fallaOperativa || '';
+  if (document.getElementById('edit-falla-estetica'))  document.getElementById('edit-falla-estetica').value  = e.fallaEstetica || '';
 
   // Cargar foto de referencia actual si existe
   _editFotoRef = null;
@@ -1995,6 +1999,8 @@ async function saveEquipo() {
   const permiso   = document.getElementById('edit-permiso').value;
   const revision  = document.getElementById('edit-revision').value;
   const obs       = document.getElementById('edit-obs').value;
+  const fallaOp   = document.getElementById('edit-falla-operativa')?.value || '';
+  const fallaEst  = document.getElementById('edit-falla-estetica')?.value || '';
   const patente   = document.getElementById('edit-patente').value;
   if (!row) return;
 
@@ -2084,6 +2090,8 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!V${row}`, [[fotoRefVal]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!W${row}`, [[fallaOp]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!X${row}`, [[fallaEst]]),
     ]);
     console.log('[SAVE] Sheet OK');
 
