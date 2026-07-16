@@ -1351,6 +1351,25 @@ async function _actualizarHistorialFicha(docId, e) {
   const tabla = _docTablaEntre(doc, 'HISTORIAL DE EVENTOS');
   if (!tabla) return; // el Doc no tiene esa tabla — no se rompe nada, solo no se agrega
 
+  // La fila "Sin eventos registrados todavía" es una sola celda fusionada
+  // (colspan=5), no 5 celdas separadas — si se usa como referencia para
+  // clonar una fila nueva, Docs API no sabe repartir las columnas y falla.
+  // Se borra antes de insertar nada real (ya no hace falta, va a haber datos).
+  const ultimaFilaOriginal = tabla.table.tableRows[tabla.table.tableRows.length - 1];
+  if (ultimaFilaOriginal && ultimaFilaOriginal.tableCells.length < 5 && tabla.table.tableRows.length > 1) {
+    await docsApiFetch('POST', `${docId}:batchUpdate`, {
+      requests: [{
+        deleteTableRow: {
+          tableCellLocation: {
+            tableStartLocation: { index: tabla.startIndex },
+            rowIndex: tabla.table.tableRows.length - 1,
+            columnIndex: 0,
+          },
+        },
+      }],
+    });
+  }
+
   for (const ev of nuevos.slice(0, 10)) { // tope por corrida, por las dudas
     const docActual = await docsApiFetch('GET', docId);
     const tablaActual = _docTablaEntre(docActual, 'HISTORIAL DE EVENTOS');
