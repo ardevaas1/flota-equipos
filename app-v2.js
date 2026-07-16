@@ -1434,6 +1434,29 @@ function _extraerFilasTabla(tabla) {
     .filter(r => r.label);
 }
 
+// Igual que _extraerFilasTabla, pero soporta filas con DOS pares
+// etiqueta/valor (4 celdas: etiqueta1, valor1, etiqueta2, valor2) — la
+// tabla de Especificaciones Técnicas del doc original viene así, no de
+// 2 columnas simples.
+function _extraerFilasTablaSpecs(tabla) {
+  if (!tabla) return [];
+  const filas = [];
+  tabla.table.tableRows.forEach(row => {
+    const c = row.tableCells;
+    if (c[0] && c[1]) {
+      const label = _docCeldaTexto(c[0]).replace(/\n/g, '').trim();
+      const value = _docCeldaTexto(c[1]).replace(/\n/g, '').trim();
+      if (label) filas.push({ label, value });
+    }
+    if (c[2] && c[3]) {
+      const label = _docCeldaTexto(c[2]).replace(/\n/g, '').trim();
+      const value = _docCeldaTexto(c[3]).replace(/\n/g, '').trim();
+      if (label) filas.push({ label, value });
+    }
+  });
+  return filas;
+}
+
 // Convierte una tabla de 2 columnas en un objeto { ETIQUETA: valor }.
 // Prueba varias anclas porque _docBuscarTabla solo mira el texto de la
 // PRIMERA fila de la tabla — "EQUIPO" es la primera fila real de la tabla
@@ -1549,11 +1572,9 @@ function _armarHtmlFichaTecnica(d) {
   <div class="foto-caja" style="margin-top:12px">
     <div class="rotulo">FOTO DE REFERENCIA</div>
     <span class="foto-marcador">{{FOTO_REFERENCIA}}</span>
-    <div class="nota">La app inserta acá la misma foto que se ve en su ficha.</div>
   </div>
   <div class="seccion"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
   <table class="datos-tabla">${filasSpecs}</table>
-  <div class="nota">Copiado tal cual del documento anterior — se sigue editando a mano.</div>
   <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DOCUMENTACIÓN</span></div>
   <table class="grilla">
     <tr><th>DOCUMENTO</th><th>FECHA DE VENCIMIENTO</th><th>ESTADO</th></tr>
@@ -1563,8 +1584,8 @@ function _armarHtmlFichaTecnica(d) {
   </table>
   <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">FALLAS DETECTADAS</span></div>
   <table class="fallas-grid"><tr>
-    <td><div class="falla-caja operativa"><span class="rotulo">⚙ OPERATIVA</span><span class="marcador">{{FALLA_OPERATIVA}}</span></div></td>
-    <td><div class="falla-caja estetica"><span class="rotulo">✎ ESTÉTICA</span><span class="marcador">{{FALLA_ESTETICA}}</span></div></td>
+    <td><div class="falla-caja operativa"><span class="rotulo">⚙ OPERATIVA&nbsp;&nbsp;</span><span class="marcador">{{FALLA_OPERATIVA}}</span></div></td>
+    <td><div class="falla-caja estetica"><span class="rotulo">✎ ESTÉTICA&nbsp;&nbsp;</span><span class="marcador">{{FALLA_ESTETICA}}</span></div></td>
   </tr></table>
   <div class="seccion"><span class="num">04&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">REGISTRO FOTOGRÁFICO</span></div>
   <div class="link-caja">📁 Carpeta completa de fotos: <a href="#">{{LINK_CARPETA_FOTOS}}</a></div>
@@ -1587,7 +1608,7 @@ async function migrarFichaTecnicaVisual(patente) {
 
   const datosGenerales = _extraerTablaComoObjeto(oldDoc, 'EQUIPO', 'PATENTE');
   const tablaSpecs = _docTablaEntre(oldDoc, 'ESPECIFICACIONES TÉCNICAS', 'DOCUMENTACIÓN');
-  const specsRows = _extraerFilasTabla(tablaSpecs);
+  const specsRows = _extraerFilasTablaSpecs(tablaSpecs);
   console.log('[MIGRAR] Datos generales encontrados:', datosGenerales);
   console.log('[MIGRAR] Filas de especificaciones técnicas encontradas:', specsRows);
 
