@@ -2,13 +2,31 @@
 
 ## Estado: IMPLEMENTADO, sin probar contra la API real todavía
 
-Código en `app-v2.js` (buscar `actualizarFichaTecnica`). Botón "🔄
-Actualizar ficha técnica" en la ficha de cada vehículo, junto al de "Abrir
-ficha técnica". Scope de Docs agregado en `config.js`.
+Código en `app-v2.js`. Dos partes:
 
-**Antes de usarlo con todos los vehículos**: probarlo primero en UNO,
-revisando a mano que el Doc haya quedado bien. La API de Google Docs no se
-pudo probar en vivo al escribir este código.
+1. **Actualización de datos** (`actualizarFichaTecnica`): botón "🔄
+   Actualizar ficha técnica" en la ficha de cada vehículo. Funciona tanto
+   en Docs viejos como en Docs con la plantilla nueva (busca por texto de
+   etiqueta, no por marcador).
+2. **Migración visual** (`migrarFichaTecnicaVisual`): crea un Doc NUEVO con
+   el diseño aprobado (banner azul, tablas con color) para un vehículo,
+   copiando del Doc viejo los datos que no existen en la app (Código, N°
+   de Serie, Marca/Modelo, Año, Encargado, y las filas de Especificaciones
+   Técnicas — las que sean, no hay lista fija). Actualiza `linkFicha` en la
+   hoja y corre `actualizarFichaTecnica` sobre el Doc nuevo al final.
+   **A propósito no tiene botón** — se llama desde la consola del
+   navegador, un vehículo a la vez:
+   ```js
+   migrarFichaTecnicaVisual('HGBL14')
+   ```
+   Revisar la consola: loguea los datos que encontró en el Doc viejo antes
+   de crear nada, para poder confirmar que los agarró bien.
+
+Scope de Docs agregado en `config.js`.
+
+**Antes de usarlo con todos los vehículos**: probar la migración visual
+primero en UNO (HGBL14), revisando a mano que el Doc nuevo haya quedado
+bien, ANTES de correrla en los 25 restantes.
 
 **Si tira error 403**: cada usuario que ya había iniciado sesión antes de
 este cambio tiene que cerrar sesión y volver a entrar, para que Google le

@@ -1174,85 +1174,76 @@ async function _actualizarFallasFicha(docId, e) {
   await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
 }
 
-// 4) Foto de referencia: reemplaza el marcador {{FOTO_REFERENCIA}} (primera
-// vez) o la foto que haya quedado de una corrida anterior (siguientes
-// veces) por la foto actual. Se deja un marcador de texto invisible-ish
-// "[foto]" pegado a la imagen para poder ubicarla de nuevo la próxima vez.
+// 4) Foto de referencia: usa el propio título "FOTO DE REFERENCIA" como
+// referencia (existe en la plantilla nueva y se crea sola la primera vez
+// en los docs viejos) — no necesita ningún marcador de texto visible
+// aparte. Busca si ya hay una imagen o el marcador {{FOTO_REFERENCIA}}
+// justo después del título para reemplazarla; si no hay nada, inserta la
+// foto ahí directamente.
 async function _actualizarFotoFicha(docId, e) {
-  const doc = await docsApiFetch('GET', docId);
-  const frags = _docFlatten(doc);
+  let doc = await docsApiFetch('GET', docId);
+  let frags = _docFlatten(doc);
+  let idxTitulo = frags.findIndex(f => f.text.toUpperCase().includes('FOTO DE REFERENCIA'));
 
-  const idxPlaceholder = frags.findIndex(f => f.text.includes('{{FOTO_REFERENCIA}}'));
-  const idxMarcador = frags.findIndex(f => f.text.includes('[foto]'));
-
-  const requests = [];
-  if (idxMarcador !== -1) {
-    // Ya había una foto de una corrida anterior — se borra el marcador +
-    // la imagen que le sigue, para reemplazarlos por la foto actual.
-    const marcador = frags[idxMarcador];
-    let imgFrag = null;
-    // Recorre el documento buscando el objeto de imagen cuyo índice de
-    // inicio sea el más cercano (y mayor) al fin del marcador.
-    function buscarImagenCerca(content) {
-      let candidata = null;
-      (content || []).forEach(item => {
-        if (item.paragraph) {
-          (item.paragraph.elements || []).forEach(el => {
-            if (el.inlineObjectElement && el.startIndex >= marcador.end) {
-              if (!candidata || el.startIndex < candidata.startIndex) candidata = el;
-            }
-          });
-        }
-        if (item.table) {
-          item.table.tableRows.forEach(row => row.tableCells.forEach(cell => {
-            const enCelda = buscarImagenCerca(cell.content);
-            if (enCelda && (!candidata || enCelda.startIndex < candidata.startIndex)) candidata = enCelda;
-          }));
-        }
-      });
-      return candidata;
-    }
-    imgFrag = buscarImagenCerca(doc.body.content);
-
-    const finBorrado = imgFrag ? imgFrag.endIndex : marcador.end;
-    requests.push({ deleteContentRange: { range: { startIndex: marcador.start, endIndex: finBorrado } } });
-    requests.push({ insertText: { location: { index: marcador.start }, text: '[foto] ' } });
-    requests.push({
-      insertInlineImage: {
-        location: { index: marcador.start + '[foto] '.length },
-        uri: e.fotoRef,
-        objectSize: { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } },
-      },
-    });
-  } else if (idxPlaceholder !== -1) {
-    // Primera vez: reemplaza el marcador {{FOTO_REFERENCIA}} de la plantilla
-    const ph = frags[idxPlaceholder];
-    requests.push({ deleteContentRange: { range: { startIndex: ph.start, endIndex: ph.end } } });
-    requests.push({ insertText: { location: { index: ph.start }, text: '[foto] ' } });
-    requests.push({
-      insertInlineImage: {
-        location: { index: ph.start + '[foto] '.length },
-        uri: e.fotoRef,
-        objectSize: { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } },
-      },
-    });
-  } else {
-    // Doc "viejo" (de antes de la plantilla nueva): no tiene ni el marcador
-    // ni una foto de una corrida anterior. En vez de no hacer nada, se
-    // agrega recién ahora la sección "Foto de referencia" después de la
-    // tabla de datos generales — así no hace falta migrar cada doc a mano.
+  if (idxTitulo === -1) {
+    // Doc "viejo": la sección todavía no existe — se crea después de la
+    // tabla de datos generales. Se resetea el formato del texto nuevo
+    // (negrita/color de fondo) para que no herede el estilo de la celda
+    // de la tabla justo antes, que se veía mal.
     const tablaDatos = _docBuscarTabla(doc, 'PATENTE') || _docBuscarTabla(doc, 'EQUIPO');
     if (!tablaDatos) return; // no se pudo ubicar dónde insertarla — se deja para revisar a mano
     const punto = tablaDatos.endIndex;
-    const encabezado = '\nFOTO DE REFERENCIA\n[foto] ';
-    requests.push({ insertText: { location: { index: punto }, text: encabezado } });
-    requests.push({
-      insertInlineImage: {
-        location: { index: punto + encabezado.length },
-        uri: e.fotoRef,
-        objectSize: { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } },
-      },
+    const texto = '\nFOTO DE REFERENCIA\n';
+    await docsApiFetch('POST', `${docId}:batchUpdate`, {
+      requests: [
+        { insertText: { location: { index: punto }, text: texto } },
+        {
+          updateTextStyle: {
+            range: { startIndex: punto, endIndex: punto + texto.length },
+            textStyle: { bold: true, backgroundColor: {}, foregroundColor: {} },
+            fields: 'bold,backgroundColor,foregroundColor',
+          },
+        },
+      ],
     });
+    doc = await docsApiFetch('GET', docId);
+    frags = _docFlatten(doc);
+    idxTitulo = frags.findIndex(f => f.text.toUpperCase().includes('FOTO DE REFERENCIA'));
+    if (idxTitulo === -1) return;
+  }
+
+  const finTitulo = frags[idxTitulo].end;
+
+  // A partir de ahí: ¿ya hay una imagen puesta en una corrida anterior?
+  // ¿o el marcador {{FOTO_REFERENCIA}} de la plantilla nueva sin usar?
+  let imagenExistente = null;
+  let placeholderExistente = null;
+  (function buscar(content) {
+    (content || []).forEach(item => {
+      if (item.paragraph) {
+        (item.paragraph.elements || []).forEach(el => {
+          if (el.startIndex < finTitulo) return;
+          if (el.inlineObjectElement && !imagenExistente) imagenExistente = el;
+          if (el.textRun && el.textRun.content.includes('{{FOTO_REFERENCIA}}') && !placeholderExistente) {
+            placeholderExistente = { startIndex: el.startIndex, endIndex: el.endIndex };
+          }
+        });
+      }
+      if (item.table) item.table.tableRows.forEach(row => row.tableCells.forEach(cell => buscar(cell.content)));
+    });
+  })(doc.body.content);
+
+  const tamano = { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } };
+  const requests = [];
+  if (imagenExistente) {
+    requests.push({ deleteContentRange: { range: { startIndex: imagenExistente.startIndex, endIndex: imagenExistente.endIndex } } });
+    requests.push({ insertInlineImage: { location: { index: imagenExistente.startIndex }, uri: e.fotoRef, objectSize: tamano } });
+  } else if (placeholderExistente) {
+    requests.push({ deleteContentRange: { range: placeholderExistente } });
+    requests.push({ insertInlineImage: { location: { index: placeholderExistente.startIndex }, uri: e.fotoRef, objectSize: tamano } });
+  } else {
+    requests.push({ insertText: { location: { index: finTitulo }, text: '\n' } });
+    requests.push({ insertInlineImage: { location: { index: finTitulo + 1 }, uri: e.fotoRef, objectSize: tamano } });
   }
 
   await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
@@ -1304,8 +1295,18 @@ async function _actualizarLinkCarpetaFicha(docId, e) {
     // sin tocar (no se sabe dónde ponerlo).
     const encabezado = _docFlatten(doc).find(f => f.text.toUpperCase().includes('REGISTRO FOTOGRÁFICO'));
     if (!encabezado) return;
+    const textoNuevo = `\n📁 ${ETIQUETA}`;
     await docsApiFetch('POST', `${docId}:batchUpdate`, {
-      requests: [{ insertText: { location: { index: encabezado.end }, text: `\n📁 ${ETIQUETA}` } }],
+      requests: [
+        { insertText: { location: { index: encabezado.end }, text: textoNuevo } },
+        {
+          updateTextStyle: {
+            range: { startIndex: encabezado.end, endIndex: encabezado.end + textoNuevo.length },
+            textStyle: { bold: false, backgroundColor: {}, foregroundColor: {} },
+            fields: 'bold,backgroundColor,foregroundColor',
+          },
+        },
+      ],
     });
     doc = await docsApiFetch('GET', docId);
   }
@@ -1382,6 +1383,239 @@ async function _actualizarHistorialFicha(docId, e) {
 
     await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
   }
+}
+
+// ══ Migración visual completa a la plantilla nueva ═══════════════════════
+// Crea un Doc NUEVO (con el diseño aprobado por el usuario: banner azul,
+// tablas con color, etc.) para un vehículo, copiando del Doc viejo solo los
+// datos que no existen en la app (Código, N° de Serie, Marca/Modelo, Año,
+// Encargado, y las filas de Especificaciones Técnicas — las que sean, no
+// se asume una lista fija porque varían según el tipo de máquina). Después
+// corre automáticamente actualizarFichaTecnica() sobre el Doc nuevo para
+// completar todo lo demás (documentación, foto, fallas, link, historial).
+//
+// Se llama UN vehículo a la vez desde la consola del navegador:
+//   migrarFichaTecnicaVisual('HGBL14')
+// A propósito no tiene botón en la interfaz — es una operación de una sola
+// vez por vehículo, no algo para tocar por accidente.
+// ⚠️ No probado contra la API real.
+
+// Busca la primera tabla que aparece DESPUÉS de un texto ancla y ANTES de
+// otro texto límite (para ubicar la tabla de "Especificaciones técnicas",
+// que no tiene ningún texto propio en su primera fila que la identifique
+// — el título está en un párrafo aparte, arriba de la tabla).
+function _docTablaEntre(doc, textoInicio, textoFin) {
+  const frags = _docFlatten(doc);
+  const idxInicio = frags.findIndex(f => f.text.toUpperCase().includes(textoInicio));
+  if (idxInicio === -1) return null;
+  const idxFin = frags.findIndex((f, i) => i > idxInicio && f.text.toUpperCase().includes(textoFin));
+  const desde = frags[idxInicio].end;
+  const hasta = idxFin !== -1 ? frags[idxFin].start : Infinity;
+
+  let found = null;
+  function walk(content) {
+    (content || []).forEach(item => {
+      if (item.table && item.startIndex >= desde && item.startIndex < hasta && !found) found = item;
+      if (item.table) item.table.tableRows.forEach(row => row.tableCells.forEach(cell => walk(cell.content)));
+    });
+  }
+  walk(doc.body.content);
+  return found;
+}
+
+// Convierte una tabla de 2 columnas en una lista [{label, value}, ...]
+function _extraerFilasTabla(tabla) {
+  if (!tabla) return [];
+  return tabla.table.tableRows
+    .map(row => ({
+      label: row.tableCells[0] ? _docCeldaTexto(row.tableCells[0]).replace(/\n/g, '').trim() : '',
+      value: row.tableCells[1] ? _docCeldaTexto(row.tableCells[1]).replace(/\n/g, '').trim() : '',
+    }))
+    .filter(r => r.label);
+}
+
+// Convierte una tabla de 2 columnas en un objeto { ETIQUETA: valor }
+function _extraerTablaComoObjeto(doc, textoAncla) {
+  const tabla = _docBuscarTabla(doc, textoAncla);
+  if (!tabla) return {};
+  const out = {};
+  _extraerFilasTabla(tabla).forEach(r => { out[r.label.toUpperCase()] = r.value; });
+  return out;
+}
+
+async function _obtenerCarpetaPadre(fileId) {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`, {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    });
+    const data = await res.json();
+    return (data.parents && data.parents[0]) || null;
+  } catch (e) { return null; }
+}
+
+// Sube contenido HTML a Drive dejando que Google lo convierta a Doc nativo
+// (mismo mecanismo con el que se armó y aprobó la plantilla de ejemplo).
+async function _crearDocDesdeHtml(nombreArchivo, htmlContent, parentFolderId) {
+  const boundary = 'lst_ficha_' + Date.now();
+  const metadata = JSON.stringify({
+    name: nombreArchivo,
+    mimeType: 'application/vnd.google-apps.document',
+    parents: parentFolderId ? [parentFolderId] : undefined,
+  });
+  const body = [
+    '--' + boundary, 'Content-Type: application/json; charset=UTF-8', '', metadata,
+    '--' + boundary, 'Content-Type: text/html; charset=UTF-8', '', htmlContent,
+    '--' + boundary + '--',
+  ].join('\r\n');
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
+    body,
+  });
+  if (!res.ok) throw new Error('Drive create ' + res.status + ': ' + (await res.text()).slice(0, 200));
+  return res.json();
+}
+
+// Arma el HTML de la plantilla nueva con los datos fijos ya completados
+// (los que no existen en la app) y marcadores {{ASÍ}} para lo que va a
+// completar actualizarFichaTecnica() justo después de crear el Doc.
+function _armarHtmlFichaTecnica(d) {
+  const escapar = (s) => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const filasSpecs = (d.specsRows && d.specsRows.length)
+    ? d.specsRows.map(r => `<tr><td class="etiqueta">${escapar(r.label)}</td><td>${escapar(r.value) || '&nbsp;'}</td></tr>`).join('')
+    : `<tr><td class="etiqueta">&nbsp;</td><td>&nbsp;</td></tr>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 12.5px; line-height: 1.4; }
+  p, div { margin: 0; padding: 0; }
+  td p, th p { margin: 0; }
+  table.header-tabla { width: 100%; border-collapse: collapse; }
+  table.header-tabla td { background: #0f3d66; color: #ffffff; text-align: center; padding: 16px 20px; border: none; }
+  .header-tabla .empresa { font-size: 11px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
+  .header-tabla .titulo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
+  .header-tabla .subtitulo { font-size: 11px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
+  .datos-tabla { width: 100%; border-collapse: collapse; border: 1px solid #d7e2ec; }
+  .datos-tabla td { border: 1px solid #e3ebf3; padding: 8px 12px; font-size: 12px; }
+  .datos-tabla .etiqueta { background: #eef5fc; font-weight: bold; color: #0f3d66; width: 38%; letter-spacing: 0.3px; }
+  .datos-tabla .valor { background: #ffffff; color: #1f2d3a; font-weight: bold; }
+  .foto-caja { border: 1px solid #d7e2ec; background: #f7fafd; border-radius: 6px; padding: 12px; text-align: center; }
+  .foto-caja .rotulo { font-size: 10px; color: #6f8aa3; letter-spacing: 1.2px; font-weight: bold; margin-bottom: 6px; }
+  .foto-marcador { color: #b8641a; font-style: italic; font-size: 11.5px; }
+  .seccion { margin-top: 22px; margin-bottom: 9px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; }
+  .seccion .num { color: #6f8aa3; font-weight: bold; font-size: 12px; margin-right: 6px; }
+  .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 13px; letter-spacing: 0.5px; }
+  table.grilla { width: 100%; border-collapse: collapse; }
+  table.grilla th { background: #0f3d66; color: #fff; font-size: 10.5px; letter-spacing: 0.4px; text-align: left; padding: 8px 11px; }
+  table.grilla td { border: 1px solid #e3ebf3; padding: 8px 11px; font-size: 12px; }
+  table.grilla tr:nth-child(even) td { background: #f7fafd; }
+  .marcador { color: #b8641a; font-style: italic; font-size: 11.5px; }
+  .fallas-grid { width: 100%; border-collapse: collapse; }
+  .fallas-grid td { border: none; width: 50%; vertical-align: top; padding: 0; }
+  .falla-caja { border-radius: 6px; padding: 11px 13px; font-size: 12px; }
+  .falla-caja.operativa { background: #fff2e2; border: 1px solid #f3d3a8; margin-right: 8px; }
+  .falla-caja.estetica  { background: #eef5fc; border: 1px solid #cfe0f0; margin-left: 8px; }
+  .falla-caja .rotulo { font-weight: bold; font-size: 10px; letter-spacing: 1px; margin-bottom: 5px; display: block; }
+  .falla-caja.operativa .rotulo { color: #a05a10; }
+  .falla-caja.estetica .rotulo { color: #1a4d8f; }
+  .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 12px; }
+  .link-caja a { color: #0f3d66; font-weight: bold; text-decoration: underline; }
+  .nota { font-size: 10.5px; color: #8697a8; margin-top: 5px; font-style: italic; }
+  .specs-caja { border: 1.5px dashed #9fb3d1; border-radius: 6px; padding: 14px; min-height: 60px; color: #6f8aa3; font-size: 11.5px; }
+  </style></head><body>
+  <table class="header-tabla"><tr><td>
+    <div class="empresa">CONSTRUCTORA LST</div>
+    <div class="titulo">HOJA DE VIDA DE MAQUINARIA</div>
+    <div class="subtitulo">REGISTRO TÉCNICO Y ADMINISTRATIVO</div>
+  </td></tr></table>
+  <div class="seccion" style="margin-top:20px"><span class="num">00&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DATOS GENERALES</span></div>
+  <table class="datos-tabla">
+    <tr><td class="etiqueta">EQUIPO</td><td class="valor">${escapar(d.equipo)}</td></tr>
+    <tr><td class="etiqueta">CÓDIGO</td><td class="valor">${escapar(d.codigo)}</td></tr>
+    <tr><td class="etiqueta">MARCA / MODELO</td><td class="valor">${escapar(d.marcaModelo)}</td></tr>
+    <tr><td class="etiqueta">N° DE SERIE</td><td class="valor">${escapar(d.nSerie)}</td></tr>
+    <tr><td class="etiqueta">AÑO</td><td class="valor">${escapar(d.anio)}</td></tr>
+    <tr><td class="etiqueta">PATENTE</td><td class="valor">${escapar(d.patente)}</td></tr>
+    <tr><td class="etiqueta">UBICACIÓN</td><td class="valor"><span class="marcador">{{UBICACION}}</span></td></tr>
+    <tr><td class="etiqueta">ENCARGADO</td><td class="valor">${escapar(d.encargado)}</td></tr>
+  </table>
+  <div class="foto-caja" style="margin-top:12px">
+    <div class="rotulo">FOTO DE REFERENCIA</div>
+    <span class="foto-marcador">{{FOTO_REFERENCIA}}</span>
+    <div class="nota">La app inserta acá la misma foto que se ve en su ficha.</div>
+  </div>
+  <div class="seccion"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
+  <table class="datos-tabla">${filasSpecs}</table>
+  <div class="nota">Copiado tal cual del documento anterior — se sigue editando a mano.</div>
+  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DOCUMENTACIÓN</span></div>
+  <table class="grilla">
+    <tr><th>DOCUMENTO</th><th>FECHA DE VENCIMIENTO</th><th>ESTADO</th></tr>
+    <tr><td>Revisión Técnica</td><td><span class="marcador">{{FECHA_REVISION}}</span></td><td><span class="marcador">{{ESTADO_REVISION}}</span></td></tr>
+    <tr><td>Permiso de Circulación</td><td><span class="marcador">{{FECHA_PERMISO}}</span></td><td><span class="marcador">{{ESTADO_PERMISO}}</span></td></tr>
+    <tr><td>Seguro Obligatorio</td><td><span class="marcador">{{FECHA_SOAP}}</span></td><td><span class="marcador">{{ESTADO_SOAP}}</span></td></tr>
+  </table>
+  <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">FALLAS DETECTADAS</span></div>
+  <table class="fallas-grid"><tr>
+    <td><div class="falla-caja operativa"><span class="rotulo">⚙ OPERATIVA</span><span class="marcador">{{FALLA_OPERATIVA}}</span></div></td>
+    <td><div class="falla-caja estetica"><span class="rotulo">✎ ESTÉTICA</span><span class="marcador">{{FALLA_ESTETICA}}</span></div></td>
+  </tr></table>
+  <div class="seccion"><span class="num">04&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">REGISTRO FOTOGRÁFICO</span></div>
+  <div class="link-caja">📁 Carpeta completa de fotos: <a href="#">{{LINK_CARPETA_FOTOS}}</a></div>
+  <div class="seccion"><span class="num">05&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">HISTORIAL DE EVENTOS MAYORES</span></div>
+  <table class="grilla">
+    <tr><th>FECHA</th><th>HORÓMETRO/ODÓMETRO</th><th>TIPO DE EVENTO</th><th>DESCRIPCIÓN</th><th>COSTO</th></tr>
+    <tr><td colspan="5" style="text-align:center;color:#93a5b6">Sin eventos registrados todavía</td></tr>
+  </table>
+  </body></html>`;
+}
+
+async function migrarFichaTecnicaVisual(patente) {
+  const e = allEquipos.find(x => x.patente === patente);
+  if (!e || !e.linkFicha) { console.error('Vehículo sin ficha vinculada'); return; }
+  const oldDocId = _extraerDocId(e.linkFicha);
+  if (!oldDocId) { console.error('Link de ficha inválido'); return; }
+
+  console.log(`[MIGRAR] ${patente}: leyendo doc viejo...`);
+  const oldDoc = await docsApiFetch('GET', oldDocId);
+
+  const datosGenerales = _extraerTablaComoObjeto(oldDoc, 'PATENTE');
+  const tablaSpecs = _docTablaEntre(oldDoc, 'ESPECIFICACIONES TÉCNICAS', 'DOCUMENTACIÓN');
+  const specsRows = _extraerFilasTabla(tablaSpecs);
+  console.log('[MIGRAR] Datos generales encontrados:', datosGenerales);
+  console.log('[MIGRAR] Filas de especificaciones técnicas encontradas:', specsRows);
+
+  const html = _armarHtmlFichaTecnica({
+    equipo: datosGenerales['EQUIPO'] || '',
+    codigo: datosGenerales['CÓDIGO'] || '',
+    marcaModelo: datosGenerales['MARCA / MODELO'] || datosGenerales['MARCA/MODELO'] || '',
+    nSerie: datosGenerales['N° DE SERIE'] || datosGenerales['N°DE SERIE'] || '',
+    anio: datosGenerales['AÑO'] || '',
+    patente: e.patente,
+    encargado: datosGenerales['ENCARGADO'] || '',
+    specsRows,
+  });
+
+  console.log('[MIGRAR] Creando doc nuevo...');
+  const parentId = await _obtenerCarpetaPadre(oldDocId);
+  const nuevoArchivo = await _crearDocDesdeHtml(`Ficha Técnica — ${patente}`, html, parentId);
+  const nuevoDocUrl = `https://docs.google.com/document/d/${nuevoArchivo.id}/edit`;
+  console.log('[MIGRAR] Doc nuevo creado:', nuevoDocUrl);
+
+  // Actualizar linkFicha en la hoja MAQUINARIA (columna T)
+  const rowsMaq = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!E2:E200`); // col E = patente
+  const rowIdx = (rowsMaq || []).findIndex(r => (r[0] || '').trim().toUpperCase() === patente.toUpperCase());
+  if (rowIdx === -1) {
+    console.error('[MIGRAR] No se encontró la fila del vehículo en MAQUINARIA — actualizá linkFicha a mano:', nuevoDocUrl);
+  } else {
+    const filaReal = rowIdx + 2;
+    await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!T${filaReal}`, [[nuevoDocUrl]]);
+    e.linkFicha = nuevoDocUrl;
+    console.log('[MIGRAR] linkFicha actualizado en la hoja, fila', filaReal);
+  }
+
+  console.log('[MIGRAR] Completando datos dinámicos con actualizarFichaTecnica()...');
+  await actualizarFichaTecnica(patente);
+  console.log(`[MIGRAR] ✓ ${patente} migrado. Revisá el doc nuevo: ${nuevoDocUrl}`);
 }
 
 // ── Panel evento ───────────────────────────────────────────────
