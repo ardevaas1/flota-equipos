@@ -982,8 +982,14 @@ function _docFlatten(doc) {
 }
 
 function _docCeldaTexto(cell) {
+  // Cada párrafo de la celda se separa con un salto de línea explícito —
+  // si no, dos párrafos distintos (ej. "ACEITE: X" y "COMBUSTIBLE: Y") se
+  // pegaban sin ningún espacio entre medio.
   return (cell.content || [])
-    .map(p => (p.paragraph?.elements || []).map(el => el.textRun?.content || '').join(''))
+    .map(p => {
+      const t = (p.paragraph?.elements || []).map(el => el.textRun?.content || '').join('');
+      return t.endsWith('\n') ? t : t + '\n';
+    })
     .join('');
 }
 
@@ -1440,17 +1446,21 @@ function _extraerFilasTabla(tabla) {
 // 2 columnas simples.
 function _extraerFilasTablaSpecs(tabla) {
   if (!tabla) return [];
+  // La etiqueta siempre va en una sola línea; el valor puede tener varias
+  // (ej. "ACEITE: ...", "COMBUSTIBLE: ...", "AIRE: ..." en líneas separadas
+  // dentro de la misma celda) — esas líneas se conservan, no se pegan.
+  const limpiarValor = (txt) => txt.split('\n').map(s => s.trim()).filter(Boolean).join('\n');
   const filas = [];
   tabla.table.tableRows.forEach(row => {
     const c = row.tableCells;
     if (c[0] && c[1]) {
-      const label = _docCeldaTexto(c[0]).replace(/\n/g, '').trim();
-      const value = _docCeldaTexto(c[1]).replace(/\n/g, '').trim();
+      const label = _docCeldaTexto(c[0]).replace(/\n/g, ' ').trim();
+      const value = limpiarValor(_docCeldaTexto(c[1]));
       if (label) filas.push({ label, value });
     }
     if (c[2] && c[3]) {
-      const label = _docCeldaTexto(c[2]).replace(/\n/g, '').trim();
-      const value = _docCeldaTexto(c[3]).replace(/\n/g, '').trim();
+      const label = _docCeldaTexto(c[2]).replace(/\n/g, ' ').trim();
+      const value = limpiarValor(_docCeldaTexto(c[3]));
       if (label) filas.push({ label, value });
     }
   });
@@ -1512,8 +1522,9 @@ async function _crearDocDesdeHtml(nombreArchivo, htmlContent, parentFolderId) {
 // completar actualizarFichaTecnica() justo después de crear el Doc.
 function _armarHtmlFichaTecnica(d) {
   const escapar = (s) => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const escaparMultilinea = (s) => escapar(s).replace(/\n+/g, '<br>');
   const filasSpecs = (d.specsRows && d.specsRows.length)
-    ? d.specsRows.map(r => `<tr><td class="etiqueta">${escapar(r.label)}</td><td>${escapar(r.value) || '&nbsp;'}</td></tr>`).join('')
+    ? d.specsRows.map(r => `<tr><td class="etiqueta">${escapar(r.label)}</td><td>${escaparMultilinea(r.value) || '&nbsp;'}</td></tr>`).join('')
     : `<tr><td class="etiqueta">&nbsp;</td><td>&nbsp;</td></tr>`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -1573,6 +1584,7 @@ function _armarHtmlFichaTecnica(d) {
     <div class="rotulo">FOTO DE REFERENCIA</div>
     <span class="foto-marcador">{{FOTO_REFERENCIA}}</span>
   </div>
+  <div style="height:16px">&nbsp;</div>
   <div class="seccion"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
   <table class="datos-tabla">${filasSpecs}</table>
   <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DOCUMENTACIÓN</span></div>
