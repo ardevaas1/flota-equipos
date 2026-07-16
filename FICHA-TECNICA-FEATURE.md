@@ -7,69 +7,68 @@ Actualizar ficha técnica" en la ficha de cada vehículo, junto al de "Abrir
 ficha técnica". Scope de Docs agregado en `config.js`.
 
 **Antes de usarlo con todos los vehículos**: probarlo primero en UNO,
-revisando a mano que el Doc haya quedado bien (fechas/estado correctos, la
-foto se vea bien posicionada, la fila de historial nueva tenga los datos en
-las columnas correctas). La API de Google Docs no se pudo probar en vivo al
-escribir este código — solo se armó con la estructura real leída de un Doc
-de ejemplo, así que hay margen de error en cómo ubica las celdas.
+revisando a mano que el Doc haya quedado bien. La API de Google Docs no se
+pudo probar en vivo al escribir este código.
 
 **Si tira error 403**: cada usuario que ya había iniciado sesión antes de
 este cambio tiene que cerrar sesión y volver a entrar, para que Google le
 pida el permiso nuevo de Docs.
 
-## Estructura real del Doc (confirmada leyendo un ejemplo real)
+## Decisión clave: NO se migran los 26 Docs viejos a un archivo nuevo
 
-Título: **"HOJA DE VIDA DE MAQUINARIA — REGISTRO TÉCNICO Y ADMINISTRATIVO"**
+Se evaluó recrear los 26 Docs desde una plantilla nueva, pero se descartó:
+copiar contenido rico (tablas, formato) de un Doc a otro vía la API de
+Google Docs es una tarea enorme y frágil (no hay un "copiar este rango" en
+la API, hay que reconstruir todo a mano). En cambio, las funciones de
+actualización buscan cada dato por el **texto de la etiqueta** ("REVISIÓN
+TÉCNICA", "UBICACIÓN", "OPERATIVA", "REGISTRO FOTOGRÁFICO", etc.) — esas
+etiquetas YA existen en los 26 Docs actuales porque comparten la plantilla
+original. Por eso las funciones de Documentación, Ubicación, Fallas e
+Historial **funcionan directo sobre los Docs existentes, sin migrar nada**.
 
-1. **Tabla de encabezado**: EQUIPO, CÓDIGO, MARCA / MODELO, N° DE SERIE,
-   AÑO, PATENTE, UBICACIÓN, ENCARGADO
-2. **1. ESPECIFICACIONES TÉCNICAS**: MOTOR/MODELO, FILTROS (aceite,
-   combustible, aire), ACEITE MOTOR, CAPACIDAD ESTANQUE, MEDIDA
-   NEUMÁTICOS/ORUGAS
-3. **2. DOCUMENTACIÓN**: tabla con REVISIÓN TÉCNICA / PERMISO DE
-   CIRCULACIÓN / SEGURO OBLIGATORIO, cada uno con fecha de vencimiento y
-   estado (VIGENTE/VENCIDO)
-4. **3. FALLAS DETECTADAS**: OPERATIVA (texto libre) / ESTÉTICA (texto
-   libre)
-5. **4. REGISTRO FOTOGRÁFICO**: link a la carpeta de Drive de fotos de ese
-   vehículo, identificada porque el texto del link es la patente
-6. **5. HISTORIAL DE EVENTOS MAYORES**: tabla con Fecha, Horómetro/Odómetro,
-   Tipo de evento, Descripción, Costo
+Lo único que los Docs viejos no tenían era una sección de "Foto de
+referencia" y un link clickeable a la carpeta de fotos — las funciones
+correspondientes ahora detectan si falta esa sección y la **crean solas la
+primera vez** que se corre el botón sobre ese vehículo (ver
+`_actualizarFotoFicha` y `_actualizarLinkCarpetaFicha`, rama `else`/
+fallback). No hace falta ningún paso de migración manual ni masivo.
 
-## Alcance confirmado con el usuario (no re-preguntar)
+## Estructura del Doc que las funciones esperan encontrar
 
-- La hoja "RE" (otra lista de vehículos con links de ficha técnica,
-  encontrada al revisar el Drive) es un respaldo viejo — la fuente real es
-  **`MAQUINARIA.linkFicha`** (columna T, índice 19), que es la que usa la
-  app en vivo.
-- El botón actualiza SOLO 3 cosas en el Doc existente de cada vehículo:
-  1. **Documentación**: fecha + estado (VIGENTE/VENCIDO) de SOAP, Permiso
-     de Circulación y Revisión Técnica — mismo cálculo que ya usa la app
-     (`diasRestantes`/`parsearFecha`).
-  2. **Registro fotográfico**: inserta la MISMA foto de referencia
-     (`fotoRef`) que se ve en la app, dentro de la celda que ya tiene el
-     link a la carpeta — sin tocar ese link ni agregar el resto de fotos.
-     Si ya había una foto de una corrida anterior, la reemplaza (no
-     acumula fotos viejas).
-  3. **Historial de eventos mayores**: agrega las mantenciones de la hoja
-     `MANTENCIONES` que todavía no aparecen en el Doc (dedupe por fecha).
-- Todo lo demás del Doc (N° de serie, código interno, specs del motor,
-  fallas detectadas) sigue siendo edición manual — no se tocó ni se agregó
-  nada a la app para esos campos.
+No depende de un formato exacto, solo de que existan estos textos en algún
+lado del documento (en tablas o párrafos sueltos, no importa el orden):
 
-## Cómo ubica las cosas dentro del Doc (para debug futuro)
+- Una tabla con una fila cuya primera celda contenga "PATENTE" o "EQUIPO"
+  (tabla de datos generales) — ahí se busca también la fila "UBICACIÓN".
+- Una tabla con una columna "FECHA DE VENCIMIENTO" y filas "REVISIÓN
+  TÉCNICA" / "PERMISO DE CIRCULACIÓN" / "SEGURO OBLIGATORIO".
+- Una tabla o celdas con el texto "OPERATIVA" y "ESTÉTICA" (fallas).
+- Un párrafo o encabezado con el texto "REGISTRO FOTOGRÁFICO".
+- Una tabla con "HISTORIAL DE EVENTOS" en el encabezado.
 
-No usa posiciones fijas — cada vez que corre, lee el Doc entero
-(`documents.get`) y busca por texto:
-- Las 3 filas de documentación, buscando la etiqueta ("REVISIÓN TÉCNICA",
-  etc.) y tomando los próximos 2 fragmentos de texto no vacíos (fecha,
-  estado).
-- La celda de la foto, buscando cuál celda de tabla contiene la patente.
-- La tabla de historial, buscando cuál tabla tiene "HISTORIAL DE EVENTOS"
-  en su encabezado.
+La plantilla nueva (para vehículos que se creen de acá en adelante) está
+en Drive como Doc de ejemplo aprobado por el usuario — usa marcadores
+`{{ASÍ}}` para las partes que la app llena la primera vez, pero después de
+la primera corrida esos marcadores desaparecen y las funciones siguen
+ubicando todo por el texto de las etiquetas, igual que en los Docs viejos.
 
-Si algún Doc tiene una estructura distinta a la plantilla estándar (otro
-orden de columnas, otra redacción de las etiquetas), esa parte
-simplemente no se actualiza — no debería romper nada, pero tampoco va a
-avisar que se saltó algo. Si un vehículo puntual no se actualiza bien,
-lo primero a revisar es si su Doc calza con la plantilla.
+## Qué actualiza cada corrida del botón
+
+1. **Documentación**: fecha + estado (VIGENTE/VENCIDO) de SOAP, Permiso y
+   Revisión Técnica — recalculado cada vez con `diasRestantes`.
+2. **Ubicación**: la fila UBICACIÓN de la tabla de datos generales.
+3. **Fallas detectadas**: reemplaza el valor de las celdas OPERATIVA/
+   ESTÉTICA con lo que haya cargado en la ficha del vehículo en la app
+   (campos nuevos `edit-falla-operativa` / `edit-falla-estetica`).
+4. **Foto de referencia**: inserta/reemplaza la misma foto que se ve en la
+   app (`fotoRef`), con un marcador de texto `[foto]` para poder ubicarla y
+   reemplazarla en corridas futuras sin acumular fotos viejas.
+5. **Link a la carpeta de fotos**: resuelve la carpeta real por patente
+   (misma búsqueda que ya usa `abrirCarpetaDrive`) y la deja como link
+   clickeable con el texto "Abrir carpeta de fotos".
+6. **Historial de eventos mayores**: agrega las mantenciones de la hoja
+   `MANTENCIONES` que todavía no aparecen en el Doc (dedupe por fecha).
+
+Todo lo demás del Doc (N° de serie, código interno, specs del motor,
+fallas detectadas *contenido libre*, especificaciones técnicas) sigue
+siendo edición 100% manual — la app nunca lo toca.
