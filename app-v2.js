@@ -1658,6 +1658,40 @@ async function migrarFichaTecnicaVisual(patente) {
   console.log(`[MIGRAR] ✓ ${patente} migrado. Revisá el doc nuevo: ${nuevoDocUrl}`);
 }
 
+// Migra TODOS los vehículos que tengan ficha técnica vinculada, uno por
+// uno (nunca en paralelo, para no saturar la API de Docs). Si uno falla,
+// sigue con el resto — no corta la corrida por un vehículo con problemas.
+// Al final deja un resumen en la consola con cuáles salieron bien y
+// cuáles no (para revisar esos a mano o reintentar).
+//   migrarTodasLasFichasTecnicas()
+async function migrarTodasLasFichasTecnicas() {
+  const pendientes = allEquipos.filter(e => e.linkFicha);
+  console.log(`[MIGRAR TODAS] ${pendientes.length} vehículo(s) con ficha vinculada. Arrancando...`);
+
+  const ok = [];
+  const conError = [];
+
+  for (const e of pendientes) {
+    console.log(`\n[MIGRAR TODAS] ────── ${e.patente} ──────`);
+    try {
+      await migrarFichaTecnicaVisual(e.patente);
+      ok.push(e.patente);
+    } catch (err) {
+      console.error(`[MIGRAR TODAS] ✗ ${e.patente} falló:`, err);
+      conError.push({ patente: e.patente, error: err.message });
+    }
+    // Pausa breve entre vehículos para no pegarle a la API muy seguido
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  console.log('\n\n[MIGRAR TODAS] ══════ RESUMEN ══════');
+  console.log(`✓ OK (${ok.length}):`, ok);
+  console.log(`✗ Con error (${conError.length}):`, conError);
+  if (conError.length) {
+    console.log('Revisá esos a mano, o reintentá uno por uno con migrarFichaTecnicaVisual(\'PATENTE\')');
+  }
+}
+
 // ── Panel evento ───────────────────────────────────────────────
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
