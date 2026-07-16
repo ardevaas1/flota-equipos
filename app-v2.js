@@ -1350,53 +1350,44 @@ async function _actualizarHistorialFicha(docId, e) {
   console.log(`[HISTORIAL] ${nuevos.length} evento(s) todavía no están en el Doc.`);
   if (!nuevos.length) return;
 
-  let tabla = _docTablaEntre(doc, 'HISTORIAL DE EVENTOS');
+  const tabla = _docTablaEntre(doc, 'HISTORIAL DE EVENTOS');
   if (!tabla) { console.warn('[HISTORIAL] No se encontró la tabla en el Doc.'); return; }
   console.log(`[HISTORIAL] Tabla encontrada con ${tabla.table.tableRows.length} fila(s).`);
 
-  // Limpieza: borra TODAS las filas rotas al final de la tabla (menos de 5
-  // celdas — la fila "Sin eventos registrados todavía" fusionada, o
-  // restos de un intento anterior que falló a mitad de camino), hasta
-  // dejar solo filas bien formadas (o solo el encabezado).
-  let intentos = 0;
-  while (tabla.table.tableRows.length > 1 && intentos < 10) {
-    const ultima = tabla.table.tableRows[tabla.table.tableRows.length - 1];
-    if (ultima.tableCells.length >= 5) break; // fila bien formada, no tocar
-    console.log(`[HISTORIAL] Borrando fila rota (${ultima.tableCells.length} celda(s)) al final de la tabla...`);
+  // Si la fila justo debajo del encabezado es el placeholder "Sin eventos
+  // registrados todavía" (una sola celda fusionada), se borra — ya va a
+  // haber datos reales. No se tocan filas más abajo (podrían ser eventos
+  // ya agregados antes, buenos o de intentos rotos previos — se dejan para
+  // revisar a mano si hace falta, en vez de arriesgarse a borrar de más).
+  const primeraFilaDatos = tabla.table.tableRows[1];
+  if (primeraFilaDatos && primeraFilaDatos.tableCells.length < 5) {
+    console.log('[HISTORIAL] Borrando la fila "Sin eventos registrados todavía"...');
     await docsApiFetch('POST', `${docId}:batchUpdate`, {
       requests: [{
         deleteTableRow: {
-          tableCellLocation: {
-            tableStartLocation: { index: tabla.startIndex },
-            rowIndex: tabla.table.tableRows.length - 1,
-            columnIndex: 0,
-          },
+          tableCellLocation: { tableStartLocation: { index: tabla.startIndex }, rowIndex: 1, columnIndex: 0 },
         },
       }],
     });
-    const docLimpio = await docsApiFetch('GET', docId);
-    tabla = _docTablaEntre(docLimpio, 'HISTORIAL DE EVENTOS');
-    if (!tabla) { console.warn('[HISTORIAL] La tabla desapareció al limpiar — revisar el Doc a mano.'); return; }
-    intentos++;
   }
-  console.log(`[HISTORIAL] Tabla lista con ${tabla.table.tableRows.length} fila(s) (encabezado incluido). Agregando eventos...`);
 
   for (const ev of nuevos.slice(0, 10)) { // tope por corrida, por las dudas
+    console.log(`[HISTORIAL] Insertando evento del ${ev.fechaEvento}...`);
+
     const docActual = await docsApiFetch('GET', docId);
     const tablaActual = _docTablaEntre(docActual, 'HISTORIAL DE EVENTOS');
     if (!tablaActual) { console.warn('[HISTORIAL] La tabla ya no está — se corta acá.'); break; }
-    const filas = tablaActual.table.tableRows;
-    const ultimaFilaIdx = filas.length - 1;
-    console.log(`[HISTORIAL] Insertando evento del ${ev.fechaEvento}...`);
 
+    // SIEMPRE se inserta pegado al encabezado (fila 0), nunca a la última
+    // fila — el encabezado tiene garantizado 5 columnas separadas bien
+    // formadas; una fila de datos más abajo podría estar rota (fusionada)
+    // por un intento anterior fallido, y clonar eso arrastraba el problema
+    // a cada fila nueva. Como efecto secundario, los eventos quedan
+    // ordenados del más nuevo al más viejo (el más reciente arriba).
     await docsApiFetch('POST', `${docId}:batchUpdate`, {
       requests: [{
         insertTableRow: {
-          tableCellLocation: {
-            tableStartLocation: { index: tablaActual.startIndex },
-            rowIndex: ultimaFilaIdx,
-            columnIndex: 0,
-          },
+          tableCellLocation: { tableStartLocation: { index: tablaActual.startIndex }, rowIndex: 0, columnIndex: 0 },
           insertBelow: true,
         },
       }],
@@ -1404,7 +1395,7 @@ async function _actualizarHistorialFicha(docId, e) {
 
     const docConFila = await docsApiFetch('GET', docId);
     const tablaConFila = _docTablaEntre(docConFila, 'HISTORIAL DE EVENTOS');
-    const filaNueva = tablaConFila?.table.tableRows[ultimaFilaIdx + 1];
+    const filaNueva = tablaConFila?.table.tableRows[1]; // justo debajo del encabezado
     if (!filaNueva) { console.warn(`[HISTORIAL] No se encontró la fila recién creada para el evento del ${ev.fechaEvento} — se saltea.`); continue; }
     if (filaNueva.tableCells.length < 5) {
       console.warn(`[HISTORIAL] La fila nueva tiene ${filaNueva.tableCells.length} celda(s) en vez de 5 — se saltea el evento del ${ev.fechaEvento} para no romper el Doc.`);
@@ -1426,7 +1417,7 @@ async function _actualizarHistorialFicha(docId, e) {
     for (let i = 0; i < valores.length; i++) {
       const docCelda = await docsApiFetch('GET', docId);
       const tablaCelda = _docTablaEntre(docCelda, 'HISTORIAL DE EVENTOS');
-      const filaCelda = tablaCelda?.table.tableRows[ultimaFilaIdx + 1];
+      const filaCelda = tablaCelda?.table.tableRows[1];
       const celda = filaCelda?.tableCells[i];
       if (!celda) { console.warn(`[HISTORIAL] No se encontró la celda ${i} de la fila nueva — se saltea.`); continue; }
       const parrafo = celda.content && celda.content[0];
