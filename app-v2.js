@@ -1354,18 +1354,18 @@ async function _actualizarHistorialFicha(docId, e) {
   if (!tabla) { console.warn('[HISTORIAL] No se encontró la tabla en el Doc.'); return; }
   console.log(`[HISTORIAL] Tabla encontrada con ${tabla.table.tableRows.length} fila(s).`);
 
-  // Si la fila justo debajo del encabezado es el placeholder "Sin eventos
-  // registrados todavía" (una sola celda fusionada), se borra — ya va a
-  // haber datos reales. No se tocan filas más abajo (podrían ser eventos
-  // ya agregados antes, buenos o de intentos rotos previos — se dejan para
-  // revisar a mano si hace falta, en vez de arriesgarse a borrar de más).
-  const primeraFilaDatos = tabla.table.tableRows[1];
-  if (primeraFilaDatos && primeraFilaDatos.tableCells.length < 5) {
+  // Busca la fila placeholder "Sin eventos registrados todavía" en
+  // CUALQUIER posición de la tabla (no solo justo debajo del encabezado —
+  // de intentos anteriores pudo haber quedado más abajo) y la borra.
+  const idxPlaceholder = tabla.table.tableRows.findIndex((row, i) =>
+    i > 0 && row.tableCells.length < 5 && _docCeldaTexto(row.tableCells[0]).toUpperCase().includes('SIN EVENTOS')
+  );
+  if (idxPlaceholder !== -1) {
     console.log('[HISTORIAL] Borrando la fila "Sin eventos registrados todavía"...');
     await docsApiFetch('POST', `${docId}:batchUpdate`, {
       requests: [{
         deleteTableRow: {
-          tableCellLocation: { tableStartLocation: { index: tabla.startIndex }, rowIndex: 1, columnIndex: 0 },
+          tableCellLocation: { tableStartLocation: { index: tabla.startIndex }, rowIndex: idxPlaceholder, columnIndex: 0 },
         },
       }],
     });
@@ -1402,6 +1402,26 @@ async function _actualizarHistorialFicha(docId, e) {
       continue;
     }
 
+    // La fila nueva hereda el fondo azul y letra blanca del encabezado (por
+    // haberse insertado pegada a él) — se resetea a fondo blanco acá.
+    try {
+      await docsApiFetch('POST', `${docId}:batchUpdate`, {
+        requests: [{
+          updateTableCellStyle: {
+            tableRange: {
+              tableCellLocation: { tableStartLocation: { index: tablaConFila.startIndex }, rowIndex: 1, columnIndex: 0 },
+              rowSpan: 1,
+              columnSpan: 5,
+            },
+            tableCellStyle: { backgroundColor: { color: { rgbColor: { red: 1, green: 1, blue: 1 } } } },
+            fields: 'backgroundColor',
+          },
+        }],
+      });
+    } catch (errFormato) {
+      console.warn('[HISTORIAL] No se pudo resetear el color de fondo de la fila nueva:', errFormato.message);
+    }
+
     const valores = [
       ev.fechaEvento || '-',
       ev.horometro ? formatNum(ev.horometro) : '-',
@@ -1424,7 +1444,16 @@ async function _actualizarHistorialFicha(docId, e) {
       const idx = parrafo ? parrafo.startIndex : celda.startIndex;
       try {
         await docsApiFetch('POST', `${docId}:batchUpdate`, {
-          requests: [{ insertText: { location: { index: idx }, text: valores[i] } }],
+          requests: [
+            { insertText: { location: { index: idx }, text: valores[i] } },
+            {
+              updateTextStyle: {
+                range: { startIndex: idx, endIndex: idx + valores[i].length },
+                textStyle: { bold: false, foregroundColor: { color: { rgbColor: { red: 0.15, green: 0.19, blue: 0.26 } } } },
+                fields: 'bold,foregroundColor',
+              },
+            },
+          ],
         });
       } catch (errCelda) {
         console.warn(`[HISTORIAL] No se pudo escribir la celda ${i} del evento del ${ev.fechaEvento}:`, errCelda.message);
