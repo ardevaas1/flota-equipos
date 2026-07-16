@@ -1071,7 +1071,7 @@ function _docCellRangoTexto(cell) {
   const last = frags[frags.length - 1];
   const finAjustado = last.text.endsWith('\n') ? last.end - 1 : last.end;
   if (finAjustado <= first.start) return null; // celda ya vacía, nada que borrar
-  return { start: first.start, end: finAjustado };
+  return { startIndex: first.start, endIndex: finAjustado };
 }
 
 async function _actualizarDocumentacionFicha(docId, e) {
@@ -1100,11 +1100,11 @@ async function _actualizarDocumentacionFicha(docId, e) {
     const rangoEstado = _docCellRangoTexto(celdas[2]);
     if (rangoFecha) {
       requests.push({ deleteContentRange: { range: rangoFecha } });
-      requests.push({ insertText: { location: { index: rangoFecha.start }, text: parsearFecha(campo.fecha) } });
+      requests.push({ insertText: { location: { index: rangoFecha.startIndex }, text: parsearFecha(campo.fecha) } });
     }
     if (rangoEstado) {
       requests.push({ deleteContentRange: { range: rangoEstado } });
-      requests.push({ insertText: { location: { index: rangoEstado.start }, text: estadoNuevo } });
+      requests.push({ insertText: { location: { index: rangoEstado.startIndex }, text: estadoNuevo } });
     }
   });
 
