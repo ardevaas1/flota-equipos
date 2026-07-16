@@ -1006,14 +1006,21 @@ function _docBuscarTabla(doc, textoEncabezado) {
   return found;
 }
 
-// Ubica la primera celda (de cualquier tabla) cuyo texto contiene `texto`
-function _docBuscarCeldaConTexto(doc, texto) {
-  let found = null;
+// Ubica la celda de tabla que ya tiene más fotos insertadas (la casilla de
+// fotos junto al encabezado) — mucho más confiable que buscar por texto de
+// patente, porque la patente también aparece en la fila "PATENTE" de la
+// tabla de datos y esa se encontraba primero por error.
+function _docBuscarCeldaConFotos(doc) {
+  let found = null, maxImgs = 0;
   function walk(content) {
     (content || []).forEach(item => {
       if (item.table) {
         item.table.tableRows.forEach(row => row.tableCells.forEach(cell => {
-          if (!found && _docCeldaTexto(cell).includes(texto)) found = cell;
+          let n = 0;
+          (cell.content || []).forEach(p => (p.paragraph?.elements || []).forEach(el => {
+            if (el.inlineObjectElement) n++;
+          }));
+          if (n > maxImgs) { maxImgs = n; found = cell; }
           walk(cell.content);
         }));
       }
@@ -1045,10 +1052,32 @@ async function actualizarFichaTecnica(patente) {
   }
 }
 
-// 1) Documentación: SOAP / Permiso / Revisión técnica — fecha + estado
+// 1) Documentación: SOAP / Permiso / Revisión técnica — fecha + estado.
+// Ubica la tabla de Documentación y toma las celdas por POSICIÓN dentro de
+// cada fila (col 1 = documento, col 2 = fecha, col 3 = estado), en vez de
+// adivinar "los próximos 2 textos no vacíos" — eso era frágil y no estaba
+// encontrando bien las celdas a actualizar.
+function _docCellRangoTexto(cell) {
+  // Rango [start,end) del texto visible dentro de una celda, sin incluir
+  // el salto de línea final obligatorio del último párrafo.
+  const frags = [];
+  (cell.content || []).forEach(p => {
+    (p.paragraph?.elements || []).forEach(el => {
+      if (el.textRun) frags.push({ start: el.startIndex, end: el.endIndex, text: el.textRun.content });
+    });
+  });
+  if (!frags.length) return null;
+  const first = frags[0];
+  const last = frags[frags.length - 1];
+  const finAjustado = last.text.endsWith('\n') ? last.end - 1 : last.end;
+  if (finAjustado <= first.start) return null; // celda ya vacía, nada que borrar
+  return { start: first.start, end: finAjustado };
+}
+
 async function _actualizarDocumentacionFicha(docId, e) {
   const doc = await docsApiFetch('GET', docId);
-  const frags = _docFlatten(doc);
+  const tabla = _docBuscarTabla(doc, 'FECHA DE VENCIMIENTO') || _docBuscarTabla(doc, 'DOCUMENTACIÓN');
+  if (!tabla) return; // no se encontró la tabla, no se toca nada
 
   const campos = [
     { label: 'SEGURO OBLIGATORIO', fecha: e.soap },
@@ -1057,35 +1086,26 @@ async function _actualizarDocumentacionFicha(docId, e) {
   ];
 
   const requests = [];
-  campos.forEach(c => {
-    if (!c.fecha) return;
-    const dias = diasRestantes(c.fecha);
+  tabla.table.tableRows.forEach(row => {
+    const celdas = row.tableCells;
+    if (celdas.length < 3) return;
+    const textoLabel = _docCeldaTexto(celdas[0]).toUpperCase();
+    const campo = campos.find(c => textoLabel.includes(c.label));
+    if (!campo || !campo.fecha) return;
+    const dias = diasRestantes(campo.fecha);
     if (dias === null) return; // sin fecha parseable, no tocar esa fila
     const estadoNuevo = dias < 0 ? 'VENCIDO' : 'VIGENTE';
 
-    const idxLabel = frags.findIndex(f => f.text.toUpperCase().includes(c.label));
-    if (idxLabel === -1) return;
-    // Los próximos dos fragmentos no vacíos después de la etiqueta son:
-    // fecha de vencimiento actual, y estado actual (mismo orden que la tabla).
-    const siguientesNoVacios = [];
-    for (let i = idxLabel + 1; i < frags.length && siguientesNoVacios.length < 2; i++) {
-      const t = frags[i].text.replace(/[\n\t]/g, '').trim();
-      if (t) siguientesNoVacios.push(frags[i]);
+    const rangoFecha  = _docCellRangoTexto(celdas[1]);
+    const rangoEstado = _docCellRangoTexto(celdas[2]);
+    if (rangoFecha) {
+      requests.push({ deleteContentRange: { range: rangoFecha } });
+      requests.push({ insertText: { location: { index: rangoFecha.start }, text: parsearFecha(campo.fecha) } });
     }
-    if (siguientesNoVacios.length < 2) return;
-    const [fragFecha, fragEstado] = siguientesNoVacios;
-
-    // Si el fragmento incluye el salto de línea final del párrafo (pasa
-    // cuando es el único texto de esa celda), no se puede borrar completo
-    // — Docs API exige que cada celda conserve al menos un párrafo con su
-    // salto de línea. Se recorta el rango a borrar para dejarlo intacto.
-    const finEstado = fragEstado.text.endsWith('\n') ? fragEstado.end - 1 : fragEstado.end;
-    const finFecha  = fragFecha.text.endsWith('\n')  ? fragFecha.end - 1  : fragFecha.end;
-
-    requests.push({ deleteContentRange: { range: { startIndex: fragEstado.start, endIndex: finEstado } } });
-    requests.push({ insertText: { location: { index: fragEstado.start }, text: estadoNuevo } });
-    requests.push({ deleteContentRange: { range: { startIndex: fragFecha.start, endIndex: finFecha } } });
-    requests.push({ insertText: { location: { index: fragFecha.start }, text: parsearFecha(c.fecha) } });
+    if (rangoEstado) {
+      requests.push({ deleteContentRange: { range: rangoEstado } });
+      requests.push({ insertText: { location: { index: rangoEstado.start }, text: estadoNuevo } });
+    }
   });
 
   if (!requests.length) return;
@@ -1100,37 +1120,54 @@ async function _actualizarDocumentacionFicha(docId, e) {
   await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
 }
 
-// 2) Foto de referencia: la misma que se ve en la app, insertada dentro de
-// la celda de "Registro fotográfico" (identificada porque tiene el link a
-// la carpeta con la patente como texto). Si ya había una foto de una
-// actualización anterior, se reemplaza en vez de acumular fotos viejas.
+// 2) Foto de referencia: la misma que se ve en la app, agregada dentro de
+// la casilla que YA tiene fotos junto al encabezado (no la celda de texto
+// "PATENTE", que fue el bug anterior). Usa un pequeño marcador de texto
+// "[foto app]" para poder ubicar y reemplazar SOLO la foto que agregó la
+// app en corridas anteriores, sin tocar fotos reales cargadas a mano.
 async function _actualizarFotoFicha(docId, e) {
   const doc = await docsApiFetch('GET', docId);
-  const celda = _docBuscarCeldaConTexto(doc, e.patente);
-  if (!celda) return; // no se encontró esa celda, no se toca nada
+  const celda = _docBuscarCeldaConFotos(doc);
+  if (!celda) return; // no hay una casilla de fotos existente — se deja para revisar a mano
 
-  let imagenExistente = null;
-  (celda.content || []).forEach(p => {
-    (p.paragraph?.elements || []).forEach(el => {
-      if (el.inlineObjectElement) imagenExistente = el;
-    });
-  });
+  const MARCADOR = '[foto app]';
+  const prefijo = '\n' + MARCADOR + ' ';
+  const frags = [];
+  (celda.content || []).forEach(p => (p.paragraph?.elements || []).forEach(el => {
+    if (el.textRun) frags.push({ start: el.startIndex, end: el.endIndex, text: el.textRun.content, esImagen: false });
+    if (el.inlineObjectElement) frags.push({ start: el.startIndex, end: el.endIndex, esImagen: true });
+  }));
 
+  const idxMarcador = frags.findIndex(f => !f.esImagen && f.text.includes(MARCADOR));
   const requests = [];
-  if (imagenExistente) {
-    requests.push({ deleteContentRange: { range: { startIndex: imagenExistente.startIndex, endIndex: imagenExistente.endIndex } } });
+
+  if (idxMarcador !== -1) {
+    // Ya había una foto de una corrida anterior: se borra el marcador + la
+    // imagen que le sigue, para reemplazarlos por la foto actual.
+    const marcador = frags[idxMarcador];
+    const posibleImagen = frags[idxMarcador + 1];
+    const finBorrado = (posibleImagen && posibleImagen.esImagen) ? posibleImagen.end : marcador.end;
+    requests.push({ deleteContentRange: { range: { startIndex: marcador.start, endIndex: finBorrado } } });
+    requests.push({ insertText: { location: { index: marcador.start }, text: prefijo } });
+    requests.push({
+      insertInlineImage: {
+        location: { index: marcador.start + prefijo.length },
+        uri: e.fotoRef,
+        objectSize: { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } },
+      },
+    });
   } else {
-    // Primera vez: agrega la foto en su propio párrafo, debajo del link a la carpeta
-    requests.push({ insertText: { location: { index: celda.endIndex - 1 }, text: '\n' } });
+    // Primera vez: agrega la foto al final de la casilla, en su propio párrafo
+    const finCelda = celda.endIndex - 1;
+    requests.push({ insertText: { location: { index: finCelda }, text: prefijo } });
+    requests.push({
+      insertInlineImage: {
+        location: { index: finCelda + prefijo.length },
+        uri: e.fotoRef,
+        objectSize: { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } },
+      },
+    });
   }
-  const indiceImagen = imagenExistente ? imagenExistente.startIndex : celda.endIndex;
-  requests.push({
-    insertInlineImage: {
-      location: { index: indiceImagen },
-      uri: e.fotoRef,
-      objectSize: { height: { magnitude: 200, unit: 'PT' }, width: { magnitude: 260, unit: 'PT' } },
-    },
-  });
 
   await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
 }
