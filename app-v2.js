@@ -1128,7 +1128,16 @@ async function _actualizarDocumentacionFicha(docId, e) {
 async function _actualizarFotoFicha(docId, e) {
   const doc = await docsApiFetch('GET', docId);
   const celda = _docBuscarCeldaConFotos(doc);
-  if (!celda) return; // no hay una casilla de fotos existente — se deja para revisar a mano
+  if (!celda) {
+    // Diagnóstico: cuenta cuántas imágenes "flotantes" (positionedObjects,
+    // ancladas sobre el texto en vez de estar dentro de una celda) tiene el
+    // documento — si hay varias, es señal de que las fotos existentes son
+    // de ese tipo, y no imágenes normales dentro de una tabla.
+    const flotantes = Object.keys(doc.positionedObjects || {}).length;
+    console.warn('[FICHA TECNICA] No se encontró celda con fotos. Imágenes flotantes en el doc:', flotantes);
+    toast(`No se encontró dónde poner la foto (${flotantes} imagen(es) flotante(s) detectada(s) — revisa la consola)`, 'error');
+    return;
+  }
 
   const MARCADOR = '[foto app]';
   const prefijo = '\n' + MARCADOR + ' ';
