@@ -1419,19 +1419,31 @@ async function _actualizarHistorialFicha(docId, e) {
       '-', // costo: no existe en la app hoy, queda para completar a mano
     ];
 
-    const requests = filaNueva.tableCells
-      .map((cell, i) => {
-        // El punto válido para insertar texto es el inicio del PÁRRAFO
-        // dentro de la celda, no el de la celda misma — en una fila recién
-        // creada por insertTableRow no siempre coinciden.
-        const parrafo = cell.content && cell.content[0];
-        const idx = parrafo ? parrafo.startIndex : cell.startIndex;
-        return { insertText: { location: { index: idx }, text: valores[i] ?? '-' } };
-      })
-      .reverse(); // de la última celda a la primera, para no correr los índices propios
+    // Una celda a la vez, con su propia lectura fresca del Doc justo antes
+    // de escribir — más lento, pero elimina cualquier duda sobre si el
+    // índice calculado sigue siendo válido después de la escritura anterior.
+    let huboError = false;
+    for (let i = 0; i < valores.length; i++) {
+      const docCelda = await docsApiFetch('GET', docId);
+      const tablaCelda = _docTablaEntre(docCelda, 'HISTORIAL DE EVENTOS');
+      const filaCelda = tablaCelda?.table.tableRows[ultimaFilaIdx + 1];
+      const celda = filaCelda?.tableCells[i];
+      if (!celda) { console.warn(`[HISTORIAL] No se encontró la celda ${i} de la fila nueva — se saltea.`); continue; }
+      const parrafo = celda.content && celda.content[0];
+      const idx = parrafo ? parrafo.startIndex : celda.startIndex;
+      try {
+        await docsApiFetch('POST', `${docId}:batchUpdate`, {
+          requests: [{ insertText: { location: { index: idx }, text: valores[i] } }],
+        });
+      } catch (errCelda) {
+        console.warn(`[HISTORIAL] No se pudo escribir la celda ${i} del evento del ${ev.fechaEvento}:`, errCelda.message);
+        huboError = true;
+      }
+    }
 
-    await docsApiFetch('POST', `${docId}:batchUpdate`, { requests });
-    console.log(`[HISTORIAL] ✓ Evento del ${ev.fechaEvento} agregado.`);
+    console.log(huboError
+      ? `[HISTORIAL] Evento del ${ev.fechaEvento} agregado con algún campo faltante — revisar a mano.`
+      : `[HISTORIAL] ✓ Evento del ${ev.fechaEvento} agregado.`);
   }
 }
 
