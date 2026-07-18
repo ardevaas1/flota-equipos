@@ -12,6 +12,7 @@ const SHEET_ID = '1H95qzHeDfnJ0AWc5SK0jU_QkLGolg9_NzNbu4eTRIaw';
 const SHEET_ANDAMIOS = 'ANDAMIOS';
 const SHEET_USUARIOS = 'USUARIOS';
 const SHEET_AND_HIST = 'AND-HISTORIAL'; // historial de cambios de cantidad de Andamios
+const SHEET_AND_UBIC = 'AND-UBICACIONES'; // cantidad por pieza + ubicación (obra/bodega)
 
 function doGet(e) {
   if (e.parameter && e.parameter.accion) {
@@ -183,6 +184,90 @@ function _registrarHistorialAnd(row, tipo, anterior, nueva, email, campo) {
   }
 }
 
+// Devuelve la hoja AND-UBICACIONES, creándola (con encabezados) la primera
+// vez que se necesita. Una fila por cada combinación pieza+ubicación.
+function _hojaUbicacionesAnd() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sh = ss.getSheetByName(SHEET_AND_UBIC);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_AND_UBIC);
+    sh.appendRow(['Fila', 'Tipo', 'Ubicación', 'Cantidad']);
+  }
+  return sh;
+}
+
+// Recalcula el total de una pieza (suma de todas sus ubicaciones) y lo
+// deja escrito en la columna C de ANDAMIOS — así el resto de la app puede
+// seguir leyendo un solo número sin tener que sumar nada del lado del
+// cliente. Devuelve el total nuevo.
+function _recalcularTotalAnd(shAndamios, row) {
+  const shUbic = _hojaUbicacionesAnd();
+  const datos = shUbic.getDataRange().getValues();
+  let total = 0;
+  for (let i = 1; i < datos.length; i++) {
+    if (parseInt(datos[i][0], 10) === row) total += parseInt(datos[i][3], 10) || 0;
+  }
+  shAndamios.getRange(row, 3).setValue(total); // C = cantidad (total)
+  return total;
+}
+
+// Fija la cantidad ABSOLUTA de una pieza en una ubicación puntual (crea la
+// fila en AND-UBICACIONES si no existía) y recalcula el total. Es la base
+// tanto de "and_set_cantidad" (ubicación fija "Bodega", para no romper el
+// botón +/- que ya existía) como de la edición manual por ubicación.
+function _fijarCantidadUbicacionAnd(shAndamios, row, ubicacion, nueva, tipoNombre, email) {
+  const shUbic = _hojaUbicacionesAnd();
+  const datos = shUbic.getDataRange().getValues();
+  let filaSheet = -1;
+  let anterior = 0;
+  for (let i = 1; i < datos.length; i++) {
+    if (parseInt(datos[i][0], 10) === row && (datos[i][2] || '').toString().trim().toLowerCase() === ubicacion.trim().toLowerCase()) {
+      filaSheet = i + 1; // +1 porque getDataRange es 0-index y las filas de Sheets son 1-index
+      anterior = parseInt(datos[i][3], 10) || 0;
+      break;
+    }
+  }
+  if (filaSheet === -1) {
+    shUbic.appendRow([row, tipoNombre || '', ubicacion, nueva]);
+  } else {
+    shUbic.getRange(filaSheet, 4).setValue(nueva);
+  }
+  const total = _recalcularTotalAnd(shAndamios, row);
+  if (anterior !== nueva) {
+    _registrarHistorialAnd(row, tipoNombre, anterior, nueva, email, `Cantidad (${ubicacion})`);
+  }
+  return total;
+}
+
+// Traslada una cantidad de una ubicación a otra para una pieza — resta del
+// origen y suma en el destino de forma atómica (las dos cosas se hacen o
+// ninguna). Valida que el origen tenga stock suficiente antes de tocar nada.
+function _trasladarUbicacionAnd(shAndamios, row, origen, destino, cantidad, tipoNombre, email) {
+  const shUbic = _hojaUbicacionesAnd();
+  const datos = shUbic.getDataRange().getValues();
+  let filaOrigen = -1, cantidadOrigen = 0;
+  let filaDestino = -1, cantidadDestino = 0;
+  for (let i = 1; i < datos.length; i++) {
+    if (parseInt(datos[i][0], 10) !== row) continue;
+    const ubic = (datos[i][2] || '').toString().trim().toLowerCase();
+    if (ubic === origen.trim().toLowerCase()) { filaOrigen = i + 1; cantidadOrigen = parseInt(datos[i][3], 10) || 0; }
+    if (ubic === destino.trim().toLowerCase()) { filaDestino = i + 1; cantidadDestino = parseInt(datos[i][3], 10) || 0; }
+  }
+  if (cantidadOrigen < cantidad) {
+    throw new Error(`No hay suficiente stock en "${origen}" (hay ${cantidadOrigen}, se pidió mover ${cantidad}).`);
+  }
+
+  if (filaOrigen !== -1) shUbic.getRange(filaOrigen, 4).setValue(cantidadOrigen - cantidad);
+  if (filaDestino !== -1) {
+    shUbic.getRange(filaDestino, 4).setValue(cantidadDestino + cantidad);
+  } else {
+    shUbic.appendRow([row, tipoNombre || '', destino, cantidad]);
+  }
+
+  _recalcularTotalAnd(shAndamios, row); // el total no cambia, pero se recalcula por las dudas
+  _registrarHistorialAnd(row, tipoNombre, cantidadOrigen, cantidadOrigen - cantidad, email, `Traslado (${origen} → ${destino})`);
+}
+
 function manejarAccionAndamios(p) {
   try {
     const email = _emailVerificadoDesdeToken(p.accessToken);
@@ -200,29 +285,71 @@ function manejarAccionAndamios(p) {
 
     switch (p.accion) {
 
-      // Cambiar solo la cantidad (botones +/- y tap-to-edit)
+      // Cambiar solo la cantidad (botones +/- y tap-to-edit) — a partir de
+      // ahora esto ajusta específicamente lo que hay en "Bodega" (el resto
+      // de las ubicaciones se manejan con and_set_ubicacion/and_mover_ubicacion).
+      // El total (columna C) queda siempre como la suma de todas las
+      // ubicaciones, recalculado automáticamente.
       case 'and_set_cantidad': {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
-        const anterior = parseInt(sh.getRange(row, 3).getValue(), 10) || 0;
-        const nueva = parseInt(p.cantidad, 10) || 0;
         const tipo = sh.getRange(row, 1).getValue();
-        sh.getRange(row, 3).setValue(nueva); // C = cantidad
-        _registrarHistorialAnd(row, tipo, anterior, nueva, email, 'Cantidad');
-        return _jsonOut({ success: true });
+        const nueva = parseInt(p.cantidad, 10) || 0;
+        const total = _fijarCantidadUbicacionAnd(sh, row, 'Bodega', nueva, tipo, email);
+        return _jsonOut({ success: true, total });
+      }
+
+      // Fijar la cantidad absoluta de una pieza en una ubicación puntual
+      // (para corregir un conteo, o cargar el stock inicial de una obra)
+      case 'and_set_ubicacion': {
+        const row = parseInt(p.row, 10);
+        if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
+        const ubicacion = (p.ubicacion || '').trim();
+        if (!ubicacion) return _jsonOut({ success: false, error: 'Falta la ubicación' });
+        const tipo = sh.getRange(row, 1).getValue();
+        const nueva = parseInt(p.cantidad, 10) || 0;
+        const total = _fijarCantidadUbicacionAnd(sh, row, ubicacion, nueva, tipo, email);
+        return _jsonOut({ success: true, total });
+      }
+
+      // Trasladar cantidad de una ubicación a otra (resta del origen, suma
+      // en el destino) — usado desde Movimientos.
+      case 'and_mover_ubicacion': {
+        const row = parseInt(p.row, 10);
+        if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
+        const origen = (p.origen || '').trim();
+        const destino = (p.destino || '').trim();
+        const cantidad = parseInt(p.cantidad, 10) || 0;
+        if (!origen || !destino) return _jsonOut({ success: false, error: 'Falta origen o destino' });
+        if (cantidad <= 0) return _jsonOut({ success: false, error: 'La cantidad a mover debe ser mayor a 0' });
+        const tipo = sh.getRange(row, 1).getValue();
+        try {
+          _trasladarUbicacionAnd(sh, row, origen, destino, cantidad, tipo, email);
+          return _jsonOut({ success: true });
+        } catch (errMov) {
+          return _jsonOut({ success: false, error: errMov.message });
+        }
       }
 
       // Agregar un tipo de pieza nuevo (sin foto todavía; la foto se agrega después con and_set_foto)
       case 'and_nuevo': {
+        const cantidadInicial = parseInt(p.cantidad, 10) || 0;
         sh.appendRow([
           p.tipo || '',
           '', // foto se completa después si corresponde
-          parseInt(p.cantidad, 10) || 0,
+          cantidadInicial,
           p.obs || '',
           p.sistema || 'Europeo',
           0, // F = bajas, siempre arranca en 0 para una pieza nueva
         ]);
-        return _jsonOut({ success: true, row: sh.getLastRow() });
+        const filaNueva = sh.getLastRow();
+        // Toda la cantidad inicial arranca en Bodega — de ahí se traslada
+        // como cualquier otro movimiento. Si no se registra acá, el total
+        // se recalcularía a 0 la primera vez que se toque alguna ubicación.
+        if (cantidadInicial > 0) {
+          _hojaUbicacionesAnd().appendRow([filaNueva, p.tipo || '', 'Bodega', cantidadInicial]);
+        }
+        return _jsonOut({ success: true, row: filaNueva });
       }
 
       // Completar el nombre del archivo de foto en una fila ya creada
@@ -249,15 +376,41 @@ function manejarAccionAndamios(p) {
       case 'and_editar': {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
-        const anterior = parseInt(sh.getRange(row, 3).getValue(), 10) || 0;
-        const nueva = parseInt(p.cantidad, 10) || 0;
         sh.getRange(row, 1).setValue(p.tipo || '');
-        sh.getRange(row, 3).setValue(nueva);
         sh.getRange(row, 4).setValue(p.obs || '');
         sh.getRange(row, 5).setValue(p.sistema || 'Europeo');
         if (p.foto) sh.getRange(row, 2).setValue(p.foto);
-        _registrarHistorialAnd(row, p.tipo || '', anterior, nueva, email, 'Cantidad');
-        return _jsonOut({ success: true });
+        // La "cantidad" del panel de editar ajusta específicamente Bodega,
+        // igual que el botón +/- — el total (col C) se recalcula solo.
+        const nueva = parseInt(p.cantidad, 10) || 0;
+        const total = _fijarCantidadUbicacionAnd(sh, row, 'Bodega', nueva, p.tipo || '', email);
+        return _jsonOut({ success: true, total });
+      }
+
+      // Migración de una sola vez: para cada pieza que todavía no tenga
+      // ninguna fila en AND-UBICACIONES, carga su cantidad actual (columna
+      // C) como stock inicial en "Bodega". Es seguro correrla más de una
+      // vez — se saltea las piezas que ya tengan alguna ubicación cargada.
+      case 'and_migrar_ubicaciones': {
+        const shUbic = _hojaUbicacionesAnd();
+        const datosAnd = sh.getDataRange().getValues();
+        const datosUbic = shUbic.getDataRange().getValues();
+        const filasConUbicacion = new Set();
+        for (let i = 1; i < datosUbic.length; i++) {
+          filasConUbicacion.add(parseInt(datosUbic[i][0], 10));
+        }
+        let migradas = 0;
+        for (let i = 1; i < datosAnd.length; i++) {
+          const row = i + 1;
+          const tipo = datosAnd[i][0];
+          const cantidad = parseInt(datosAnd[i][2], 10) || 0;
+          if (!tipo || filasConUbicacion.has(row)) continue;
+          if (cantidad > 0) {
+            shUbic.appendRow([row, tipo, 'Bodega', cantidad]);
+            migradas++;
+          }
+        }
+        return _jsonOut({ success: true, migradas });
       }
 
       default:

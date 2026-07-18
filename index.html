@@ -1240,6 +1240,20 @@
     </div>
   </div>
 
+  <!-- ── Panel: Ubicaciones (Andamios) ── -->
+  <div id="panel-and-ubicaciones" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-and-ubicaciones')">‹ Cerrar</button>
+      <span class="pnl-title" id="and-ubicaciones-titulo">Ubicaciones</span>
+    </div>
+    <div class="panel-body">
+      <div class="form-sec">Por ubicación</div>
+      <div id="and-ubicaciones-lista"></div>
+      <button class="action-btn" style="margin-top:20px;background:var(--accent);color:#fff;border:none" onclick="abrirMoverAndamios(_andUbicRowActual)">🚚 Registrar movimiento</button>
+      <div class="nota" style="margin-top:6px">Los traslados quedan registrados en el módulo de Movimientos, junto con los del resto de la flota.</div>
+    </div>
+  </div>
+
   <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->
   <div id="mod-flota" class="hidden">
     <!-- El #main ya existe y se maneja por app-v2.js -->
@@ -1353,10 +1367,16 @@
       <div class="form-group">
         <label>Origen</label>
         <input type="text" id="mov-origen" placeholder="Ej: Bodega Colima">
+        <select id="mov-origen-andamios" style="display:none"></select>
+      </div>
+      <div class="form-group" id="mov-cantidad-grupo" style="display:none">
+        <label>Cantidad a trasladar</label>
+        <input type="number" id="mov-cantidad" min="1" placeholder="0">
       </div>
       <div class="form-group">
         <label>Destino</label>
-        <input type="text" id="mov-destino" placeholder="Ej: Obra Las Encinas">
+        <input type="text" id="mov-destino" placeholder="Ej: Obra Las Encinas" list="mov-destino-sugeridas">
+        <datalist id="mov-destino-sugeridas"></datalist>
       </div>
       <div class="form-group">
         <label>Fecha movimiento <span style="color:#dc2626">*</span></label>

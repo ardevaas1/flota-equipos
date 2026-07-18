@@ -2092,6 +2092,9 @@ function _abrirPanelMover(data) {
   document.getElementById('mov-row-index').value = data.rowIndex;
   document.getElementById('mov-nombre-equipo').textContent = `${data.tipoEquipo} — ${data.nombreEquipo}`;
   document.getElementById('mov-origen').value = data.ubicacionActual || '';
+  document.getElementById('mov-origen').style.display = '';
+  document.getElementById('mov-origen-andamios').style.display = 'none';
+  document.getElementById('mov-cantidad-grupo').style.display = 'none';
   document.getElementById('mov-destino').value = '';
   document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('mov-guia').value = '';
@@ -2101,13 +2104,64 @@ function _abrirPanelMover(data) {
   openPanel('panel-mover');
 }
 
+// ── Abrir panel "Mover" desde Andamios (traslado de cantidad entre ubicaciones) ──
+async function abrirMoverAndamios(rowIndex) {
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  if (!it) return;
+  _movPendienteActual = { tipoEquipo: 'Andamios', codigoEquipo: it.tipo, rowIndex, nombreEquipo: it.tipo };
+
+  document.getElementById('mov-tipo-equipo').value = 'Andamios';
+  document.getElementById('mov-codigo-equipo').value = it.tipo;
+  document.getElementById('mov-row-index').value = rowIndex;
+  document.getElementById('mov-nombre-equipo').textContent = `Andamios — ${it.tipo}`;
+  document.getElementById('mov-destino').value = '';
+  document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mov-guia').value = '';
+  document.getElementById('mov-autoriza').value = '';
+  document.getElementById('mov-traslada').value = '';
+  document.getElementById('mov-obs-salida').value = '';
+
+  // Origen: select con las ubicaciones que hoy tienen stock de esta pieza
+  // (en vez del campo de texto libre que usan los demás módulos)
+  document.getElementById('mov-origen').style.display = 'none';
+  const selOrigen = document.getElementById('mov-origen-andamios');
+  selOrigen.style.display = '';
+  selOrigen.innerHTML = '<option value="">Cargando...</option>';
+  document.getElementById('mov-cantidad-grupo').style.display = '';
+  document.getElementById('mov-cantidad').value = '';
+
+  openPanel('panel-mover');
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    const propias = (rows || [])
+      .filter(r => parseInt(r[0], 10) === rowIndex && (parseInt(r[3], 10) || 0) > 0)
+      .map(r => ({ ubicacion: (r[2] || '').toString().trim(), cantidad: parseInt(r[3], 10) || 0 }))
+      .filter(u => u.ubicacion);
+
+    selOrigen.innerHTML = propias.length
+      ? propias.map(u => `<option value="${u.ubicacion}">${u.ubicacion} (${u.cantidad} disponibles)</option>`).join('')
+      : '<option value="">Sin stock en ninguna ubicación</option>';
+
+    // Sugerencias de destino: todas las ubicaciones ya usadas en cualquier pieza
+    const todasLasUbic = new Set((rows || []).map(r => (r[2] || '').toString().trim()).filter(Boolean));
+    const dl = document.getElementById('mov-destino-sugeridas');
+    if (dl) dl.innerHTML = [...todasLasUbic].sort().map(u => `<option value="${u}">`).join('');
+  } catch (e) {
+    selOrigen.innerHTML = '<option value="">Error al cargar ubicaciones</option>';
+    toast('No se pudieron cargar las ubicaciones: ' + e.message, 'error');
+  }
+}
+
 async function invGuardarMovimiento() {
   const tipoEquipo   = document.getElementById('mov-tipo-equipo').value;
+  const esAndamios   = tipoEquipo === 'Andamios';
   const codigoEquipo = document.getElementById('mov-codigo-equipo').value;
   const rowIndex     = document.getElementById('mov-row-index').value;
   const nombreEquipo = _movPendienteActual ? _movPendienteActual.nombreEquipo : '';
-  const origen   = document.getElementById('mov-origen').value.trim();
+  const origen   = (esAndamios ? document.getElementById('mov-origen-andamios').value : document.getElementById('mov-origen').value).trim();
   const destino  = document.getElementById('mov-destino').value.trim();
+  const cantidad = esAndamios ? (parseInt(document.getElementById('mov-cantidad').value, 10) || 0) : null;
   const fecha    = document.getElementById('mov-fecha').value;
   const guia     = document.getElementById('mov-guia').value.trim();
   const autoriza = document.getElementById('mov-autoriza').value.trim();
@@ -2116,6 +2170,11 @@ async function invGuardarMovimiento() {
 
   if (!fecha) { toast('La fecha del movimiento es obligatoria', 'error'); document.getElementById('mov-fecha').focus(); return; }
   if (!destino) { toast('Completa el destino', 'error'); return; }
+  if (esAndamios) {
+    if (!origen) { toast('No hay ubicación de origen con stock', 'error'); return; }
+    if (origen.toLowerCase() === destino.toLowerCase()) { toast('El origen y el destino no pueden ser el mismo', 'error'); return; }
+    if (cantidad <= 0) { toast('Ingresá una cantidad a trasladar mayor a 0', 'error'); document.getElementById('mov-cantidad').focus(); return; }
+  }
 
   const btn = document.querySelector('#panel-mover .pnl-action');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
@@ -2124,17 +2183,23 @@ async function invGuardarMovimiento() {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
     const idMov = 'MOV-' + Date.now();
     const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
+    const nombreParaRegistro = esAndamios ? `${cantidad} x ${nombreEquipo}` : nombreEquipo;
 
     // A=ID B=FECHA_SALIDA C=TIPO D=CODIGO E=NOMBRE F=ORIGEN G=DESTINO H=AUTORIZA
     // I=TRASLADA J=OBS_SALIDA K=REGISTRADO_POR L=GUIA_DESPACHO M=ESTADO
     await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:M`, [[
-      idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreEquipo,
+      idMov, fechaFmt, tipoEquipo, codigoEquipo, nombreParaRegistro,
       origen, destino, autoriza, traslada, obs,
-      registradoPor, guia, 'en_transito'
+      registradoPor, guia, esAndamios ? 'recibido' : 'en_transito'
     ]]);
 
     // Actualizar ubicación actual del equipo de inmediato
-    if (_movPendienteActual && _movPendienteActual.onGuardar === 'inv' && invItem) {
+    if (esAndamios) {
+      // Andamios es por cantidad, no un ítem único — el traslado real
+      // (restar del origen, sumar en el destino) lo hace el Apps Script,
+      // con la misma validación de stock que ya tiene el panel dedicado.
+      await _andEscrituraRemota('and_mover_ubicacion', { row: rowIndex, origen, destino, cantidad });
+    } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'inv' && invItem) {
       let col = null;
       if (invItem._modulo === 'generadores') col = 'J';
       else if (invItem._modulo === 'maqmenor') col = 'I';
@@ -2155,6 +2220,7 @@ async function invGuardarMovimiento() {
 
     await loadInventario();
     await loadMovimientos();
+    if (esAndamios) await andCargar();
     if (_movPendienteActual && _movPendienteActual.onGuardar === 'cont') renderContainers();
     if (_movPendienteActual && _movPendienteActual.onGuardar === 'flota' && typeof loadData === 'function') {
       await loadData(true);
@@ -2945,6 +3011,7 @@ function movhRenderHistorial() {
 // ══════════════════════════════════════════════════════════════
 const SHEET_ANDAMIOS = 'ANDAMIOS';
 const SHEET_AND_HIST = 'AND-HISTORIAL'; // historial de cambios de cantidad (lo escribe el Apps Script)
+const SHEET_AND_UBIC = 'AND-UBICACIONES'; // cantidad por pieza + ubicación (lo escribe el Apps Script)
 let allAndamios = [];      // [{ rowIndex, tipo, foto, cantidad, obs, sistema }]
 let andItemActual = null;  // ítem abierto en panel-and-edit
 let _andNuevoFoto = null;
@@ -3091,6 +3158,9 @@ function andRenderLista() {
         <span class="and-num" id="and-num${suffix}-${it.rowIndex}" onclick="andEditarCantidadInline(${it.rowIndex}, this)">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
+      <button class="and-hist-btn" onclick="event.stopPropagation();andVerUbicaciones(${it.rowIndex})" title="Ver ubicaciones">
+        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="M12 21s-6.5-5.6-6.5-10.5A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.5C18.5 15.4 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+      </button>
       <button class="and-hist-btn" onclick="event.stopPropagation();andVerHistorial(${it.rowIndex})" title="Ver historial de cambios">
         <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -3172,6 +3242,102 @@ async function andVerHistorial(rowIndex) {
   } catch (e) {
     if (cont) cont.innerHTML = emptyState('No se pudo cargar el historial', e.message);
   }
+}
+
+// ── Ubicaciones y traslados (por pieza) ──────────────────────────────────
+// El total de cada pieza (columna Cantidad) ahora es la SUMA de lo que hay
+// en cada ubicación — el Apps Script lo recalcula solo cada vez que se
+// toca una ubicación. Acá solo se lee (fetchSheet directo, como el resto
+// de las lecturas) y se escribe vía Apps Script (and_set_ubicacion /
+// and_mover_ubicacion), igual que el resto de Andamios.
+let _andUbicRowActual = null;
+
+// Migración de una sola vez: carga el stock actual de cada pieza (que ya
+// existía antes de este cambio) como "Bodega" en AND-UBICACIONES. Sin
+// esto, la primera vez que se toque cualquier ubicación de una pieza
+// vieja, su total se recalcularía a 0. Segura de correr más de una vez —
+// se saltea las piezas que ya tengan alguna ubicación cargada.
+//   andMigrarUbicaciones()
+async function andMigrarUbicaciones() {
+  try {
+    const data = await _andEscrituraRemota('and_migrar_ubicaciones', {});
+    console.log(`[MIGRAR UBICACIONES] ✓ ${data.migradas} pieza(s) migrada(s) a "Bodega".`);
+    await andCargar();
+  } catch (e) {
+    console.error('[MIGRAR UBICACIONES] Error:', e.message);
+  }
+}
+
+async function andVerUbicaciones(rowIndex) {
+  _andUbicRowActual = rowIndex;
+  const it = allAndamios.find(x => x.rowIndex === rowIndex);
+  const titEl = document.getElementById('and-ubicaciones-titulo');
+  if (titEl) titEl.textContent = it ? `Ubicaciones — ${it.tipo}` : 'Ubicaciones';
+
+  const cont = document.getElementById('and-ubicaciones-lista');
+  if (cont) cont.innerHTML = '<div class="empty">Cargando...</div>';
+  openPanel('panel-and-ubicaciones');
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    const propias = (rows || [])
+      .filter(r => parseInt(r[0], 10) === rowIndex && (r[3] || '').toString().trim() !== '')
+      .map(r => ({ ubicacion: (r[2] || '').toString().trim(), cantidad: parseInt(r[3], 10) || 0 }))
+      .filter(u => u.ubicacion)
+      .sort((a, b) => b.cantidad - a.cantidad);
+
+    if (!propias.length) {
+      cont.innerHTML = emptyState('Sin ubicaciones cargadas todavía', 'Usá "Registrar movimiento" abajo para empezar a repartir el stock entre obras.');
+    } else {
+      cont.innerHTML = propias.map(u => `
+        <div class="evento-card-mini">
+          <div class="mant-body">
+            <div class="mant-title">${u.ubicacion}</div>
+          </div>
+          <span class="and-num" style="margin-right:4px" onclick="andEditarUbicacionInline(${rowIndex}, '${u.ubicacion.replace(/'/g, "\\'")}', this)">${u.cantidad}</span>
+        </div>`).join('');
+    }
+  } catch (e) {
+    if (cont) cont.innerHTML = emptyState('No se pudo cargar las ubicaciones', e.message);
+  }
+}
+
+// Edición rápida de la cantidad en una ubicación puntual (corrección de
+// conteo) — mismo patrón de tap-to-edit que ya existe para cantidad/bajas.
+function andEditarUbicacionInline(rowIndex, ubicacion, spanEl) {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
+  if (spanEl.tagName === 'INPUT') return;
+
+  const valorActual = spanEl.textContent;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.className = 'and-num-input';
+  input.value = valorActual;
+  spanEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let resuelto = false;
+  const confirmar = async () => {
+    if (resuelto) return;
+    resuelto = true;
+    const nueva = Math.max(0, parseInt(input.value) || 0);
+    try {
+      await _andEscrituraRemota('and_set_ubicacion', { row: rowIndex, ubicacion, cantidad: nueva });
+      toast('✓ Ubicación actualizada');
+      await andCargar();
+      andVerUbicaciones(rowIndex);
+    } catch (e) {
+      toast('No se pudo guardar: ' + e.message, 'error');
+      andVerUbicaciones(rowIndex);
+    }
+  };
+  input.addEventListener('blur', confirmar);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { resuelto = true; andVerUbicaciones(rowIndex); }
+  });
 }
 
 // Cambia el filtro por sistema (Todos / Europeo / Multidireccional) y sincroniza
