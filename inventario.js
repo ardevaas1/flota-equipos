@@ -3158,12 +3158,14 @@ function andRenderLista() {
         <span class="and-num" id="and-num${suffix}-${it.rowIndex}" onclick="andEditarCantidadInline(${it.rowIndex}, this)">${it.cantidad}</span>
         <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
       </div>
-      <button class="and-hist-btn" onclick="event.stopPropagation();andVerUbicaciones(${it.rowIndex})" title="Ver ubicaciones">
-        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="M12 21s-6.5-5.6-6.5-10.5A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.5C18.5 15.4 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
-      </button>
-      <button class="and-hist-btn" onclick="event.stopPropagation();andVerHistorial(${it.rowIndex})" title="Ver historial de cambios">
-        <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="and-acciones">
+        <button class="and-hist-btn" onclick="event.stopPropagation();andVerUbicaciones(${it.rowIndex})" title="Ver ubicaciones">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-6.5-5.6-6.5-10.5A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.5C18.5 15.4 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+        </button>
+        <button class="and-hist-btn" onclick="event.stopPropagation();andVerHistorial(${it.rowIndex})" title="Ver historial de cambios">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>`;
     });
     return html;
@@ -3290,11 +3292,9 @@ async function andVerUbicaciones(rowIndex) {
       cont.innerHTML = emptyState('Sin ubicaciones cargadas todavía', 'Usá "Registrar movimiento" abajo para empezar a repartir el stock entre obras.');
     } else {
       cont.innerHTML = propias.map(u => `
-        <div class="evento-card-mini">
-          <div class="mant-body">
-            <div class="mant-title">${u.ubicacion}</div>
-          </div>
-          <span class="and-num" style="margin-right:4px" onclick="andEditarUbicacionInline(${rowIndex}, '${u.ubicacion.replace(/'/g, "\\'")}', this)">${u.cantidad}</span>
+        <div class="and-ubic-row">
+          <span class="and-ubic-nombre">${u.ubicacion}</span>
+          <span class="and-num" style="color:var(--accent-dark)" onclick="andEditarUbicacionInline(${rowIndex}, '${u.ubicacion.replace(/'/g, "\\'")}', this)">${u.cantidad}</span>
         </div>`).join('');
     }
   } catch (e) {

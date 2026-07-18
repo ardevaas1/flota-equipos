@@ -281,10 +281,10 @@ body.is-offline #app { padding-top: 30px; }
 .and-section-header:first-child { margin-top: 2px; }
 .and-card {
   background: #fff; border-radius: 14px; border: 1px solid var(--line);
-  padding: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
 }
 .and-thumb {
-  width: 56px; height: 56px; border-radius: 10px; flex-shrink: 0; overflow: hidden;
+  width: 44px; height: 44px; border-radius: 9px; flex-shrink: 0; overflow: hidden;
   background: var(--neutral-soft); display: flex; align-items: center; justify-content: center;
   cursor: pointer; color: #b3b8c2;
 }
@@ -292,7 +292,7 @@ body.is-offline #app { padding-top: 30px; }
 .and-info { flex: 1; min-width: 0; }
 .and-nombre { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .and-obs { font-size: 11.5px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.and-counter { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.and-counter { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .and-btn {
   width: 36px; height: 36px; border-radius: 50%; border: none;
   background: var(--accent-soft); color: var(--accent-dark); font-size: 20px; font-weight: 700;
@@ -304,12 +304,23 @@ body.is-offline #app { padding-top: 30px; }
 .and-btn--minus:active { background: #e0554a; color: #fff; }
 .and-num { min-width: 34px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; cursor: text; }
 .and-hist-btn {
-  width: 30px; height: 30px; border-radius: 50%; border: none; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%; border: none; flex-shrink: 0;
   background: var(--neutral-soft); color: #7a7f88;
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.08s, background 0.15s;
 }
+.and-hist-btn svg { width: 14px !important; height: 14px !important; }
 .and-hist-btn:active { transform: scale(0.88); background: var(--accent-soft); color: var(--accent-dark); }
+.and-acciones { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+
+/* Filas del panel "Ubicaciones" — fondo claro y texto oscuro explícitos,
+   para no heredar estilos de otros componentes que se veían con mal contraste. */
+.and-ubic-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.and-ubic-nombre { font-size: 14px; font-weight: 700; color: var(--ink); }
 
 /* Vista "Dados de baja": misma tarjeta, pero con acento rojo para diferenciarla
    claramente del conteo normal (que representa piezas buenas). */
