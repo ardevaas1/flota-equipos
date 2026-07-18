@@ -373,7 +373,7 @@ function renderInvLista() {
         ${_invModoSeleccion ? '' : ''}
       </div>
     </div>`;
-  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
+  }).join('') || emptyState('Sin resultados','Prueba con otro filtro o búsqueda');
 
   const lista   = document.getElementById('inv-lista');
   const listaDt = document.getElementById('inv-dt-lista');
@@ -1092,7 +1092,7 @@ function renderContainers() {
         <span style="font-size:11px;color:#aaa">${c.ubicacion||'—'}</span>
       </div>
     </div>`;
-  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
+  }).join('') || emptyState('Sin resultados','Prueba con otro filtro o búsqueda');
 
   const lista   = document.getElementById('cont-lista');
   const listaDt = document.getElementById('cont-dt-lista');
@@ -2173,7 +2173,7 @@ async function invGuardarMovimiento() {
   if (esAndamios) {
     if (!origen) { toast('No hay ubicación de origen con stock', 'error'); return; }
     if (origen.toLowerCase() === destino.toLowerCase()) { toast('El origen y el destino no pueden ser el mismo', 'error'); return; }
-    if (cantidad <= 0) { toast('Ingresá una cantidad a trasladar mayor a 0', 'error'); document.getElementById('mov-cantidad').focus(); return; }
+    if (cantidad <= 0) { toast('Ingresa una cantidad a trasladar mayor a 0', 'error'); document.getElementById('mov-cantidad').focus(); return; }
   }
 
   const btn = document.querySelector('#panel-mover .pnl-action');
@@ -2709,7 +2709,7 @@ function movhRenderLista() {
         </button>
       </div>
     </div>`;
-  }).join('') || emptyState('Sin resultados','Probá con otro filtro o búsqueda');
+  }).join('') || emptyState('Sin resultados','Prueba con otro filtro o búsqueda');
 
 
   const lista = document.getElementById('movh-lista');
@@ -3289,7 +3289,7 @@ async function andVerUbicaciones(rowIndex) {
       .sort((a, b) => b.cantidad - a.cantidad);
 
     if (!propias.length) {
-      cont.innerHTML = emptyState('Sin ubicaciones cargadas todavía', 'Usá "Registrar movimiento" abajo para empezar a repartir el stock entre obras.');
+      cont.innerHTML = emptyState('Sin ubicaciones cargadas todavía', 'Usa "Registrar movimiento" abajo para empezar a repartir el stock entre obras.');
     } else {
       cont.innerHTML = propias.map(u => `
         <div class="and-ubic-row">

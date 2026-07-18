@@ -1732,7 +1732,7 @@ async function migrarFichaTecnicaVisual(patente) {
 
   console.log('[MIGRAR] Completando datos dinámicos con actualizarFichaTecnica()...');
   await actualizarFichaTecnica(patente);
-  console.log(`[MIGRAR] ✓ ${patente} migrado. Revisá el doc nuevo: ${nuevoDocUrl}`);
+  console.log(`[MIGRAR] ✓ ${patente} migrado. Revisa el doc nuevo: ${nuevoDocUrl}`);
 }
 
 // Migra TODOS los vehículos que tengan ficha técnica vinculada, uno por
@@ -1771,7 +1771,7 @@ async function migrarTodasLasFichasTecnicas() {
   console.log(`✓ OK (${ok.length}):`, ok);
   console.log(`✗ Con error (${conError.length}):`, conError);
   if (conError.length) {
-    console.log('Revisá esos a mano, o reintentá uno por uno con migrarFichaTecnicaVisual(\'PATENTE\')');
+    console.log('Revisa esos a mano, o reintenta uno por uno con migrarFichaTecnicaVisual(\'PATENTE\')');
   }
 }
 
@@ -2202,7 +2202,7 @@ function renderEquipos() {
         <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}">${ESTADO_LABEL[e.estado]||e.estado}</span>
         <span style="font-size:11px;color:#aaa">${e.ubicacion}</span>
       </div>
-    </div>`).join('') || emptyState('Sin resultados', 'Probá con otro filtro o búsqueda',
+    </div>`).join('') || emptyState('Sin resultados', 'Prueba con otro filtro o búsqueda',
       `<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
 }
 
