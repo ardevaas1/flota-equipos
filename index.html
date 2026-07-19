@@ -1986,104 +1986,16 @@ function dtRenderEquipos() {
   }).join('') || `<tr><td colspan="6" style="text-align:center;color:#bbb;padding:32px">Sin equipos</td></tr>`;
 }
 
-// Seleccionar equipo → mostrar ficha en panel derecho
+// Seleccionar equipo → resalta la fila y muestra la ficha completa.
+// Antes esta función armaba su propia copia del detalle a mano (por eso se
+// fue quedando incompleta cada vez que se agregaba algo nuevo a la ficha
+// real) — ahora delega en openFicha(), la misma función que ya usa Alertas
+// y que sí se mantiene al día, para que no vuelvan a existir dos versiones
+// del mismo detalle por separado.
 function dtSelectEquipo(patente) {
   dtSelectedPatente = patente;
   dtRenderEquipos(); // resaltar fila
-
-  const e = allEquipos.find(x => x.patente === patente);
-  if (!e) return;
-
-  document.getElementById('dt-detail-title').textContent = e.marca + ' ' + e.modelo;
-  document.getElementById('dt-edit-btn').style.display = 'inline-block';
-  document.getElementById('dt-edit-btn').onclick = () => dtOpenEdit(patente);
-
-  // Calcular alertas de docs
-  const docInfo = [
-    { key:'soap',    label:'SOAP',       prefix:'SOAP'     },
-    { key:'permiso', label:'Permiso circ.', prefix:'PERMISO' },
-    { key:'revision',label:'Rev. técnica',  prefix:'REVISION' },
-  ].map(d => {
-    const dias = diasRestantes(e[d.key]);
-    const cls  = dias === null ? 'gray' : dias < 0 ? 'red' : dias < 60 ? 'amber' : 'green';
-    const txt  = dias === null ? 'Sin dato' : dias < 0 ? `Vencido ${Math.abs(dias)}d` : `${dias}d`;
-    return `<div class="doc-row">
-      <div><div class="doc-name">${d.label}</div><div class="doc-date">${e[d.key]||'—'}</div></div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span class="badge ${cls}">${txt}</span>
-        <button class="doc-open-btn" onclick="openDocDrive('${e.patente}','${d.prefix}')"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Horómetro info
-  const actual = parseFloat((e.horometro||'').toString().replace(/\./g,'')) || 0;
-  const prox   = parseFloat((e.proxMant ||'').toString().replace(/\./g,'')) || 0;
-  const diff   = prox - actual;
-  const horoColor = diff < 0 ? '#c62828' : diff < 500 ? '#e65100' : '#2e7d32';
-
-  const eventos = allEventos.filter(ev => ev.patente === patente).slice(0,8);
-
-  document.getElementById('dt-detail-body').innerHTML = `
-    <!-- Hero -->
-    <div class="ficha-hero" style="margin-bottom:12px">
-      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
-      <div class="ficha-hero-info">
-        <div class="ficha-hero-type">${e.equipo}</div>
-        <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>
-        <div class="ficha-hero-plate">${e.patente} · ${e.anio||'—'} · ${e.color||'—'}</div>
-      </div>
-    </div>
-
-    <!-- Foto de referencia -->
-    ${e.fotoRef ? `
-    <div style="border-radius:12px;overflow:hidden;margin-bottom:10px;cursor:pointer" onclick="abrirFotoRefModal('${e.patente}')">
-      <img src="${e.fotoRef}" alt="Foto de referencia" style="width:100%;max-height:200px;object-fit:cover;display:block">
-    </div>` : ''}
-
-    <!-- Estado -->
-    <div class="ficha-section" style="margin-bottom:8px">
-      <div class="ficha-sec-title">Estado</div>
-      <div class="field-row"><span class="fl">Operativo</span><span class="fv">${e.estadoRaw||'—'}</span></div>
-      <div class="field-row"><span class="fl">Ubicación</span><span class="fv">${e.ubicacion||'—'}</span></div>
-      ${e.obs ? `<div class="ficha-obs">${e.obs}</div>` : ''}
-    </div>
-
-    <!-- Horómetro -->
-    <div class="ficha-section" style="margin-bottom:8px">
-      <div class="ficha-sec-title">Horómetro / Odómetro</div>
-      <div class="field-row"><span class="fl">Actual</span><span class="fv" style="font-weight:700">${formatNum(e.horometro)||'—'}</span></div>
-      <div class="field-row"><span class="fl">Última mant.</span><span class="fv">${formatNum(e.ultMant)||'—'}</span></div>
-      <div class="field-row"><span class="fl">Próxima</span><span class="fv" style="color:${horoColor};font-weight:600">${formatNum(e.proxMant)||'—'}${prox && actual ? ` (${diff>=0?'+':''}${formatNum(diff)})` : ''}</span></div>
-      <div class="field-row"><span class="fl">Cada</span><span class="fv">${e.mantCada||'—'}</span></div>
-    </div>
-
-    <!-- Documentos -->
-    <div class="ficha-section" style="margin-bottom:8px">
-      <div class="ficha-sec-title">Documentos</div>
-      ${docInfo}
-    </div>
-
-    <!-- Eventos recientes -->
-    <div class="ficha-section" style="margin-bottom:8px">
-      <div class="ficha-sec-title" style="margin-bottom:8px">Eventos recientes</div>
-      ${eventos.length === 0
-        ? '<div style="color:#bbb;font-size:13px;text-align:center;padding:12px">Sin eventos registrados</div>'
-        : eventos.map(ev => {
-            const meta = tipoEventoMeta(ev.tipo);
-            return `<div class="desktop-evento-row">
-              <div class="evento-tipo-icon">${meta.icon}</div>
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--ink)">${ev.tipo}</div>
-                <div style="font-size:11px;color:#888">${ev.fechaEvento}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km':''}</div>
-                ${ev.descripcion ? `<div style="font-size:12px;color:#555;margin-top:2px">${ev.descripcion}</div>`:''}
-              </div>
-            </div>`;
-          }).join('')
-      }
-      <button class="action-btn" style="margin-top:8px" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
-    </div>
-  `;
+  openFicha(patente);
 }
 
 // Render alertas desktop (usa los mismos datos que móvil)
