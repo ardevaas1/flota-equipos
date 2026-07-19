@@ -322,6 +322,20 @@ body.is-offline #app { padding-top: 30px; }
 }
 .and-ubic-nombre { font-size: 14px; font-weight: 700; color: var(--ink); }
 
+.and-resumen-grupo-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--accent); color: #fff; border-radius: 12px;
+  padding: 12px 16px; margin: 18px 0 8px;
+}
+.and-resumen-grupo-header:first-child { margin-top: 4px; }
+.and-resumen-grupo-nombre { font-size: 15px; font-weight: 800; letter-spacing: 0.2px; }
+.and-resumen-grupo-total { font-size: 12px; font-weight: 600; opacity: 0.85; }
+.and-resumen-badge {
+  min-width: 40px; text-align: center; font-size: 17px; font-weight: 800;
+  color: #fff; background: var(--accent-dark);
+  border-radius: 10px; padding: 5px 12px;
+}
+
 /* Vista "Dados de baja": misma tarjeta, pero con acento rojo para diferenciarla
    claramente del conteo normal (que representa piezas buenas). */
 .and-card--baja { background: #fffaf9; border: 1px solid #fbe4e1; border-radius: 12px; }

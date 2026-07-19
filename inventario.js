@@ -3265,10 +3265,24 @@ let _andUbicRowActual = null;
 async function andMigrarUbicaciones() {
   try {
     const data = await _andEscrituraRemota('and_migrar_ubicaciones', {});
-    console.log(`[MIGRAR UBICACIONES] ✓ ${data.migradas} pieza(s) migrada(s) a "Bodega".`);
+    console.log(`[MIGRAR UBICACIONES] ✓ ${data.migradas} pieza(s) migrada(s) a "COLIMA".`);
     await andCargar();
   } catch (e) {
     console.error('[MIGRAR UBICACIONES] Error:', e.message);
+  }
+}
+
+// Renombra una ubicación a otro nombre en TODAS las piezas de una sola vez
+// (suma cantidades si el destino ya existía en alguna pieza, en vez de
+// duplicar). Llamar desde la consola, por ejemplo:
+//   andRenombrarUbicacion('Bodega', 'COLIMA')
+async function andRenombrarUbicacion(desde, hacia) {
+  try {
+    const data = await _andEscrituraRemota('and_renombrar_ubicacion', { desde, hacia });
+    console.log(`[RENOMBRAR UBICACIÓN] ✓ ${data.renombradas} fila(s) pasadas de "${desde}" a "${hacia}".`);
+    await andCargar();
+  } catch (e) {
+    console.error('[RENOMBRAR UBICACIÓN] Error:', e.message);
   }
 }
 
@@ -3328,14 +3342,14 @@ function andRenderResumenUbicaciones() {
   }
 
   cont.innerHTML = grupos.map(g => `
-    <div class="form-sec" style="display:flex;justify-content:space-between;align-items:center">
-      <span>${g.ubicacion}</span>
-      <span style="color:var(--ink-soft);font-weight:600">${g.total} piezas</span>
+    <div class="and-resumen-grupo-header">
+      <span class="and-resumen-grupo-nombre">${g.ubicacion}</span>
+      <span class="and-resumen-grupo-total">${g.total} piezas</span>
     </div>
     ${g.items.map(it => `
       <div class="and-ubic-row">
         <span class="and-ubic-nombre">${it.tipo}</span>
-        <span style="font-size:19px;font-weight:800;color:var(--ink)">${it.cantidad}</span>
+        <span class="and-resumen-badge">${it.cantidad}</span>
       </div>`).join('')}
   `).join('');
 }
@@ -3376,29 +3390,46 @@ async function generarDocResumenGeneral() {
     allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}`.replace(/\s+/g,' ')));
     allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
 
-    // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos)
+    // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos).
+    // Se guarda como {tipo, cantidad} en vez de texto plano para poder mostrar
+    // la cantidad en su propia columna, bien visible, en vez de escondida en una frase.
     const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
     (rowsUbic || []).forEach(r => {
       const tipo = (r[1] || '').toString().trim();
       const cantidad = parseInt(r[3], 10) || 0;
-      if (tipo && cantidad > 0) agregar(r[2], 'Andamios', `${tipo} — ${cantidad} unidades`);
+      if (tipo && cantidad > 0) agregar(r[2], 'Andamios', { tipo, cantidad });
     });
 
     const ubicaciones = Object.keys(porUbicacion).sort((a, b) => a.localeCompare(b, 'es'));
     if (!ubicaciones.length) { toast('No se encontró ningún dato cargado para armar el resumen', 'error'); return; }
 
     const totalItems = ubicaciones.reduce((sum, u) =>
-      sum + Object.values(porUbicacion[u]).reduce((s2, lista) => s2 + lista.length, 0), 0);
+      sum + Object.keys(porUbicacion[u]).reduce((s2, mod) => {
+        if (mod === 'Andamios') return s2 + porUbicacion[u][mod].reduce((s3, it) => s3 + it.cantidad, 0);
+        return s2 + porUbicacion[u][mod].length;
+      }, 0), 0);
 
     const secciones = ubicaciones.map(u => {
       const modulos = porUbicacion[u];
-      const cantidadEnUbic = Object.values(modulos).reduce((s, lista) => s + lista.length, 0);
-      const bloquesModulo = Object.keys(modulos).sort().map(mod => `
-        <div class="subtitulo-modulo">${escapar(mod)}</div>
-        <table class="grilla">
-          ${modulos[mod].map(txt => `<tr><td>${escapar(txt)}</td></tr>`).join('')}
-        </table>
-      `).join('');
+      const cantidadEnUbic = Object.keys(modulos).reduce((s, mod) => {
+        if (mod === 'Andamios') return s + modulos[mod].reduce((s2, it) => s2 + it.cantidad, 0);
+        return s + modulos[mod].length;
+      }, 0);
+      const bloquesModulo = Object.keys(modulos).sort().map(mod => {
+        const esAndamios = mod === 'Andamios';
+        const filas = esAndamios
+          ? modulos[mod]
+              .sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'))
+              .map(it => `<tr><td>${escapar(it.tipo)}</td><td class="col-cantidad">${it.cantidad}</td></tr>`).join('')
+          : modulos[mod].map(txt => `<tr><td colspan="2">${escapar(txt)}</td></tr>`).join('');
+        return `
+          <div class="subtitulo-modulo">${escapar(mod)}</div>
+          <table class="grilla">
+            ${esAndamios ? '<tr><th>TIPO DE PIEZA</th><th class="col-cantidad">CANTIDAD</th></tr>' : ''}
+            ${filas}
+          </table>
+        `;
+      }).join('');
       return `
         <div class="seccion"><span class="txt">${escapar(u)}</span><span class="total-grupo">${cantidadEnUbic} ítem(s)</span></div>
         ${bloquesModulo}
@@ -3424,6 +3455,8 @@ async function generarDocResumenGeneral() {
       table.grilla { width: 100%; border-collapse: collapse; }
       table.grilla td { border: 1px solid #e3ebf3; padding: 7px 11px; font-size: 12px; }
       table.grilla tr:nth-child(even) td { background: #f7fafd; }
+      .col-cantidad { text-align: right; font-weight: 800; color: #0f3d66; font-size: 14px; width: 90px; }
+      table.grilla th.col-cantidad { color: #fff; text-align: right; }
     </style></head><body>
       <table class="header-tabla"><tr><td>
         <div class="empresa">CONSTRUCTORA LST</div>

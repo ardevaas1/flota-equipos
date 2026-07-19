@@ -295,7 +295,7 @@ function manejarAccionAndamios(p) {
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
         const tipo = sh.getRange(row, 1).getValue();
         const nueva = parseInt(p.cantidad, 10) || 0;
-        const total = _fijarCantidadUbicacionAnd(sh, row, 'Bodega', nueva, tipo, email);
+        const total = _fijarCantidadUbicacionAnd(sh, row, 'COLIMA', nueva, tipo, email);
         return _jsonOut({ success: true, total });
       }
 
@@ -347,7 +347,7 @@ function manejarAccionAndamios(p) {
         // como cualquier otro movimiento. Si no se registra acá, el total
         // se recalcularía a 0 la primera vez que se toque alguna ubicación.
         if (cantidadInicial > 0) {
-          _hojaUbicacionesAnd().appendRow([filaNueva, p.tipo || '', 'Bodega', cantidadInicial]);
+          _hojaUbicacionesAnd().appendRow([filaNueva, p.tipo || '', 'COLIMA', cantidadInicial]);
         }
         return _jsonOut({ success: true, row: filaNueva });
       }
@@ -383,7 +383,7 @@ function manejarAccionAndamios(p) {
         // La "cantidad" del panel de editar ajusta específicamente Bodega,
         // igual que el botón +/- — el total (col C) se recalcula solo.
         const nueva = parseInt(p.cantidad, 10) || 0;
-        const total = _fijarCantidadUbicacionAnd(sh, row, 'Bodega', nueva, p.tipo || '', email);
+        const total = _fijarCantidadUbicacionAnd(sh, row, 'COLIMA', nueva, p.tipo || '', email);
         return _jsonOut({ success: true, total });
       }
 
@@ -406,11 +406,55 @@ function manejarAccionAndamios(p) {
           const cantidad = parseInt(datosAnd[i][2], 10) || 0;
           if (!tipo || filasConUbicacion.has(row)) continue;
           if (cantidad > 0) {
-            shUbic.appendRow([row, tipo, 'Bodega', cantidad]);
+            shUbic.appendRow([row, tipo, 'COLIMA', cantidad]);
             migradas++;
           }
         }
         return _jsonOut({ success: true, migradas });
+      }
+
+      // Renombra una ubicación a otro nombre en TODAS las piezas (ej: la
+      // migración anterior cargó todo como "Bodega" y hay que pasarlo a
+      // "COLIMA") — si la pieza ya tenía algo cargado con el nombre nuevo,
+      // suma las cantidades en vez de duplicar la fila.
+      case 'and_renombrar_ubicacion': {
+        const desde = (p.desde || '').trim().toLowerCase();
+        const hacia = (p.hacia || '').trim();
+        if (!desde || !hacia) return _jsonOut({ success: false, error: 'Falta el nombre de origen o destino' });
+
+        const shUbic = _hojaUbicacionesAnd();
+        const datos = shUbic.getDataRange().getValues();
+        const filasABorrar = [];
+        let renombradas = 0;
+
+        for (let i = 1; i < datos.length; i++) {
+          const ubic = (datos[i][2] || '').toString().trim().toLowerCase();
+          if (ubic !== desde) continue;
+          const row = parseInt(datos[i][0], 10);
+          const tipo = datos[i][1];
+          const cantidad = parseInt(datos[i][3], 10) || 0;
+
+          // ¿Ya existe una fila con el nombre nuevo para esta misma pieza?
+          let filaDestino = -1, cantidadDestino = 0;
+          for (let j = 1; j < datos.length; j++) {
+            if (parseInt(datos[j][0], 10) === row && (datos[j][2] || '').toString().trim().toLowerCase() === hacia.toLowerCase()) {
+              filaDestino = j + 1;
+              cantidadDestino = parseInt(datos[j][3], 10) || 0;
+              break;
+            }
+          }
+          if (filaDestino !== -1) {
+            shUbic.getRange(filaDestino, 4).setValue(cantidadDestino + cantidad);
+            filasABorrar.push(i + 1);
+          } else {
+            shUbic.getRange(i + 1, 3).setValue(hacia);
+          }
+          renombradas++;
+        }
+        // Borrar de abajo hacia arriba para no correr los índices de las que faltan
+        filasABorrar.sort((a, b) => b - a).forEach(f => shUbic.deleteRow(f));
+
+        return _jsonOut({ success: true, renombradas });
       }
 
       default:
