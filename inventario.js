@@ -3431,7 +3431,7 @@ async function generarDocResumenGeneral() {
         `;
       }).join('');
       return `
-        <div class="seccion"><span class="txt">${escapar(u)}</span><span class="total-grupo">${cantidadEnUbic} ítem(s)</span></div>
+        <div class="seccion"><span class="txt">${escapar(u)}</span>&nbsp;&nbsp;·&nbsp;&nbsp;<span class="total-grupo">${cantidadEnUbic} ítem(s)</span></div>
         ${bloquesModulo}
       `;
     }).join('');
@@ -3440,20 +3440,22 @@ async function generarDocResumenGeneral() {
     const hora = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      @page { margin: 0.4in 0.6in; }
       body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 12.5px; line-height: 1.4; }
       p, div { margin: 0; padding: 0; }
+      td p, th p { margin: 0; }
       table.header-tabla { width: 100%; border-collapse: collapse; }
       table.header-tabla td { background: #0f3d66; color: #fff; text-align: center; padding: 16px 20px; border: none; }
       .empresa { font-size: 11px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
       .titulo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
       .subtitulo { font-size: 11px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
       .fecha-gen { text-align: center; color: #8697a8; font-size: 10.5px; font-style: italic; margin: 10px 0 4px; }
-      .seccion { margin-top: 26px; margin-bottom: 8px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: baseline; }
+      .seccion { margin-top: 16px; margin-bottom: 2px; border-bottom: 2px solid #0f3d66; padding-bottom: 0px; }
       .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }
       .seccion .total-grupo { color: #6f8aa3; font-weight: bold; font-size: 11.5px; }
-      .subtitulo-modulo { color: #6f8aa3; font-weight: bold; font-size: 10.5px; letter-spacing: 0.8px; margin: 12px 0 5px; }
+      .subtitulo-modulo { color: #6f8aa3; font-weight: bold; font-size: 10.5px; letter-spacing: 0.8px; margin: 6px 0 1px; }
       table.grilla { width: 100%; border-collapse: collapse; }
-      table.grilla td { border: 1px solid #e3ebf3; padding: 7px 11px; font-size: 12px; }
+      table.grilla td { border: 1px solid #e3ebf3; padding: 4px 11px; font-size: 12px; }
       table.grilla tr:nth-child(even) td { background: #f7fafd; }
       .col-cantidad { text-align: right; font-weight: 800; color: #0f3d66; font-size: 14px; width: 90px; }
       table.grilla th.col-cantidad { color: #fff; text-align: right; }
