@@ -1283,6 +1283,53 @@
     </div>
   </div>
 
+  <!-- ── Panel: Trasladar varias piezas de Andamios a la vez ── -->
+  <div id="panel-and-mover-varios" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-and-mover-varios')">‹ Cerrar</button>
+      <span class="pnl-title">Trasladar varias piezas</span>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Desde</label>
+        <select id="andmv-origen" onchange="andCargarPiezasOrigenMover()"></select>
+      </div>
+
+      <div class="form-sec">Cuánto trasladar de cada tipo</div>
+      <div class="nota" style="margin-bottom:10px">Dejá en blanco o en 0 lo que no quieras mover — solo se trasladan las piezas con cantidad cargada.</div>
+      <div id="andmv-piezas-lista"></div>
+
+      <div class="form-sec" style="margin-top:16px">Datos del traslado</div>
+      <div class="form-group">
+        <label>Hacia</label>
+        <input type="text" id="andmv-destino" placeholder="Ej: Obra Las Encinas" list="andmv-destino-sugeridas">
+        <datalist id="andmv-destino-sugeridas"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="andmv-fecha">
+      </div>
+      <div class="form-group">
+        <label>Guía de despacho</label>
+        <input type="text" id="andmv-guia" placeholder="N° de guía (opcional)">
+      </div>
+      <div class="form-group">
+        <label>Autoriza</label>
+        <input type="text" id="andmv-autoriza" placeholder="Nombre (opcional)">
+      </div>
+      <div class="form-group">
+        <label>Traslada</label>
+        <input type="text" id="andmv-traslada" placeholder="Nombre (opcional)">
+      </div>
+      <div class="form-group">
+        <label>Observaciones</label>
+        <textarea id="andmv-obs" placeholder="Opcional"></textarea>
+      </div>
+
+      <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andConfirmarMoverVarios()">Confirmar traslado</button>
+    </div>
+  </div>
+
   <!-- ══ MÓDULO FLOTA (wrapper para el main existente) ══ -->
   <div id="mod-flota" class="hidden">
     <!-- El #main ya existe y se maneja por app-v2.js -->

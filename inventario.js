@@ -3346,6 +3346,7 @@ function andRenderResumenUbicaciones() {
       <span class="and-resumen-grupo-nombre">${g.ubicacion}</span>
       <span class="and-resumen-grupo-total">${g.total} piezas</span>
     </div>
+    <button class="and-trasladar-desde-btn" onclick="andAbrirMoverVarios('${g.ubicacion.replace(/'/g, "\\'")}')">↔ Trasladar varias piezas desde acá</button>
     ${g.items.map(it => `
       <div class="and-ubic-row">
         <span class="and-ubic-nombre">${it.tipo}</span>
@@ -3484,6 +3485,158 @@ async function generarDocResumenGeneral() {
     toast('No se pudo generar el documento: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen'; }
+  }
+}
+
+// ── Trasladar VARIAS piezas de Andamios a la vez ──────────────────────────
+// A diferencia de abrirMoverAndamios() (una pieza puntual), acá se elige
+// primero un origen y se pueden cargar cantidades para varios tipos de
+// pieza en un solo movimiento — para no tener que repetir el formulario
+// una vez por cada tipo cuando se traslada un lote grande.
+let _andMoverVariosPiezas = [];
+
+async function andAbrirMoverVarios(origenPreseleccionado) {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
+
+  const selOrigen = document.getElementById('andmv-origen');
+  selOrigen.innerHTML = '<option value="">Cargando...</option>';
+  document.getElementById('andmv-destino').value = '';
+  document.getElementById('andmv-fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('andmv-guia').value = '';
+  document.getElementById('andmv-autoriza').value = '';
+  document.getElementById('andmv-traslada').value = '';
+  document.getElementById('andmv-obs').value = '';
+  document.getElementById('andmv-piezas-lista').innerHTML = '';
+
+  openPanel('panel-and-mover-varios');
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    const ubicaciones = [...new Set((rows || []).map(r => (r[2] || '').toString().trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'es'));
+
+    if (!ubicaciones.length) {
+      selOrigen.innerHTML = '<option value="">Sin ubicaciones cargadas todavía</option>';
+      document.getElementById('andmv-piezas-lista').innerHTML = emptyState('Sin stock cargado', 'Todavía no hay ninguna pieza asignada a una ubicación.');
+      return;
+    }
+
+    selOrigen.innerHTML = ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
+    if (origenPreseleccionado && ubicaciones.some(u => u.toLowerCase() === origenPreseleccionado.toLowerCase())) {
+      selOrigen.value = ubicaciones.find(u => u.toLowerCase() === origenPreseleccionado.toLowerCase());
+    }
+
+    const dl = document.getElementById('andmv-destino-sugeridas');
+    if (dl) dl.innerHTML = ubicaciones.map(u => `<option value="${u}">`).join('');
+
+    await andCargarPiezasOrigenMover();
+  } catch (e) {
+    toast('No se pudieron cargar las ubicaciones: ' + e.message, 'error');
+  }
+}
+
+// Se llama cada vez que cambia el "Desde" — refresca la lista de piezas
+// disponibles para trasladar desde esa ubicación puntual.
+async function andCargarPiezasOrigenMover() {
+  const origen = document.getElementById('andmv-origen').value;
+  const cont = document.getElementById('andmv-piezas-lista');
+  if (!origen) { cont.innerHTML = ''; _andMoverVariosPiezas = []; return; }
+  cont.innerHTML = '<div class="empty">Cargando...</div>';
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    _andMoverVariosPiezas = (rows || [])
+      .filter(r => (r[2] || '').toString().trim().toLowerCase() === origen.toLowerCase() && (parseInt(r[3], 10) || 0) > 0)
+      .map(r => ({ rowIndex: parseInt(r[0], 10), tipo: (r[1] || '').toString().trim(), disponible: parseInt(r[3], 10) || 0 }))
+      .filter(p => p.tipo)
+      .sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'));
+
+    if (!_andMoverVariosPiezas.length) {
+      cont.innerHTML = emptyState('Sin stock en esta ubicación', 'No hay ninguna pieza cargada ahí todavía.');
+      return;
+    }
+
+    cont.innerHTML = _andMoverVariosPiezas.map(p => `
+      <div class="and-ubic-row">
+        <span class="and-ubic-nombre">${p.tipo}<div style="font-size:11px;color:var(--ink-soft);font-weight:400">Disponible: ${p.disponible}</div></span>
+        <input type="number" min="0" max="${p.disponible}" class="andmv-cantidad-input"
+               data-row="${p.rowIndex}" data-tipo="${p.tipo.replace(/"/g, '&quot;')}" data-disponible="${p.disponible}"
+               placeholder="0" style="width:64px;text-align:center;flex-shrink:0">
+      </div>`).join('');
+  } catch (e) {
+    cont.innerHTML = emptyState('No se pudo cargar', e.message);
+  }
+}
+
+async function andConfirmarMoverVarios() {
+  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
+
+  const origen   = document.getElementById('andmv-origen').value;
+  const destino  = document.getElementById('andmv-destino').value.trim();
+  const fecha    = document.getElementById('andmv-fecha').value;
+  const guia     = document.getElementById('andmv-guia').value.trim();
+  const autoriza = document.getElementById('andmv-autoriza').value.trim();
+  const traslada = document.getElementById('andmv-traslada').value.trim();
+  const obs      = document.getElementById('andmv-obs').value.trim();
+
+  if (!origen) { toast('Elegí desde dónde trasladar', 'error'); return; }
+  if (!destino) { toast('Completá el destino', 'error'); return; }
+  if (origen.toLowerCase() === destino.toLowerCase()) { toast('El origen y el destino no pueden ser el mismo', 'error'); return; }
+  if (!fecha) { toast('La fecha es obligatoria', 'error'); document.getElementById('andmv-fecha').focus(); return; }
+
+  const aTrasladar = [];
+  for (const inp of document.querySelectorAll('.andmv-cantidad-input')) {
+    const cantidad = parseInt(inp.value, 10) || 0;
+    if (cantidad <= 0) continue;
+    const disponible = parseInt(inp.dataset.disponible, 10) || 0;
+    if (cantidad > disponible) {
+      toast(`"${inp.dataset.tipo}" no tiene esa cantidad disponible (hay ${disponible})`, 'error');
+      inp.focus();
+      return;
+    }
+    aTrasladar.push({ rowIndex: parseInt(inp.dataset.row, 10), tipo: inp.dataset.tipo, cantidad });
+  }
+  if (!aTrasladar.length) { toast('Ingresá al menos una cantidad a trasladar', 'error'); return; }
+
+  toast(`Trasladando ${aTrasladar.length} tipo(s) de pieza...`, 'loading');
+  try {
+    const fechaFmt = "'" + fecha.split('-').reverse().join('/');
+    const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
+    let ok = 0;
+    const conError = [];
+
+    // Una por una: cada traslado es su propia operación en el Apps Script
+    // (valida stock del lado del servidor) — si una falla, se sigue con
+    // las demás en vez de cortar todo el lote.
+    for (const item of aTrasladar) {
+      try {
+        await _andEscrituraRemota('and_mover_ubicacion', { row: item.rowIndex, origen, destino, cantidad: item.cantidad });
+        const idMov = 'MOV-' + Date.now() + '-' + item.rowIndex;
+        await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:M`, [[
+          idMov, fechaFmt, 'Andamios', item.tipo, `${item.cantidad} x ${item.tipo}`,
+          origen, destino, autoriza, traslada, obs,
+          registradoPor, guia, 'recibido',
+        ]]);
+        ok++;
+      } catch (e) {
+        conError.push(`${item.tipo}: ${e.message}`);
+      }
+    }
+
+    if (conError.length) {
+      toast(`${ok} traslado(s) OK, ${conError.length} con error — revisá la consola`, 'error');
+      console.error('[MOVER VARIOS ANDAMIOS] Con error:', conError);
+    } else {
+      toast(`✓ Se trasladaron ${ok} tipo(s) de pieza a ${destino}`);
+    }
+
+    await andCargar();
+    await loadMovimientos();
+    _origClosePanel('panel-and-mover-varios');
+    const idx = _panelStack.lastIndexOf('panel-and-mover-varios');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+  } catch (e) {
+    toast('No se pudo completar el traslado: ' + e.message, 'error');
   }
 }
 
