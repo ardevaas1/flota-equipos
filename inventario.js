@@ -670,7 +670,7 @@ function invCerrarFotoModal() {
 // Abre la carpeta Drive del ítem actual (HOJA/CODIGO/)
 async function invAbrirCarpetaDrive() {
   if (!invItem) return;
-  toast('Buscando carpeta en Drive...');
+  toast('Buscando carpeta en Drive...', 'loading');
   try {
     await ensureToken();
     const codigo = invItem.codigo || invItem.num || '';
@@ -829,7 +829,7 @@ async function invGuardar() {
       sheetName = SHEET_HERRAMIENTAS;
     }
 
-    toast('Guardando...');
+    toast('Guardando...', 'loading');
     await Promise.all([
       writeSheet(`'${sheetName}'!${colEstado}${row}`, [[estado]]),
       writeSheet(`'${sheetName}'!${colUbic}${row}`,   [[ubic]]),
@@ -846,7 +846,7 @@ async function invGuardar() {
     // Subir foto de referencia si hay una nueva
     if (_invFotoRef) {
       if (btn) btn.textContent = 'Subiendo foto...';
-      toast('Subiendo foto de referencia...');
+      toast('Subiendo foto de referencia...', 'loading');
       try {
         const codigo = invItem.codigo || invItem.num || row;
         // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO] /
@@ -1221,7 +1221,7 @@ async function contGuardar() {
 
   try {
     // Containers: E=estado(5) F=color(6) G=ubicacion(7) I=equipamiento(9) J=obs(10) C=foto(3)
-    toast('Guardando...');
+    toast('Guardando...', 'loading');
     await Promise.all([
       writeSheet(`'${SHEET_CONTAINERS}'!E${row}`, [[estado]]),
       writeSheet(`'${SHEET_CONTAINERS}'!F${row}`, [[color]]),
@@ -1232,7 +1232,7 @@ async function contGuardar() {
 
     if (_contFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
-      toast('Subiendo foto...');
+      toast('Subiendo foto...', 'loading');
       try {
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
@@ -1753,7 +1753,7 @@ async function invGuardarNuevo() {
 
     // Subir foto de referencia si se seleccionó
     if (_nuevoInvFoto) {
-      toast('Subiendo foto de referencia...');
+      toast('Subiendo foto de referencia...', 'loading');
       try {
         // Obtener rowIndex del nuevo ítem (última fila del sheet)
         const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
@@ -1867,7 +1867,7 @@ async function contGuardarNuevo() {
       if (!newRow) {
         toast('El container se creó, pero no se pudo confirmar su fila para subir la foto — edítalo y súbela de nuevo', 'error');
       } else {
-      toast('Subiendo foto de referencia...');
+      toast('Subiendo foto de referencia...', 'loading');
       try {
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
@@ -1928,10 +1928,10 @@ async function contRepararFotos() {
   btns.forEach(b => { b.disabled = true; b.textContent = 'Reparando...'; });
 
   try {
-    toast('Buscando carpeta "Containers" en Drive...');
+    toast('Buscando carpeta "Containers" en Drive...', 'loading');
     const folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
 
-    toast('Listando fotos...');
+    toast('Listando fotos...', 'loading');
     const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
     const res = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=1000`,
@@ -3037,16 +3037,18 @@ function _andSoloLectura() {
 async function _andEscrituraRemota(accion, params) {
   await ensureToken();
   const qs = new URLSearchParams({ accion, accessToken, ...params }).toString();
-  let res;
-  try {
-    res = await fetch(`${APPS_SCRIPT_URL}?${qs}`);
-  } catch (e) {
-    throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
-  }
-  if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
-  const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'Error desconocido al guardar');
-  return data;
+  return _conIndicadorCarga((async () => {
+    let res;
+    try {
+      res = await fetch(`${APPS_SCRIPT_URL}?${qs}`);
+    } catch (e) {
+      throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
+    }
+    if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error desconocido al guardar');
+    return data;
+  })());
 }
 const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita re-consultar Drive en cada render
 
@@ -3796,7 +3798,7 @@ async function andGuardarNuevo() {
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
   try {
-    toast('Guardando...');
+    toast('Guardando...', 'loading');
     // Se agrega primero sin foto para conocer la fila real (rowIndex) donde quedó
     const resp = await _andEscrituraRemota('and_nuevo', { tipo: nombre, cantidad, obs, sistema });
     const nuevaFila = resp.row;
@@ -3895,7 +3897,7 @@ async function andGuardarEdit() {
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
   try {
-    toast('Guardando...');
+    toast('Guardando...', 'loading');
     await _andEscrituraRemota('and_editar', { row, tipo: nombre, cantidad, obs, sistema });
 
     if (_andEditFoto) {
@@ -3952,7 +3954,7 @@ function _andCargarSeedScript() {
 async function andImportarSeed() {
   if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   if (typeof ANDAMIOS_SEED === 'undefined') {
-    toast('Cargando catálogo (una vez)...');
+    toast('Cargando catálogo (una vez)...', 'loading');
     const ok = await _andCargarSeedScript();
     if (!ok) { toast('No se pudo cargar el catálogo a importar. Revisa tu conexión.', 'error'); return; }
   }

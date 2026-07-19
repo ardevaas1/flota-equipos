@@ -578,11 +578,20 @@ function field(label, value) {
 
 function toast(msg, type = 'ok') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  if (type === 'loading') {
+    t.innerHTML = `<span class="toast-spinner"></span>${msg}`;
+  } else {
+    t.textContent = msg;
+  }
   t.className = `toast ${type}`;
   t.classList.remove('hidden');
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.add('hidden'), 6000);
+  // Los toasts de "en progreso" no se auto-ocultan a los 6s — quedan hasta
+  // que el propio código llame a toast() de nuevo (éxito o error), porque
+  // algunas acciones (migrar fichas, generar documentos) tardan más que eso.
+  if (type !== 'loading') {
+    t._timer = setTimeout(() => t.classList.add('hidden'), 6000);
+  }
 }
 
 function splash(pct, hint) {
@@ -637,36 +646,71 @@ function _friendlyGoogleApiError(status, rawBody) {
   return `Error ${status} de Google${googleMsg ? ': ' + googleMsg : ''}`;
 }
 
+// ── Indicador de carga global ─────────────────────────────────
+// Se prende solo cada vez que hay una petición en curso a Sheets, Drive o
+// Docs (sin importar qué función la dispare) y se apaga cuando ya no queda
+// ninguna pendiente — así cualquier acción que tarde un poco muestra que la
+// app sigue trabajando, sin tener que agregar esto a mano en cada función.
+let _busyCount = 0;
+function _busyShow() {
+  _busyCount++;
+  const bar = document.getElementById('global-loading-bar');
+  if (bar) bar.classList.add('active');
+}
+function _busyHide() {
+  _busyCount = Math.max(0, _busyCount - 1);
+  if (_busyCount === 0) {
+    const bar = document.getElementById('global-loading-bar');
+    if (bar) bar.classList.remove('active');
+  }
+}
+// Envuelve cualquier promesa: prende el indicador mientras esté pendiente,
+// lo apaga al terminar (haya salido bien o mal).
+async function _conIndicadorCarga(promesa) {
+  _busyShow();
+  try {
+    return await promesa;
+  } finally {
+    _busyHide();
+  }
+}
+
 async function fetchSheet(range) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
-  const res = await fetch(url, { headers: authHeader() });
-  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-  return (await res.json()).values || [];
+  return _conIndicadorCarga((async () => {
+    const res = await fetch(url, { headers: authHeader() });
+    if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
+    return (await res.json()).values || [];
+  })());
 }
 
 async function writeSheet(range, values) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
-  });
-  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-  return res.json();
+  return _conIndicadorCarga((async () => {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
+    });
+    if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
+    return res.json();
+  })());
 }
 
 async function appendSheet(range, values) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader() },
-    body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
-  });
-  if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-  return res.json();
+  return _conIndicadorCarga((async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
+    });
+    if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
+    return res.json();
+  })());
 }
 
 // ── Google Drive API ──────────────────────────────────────────
@@ -675,6 +719,7 @@ async function appendSheet(range, values) {
 // endpoint que acepta CORS desde GitHub Pages.
 async function findOrCreateFolder(name, parentId) {
   await ensureToken();
+  return _conIndicadorCarga((async () => {
 
   // 1. Buscar si ya existe
   const q = encodeURIComponent(`'${parentId}' in parents and name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
@@ -705,6 +750,8 @@ async function findOrCreateFolder(name, parentId) {
   const folder = await createRes.json();
   console.log('[FOLDER] Creada OK:', name, folder.id);
   return folder.id;
+
+  })());
 }
 
 // Devuelve el ID de [PATENTE]/ — la crea si no existe
@@ -775,7 +822,7 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
   console.log('[UPLOAD] folderId:', folderId);
   console.log('[UPLOAD] token válido:', !!accessToken, 'expira en:', Math.round((tokenExpiry - Date.now())/1000) + 's');
   console.log('[UPLOAD] body length:', body.length, 'b64 length:', b64.length);
-  toast('Enviando a Drive...');
+  toast('Enviando a Drive...', 'loading');
 
   let res;
   try {
@@ -939,19 +986,21 @@ function renderHistorialEquipo(patente) {
 // app) — probar primero con UN vehículo antes de confiar en esto para todos.
 
 async function docsApiFetch(method, path, body) {
-  const res = await fetch(`https://docs.googleapis.com/v1/documents/${path}`, {
-    method,
-    headers: {
-      'Authorization': 'Bearer ' + accessToken,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Docs API ${res.status}: ${errText.slice(0, 300)}`);
-  }
-  return res.json();
+  return _conIndicadorCarga((async () => {
+    const res = await fetch(`https://docs.googleapis.com/v1/documents/${path}`, {
+      method,
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Docs API ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    return res.json();
+  })());
 }
 
 function _extraerDocId(url) {
@@ -1071,7 +1120,7 @@ async function actualizarFichaTecnica(patente) {
   const docId = _extraerDocId(e.linkFicha);
   if (!docId) { toast('No se pudo leer el link de la ficha técnica', 'error'); return; }
 
-  toast('Actualizando ficha técnica...');
+  toast('Actualizando ficha técnica...', 'loading');
   try {
     if (!allEventos.length) await loadEventos(); // por si no se visitó Mantenciones en esta sesión
     await _actualizarDocumentacionFicha(docId, e);
@@ -1842,7 +1891,7 @@ async function saveEvento() {
       for (let i = 0; i < _eventoFotos.length; i++) {
         const foto = _eventoFotos[i];
         if (btn) btn.textContent = `Subiendo foto ${i+1}/${_eventoFotos.length}...`;
-        toast(`Subiendo foto ${i+1} de ${_eventoFotos.length}...`);
+        toast(`Subiendo foto ${i+1} de ${_eventoFotos.length}...`, 'loading');
 
         try {
           const ext      = foto.name.split('.').pop() || 'jpg';
@@ -2000,7 +2049,7 @@ async function loadData(background = false) {
   if (!background) {
     splash(10, 'Conectando con Google Sheets...');
   } else {
-    toast('Actualizando datos...');
+    toast('Actualizando datos...', 'loading');
   }
 
   try {
@@ -2313,7 +2362,7 @@ function openFicha(patente, soloLectura) {
 
 // ── Abrir carpeta Drive de un equipo ─────────────────────────
 async function abrirCarpetaDrive(patente) {
-  toast('Buscando carpeta en Drive...');
+  toast('Buscando carpeta en Drive...', 'loading');
   try {
     await ensureToken();
     // Buscar carpeta con nombre igual a la patente dentro de DRIVE_ROOT_FOLDER
@@ -2336,7 +2385,7 @@ async function abrirCarpetaDrive(patente) {
   }
 }
 async function openDocDrive(patente, prefix) {
-  toast('Buscando documento en Drive...');
+  toast('Buscando documento en Drive...', 'loading');
   try {
     await ensureToken();
 
@@ -2557,7 +2606,7 @@ async function saveEquipo() {
 
   try {
     // 1. Guardar todos los campos en Sheets
-    toast('Guardando datos...');
+    toast('Guardando datos...', 'loading');
     console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
 
     // Determinar URL final de foto de referencia (Drive)
@@ -2565,7 +2614,7 @@ async function saveEquipo() {
     if (_editFotoRef === 'QUITAR') {
       fotoRefVal = '';
     } else if (_editFotoRef === 'NUEVA' && _editFotoRefFile) {
-      toast('Subiendo foto de referencia a Drive...');
+      toast('Subiendo foto de referencia a Drive...', 'loading');
       try {
         await ensureToken();
         const fotoFolderId = await getSubfolder(patente, 'FotoRef');
@@ -3076,7 +3125,7 @@ async function uploadDocFiles(patente) {
   });
   if (!hasFiles) return;
 
-  toast('Subiendo documentos...');
+  toast('Subiendo documentos...', 'loading');
   let uploaded = 0;
 
   for (const doc of docs) {
@@ -3128,7 +3177,7 @@ function resetDocInputs() {
 
 // ── Test de conexión al Apps Script (diagnóstico) ────────────
 async function testAppsScript() {
-  toast('Probando conexión con Apps Script...');
+  toast('Probando conexión con Apps Script...', 'loading');
   try {
     const res = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
     const text = await res.text();
@@ -3214,7 +3263,7 @@ document.addEventListener('keydown', (e) => {
   const inApp = !document.getElementById('login-screen') || document.getElementById('login-screen').classList.contains('hidden');
   if (!inApp) return;
   e.preventDefault();
-  toast('Actualizando datos...');
+  toast('Actualizando datos...', 'loading');
   loadData();
 });
 
