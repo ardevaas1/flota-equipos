@@ -3347,7 +3347,7 @@ function andRenderResumenUbicaciones() {
 // cargado en esta sesión, lo carga antes de armar el documento.
 async function generarDocResumenGeneral() {
   const btn = document.getElementById('home-resumen-btn-doc');
-  if (btn) { btn.disabled = true; btn.textContent = 'Cargando datos de todos los módulos...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando datos...'; }
 
   try {
     const cargas = [];
@@ -3446,7 +3446,7 @@ async function generarDocResumenGeneral() {
   } catch (e) {
     toast('No se pudo generar el documento: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen general (todos los módulos)'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen'; }
   }
 }
 
