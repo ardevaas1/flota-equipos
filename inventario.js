@@ -3270,6 +3270,180 @@ async function andMigrarUbicaciones() {
   }
 }
 
+// ── Resumen general por ubicación (todas las piezas, agrupadas) ──────────
+// Vista inversa a "Ubicaciones por pieza": acá se agrupa por ubicación y
+// se lista qué piezas (y cuánto de cada una) hay en cada obra/bodega.
+let _andResumenUbicCache = null; // [{ ubicacion, items: [{tipo, cantidad}], total }]
+
+async function andVerResumenUbicaciones() {
+  const cont = document.getElementById('and-resumen-ubic-lista');
+  if (cont) cont.innerHTML = '<div class="empty">Cargando...</div>';
+  document.getElementById('and-resumen-buscar').value = '';
+  openPanel('panel-and-resumen-ubic');
+
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    const porUbicacion = {};
+    (rows || []).forEach(r => {
+      const tipo = (r[1] || '').toString().trim();
+      const ubicacion = (r[2] || '').toString().trim();
+      const cantidad = parseInt(r[3], 10) || 0;
+      if (!ubicacion || !tipo || cantidad <= 0) return;
+      if (!porUbicacion[ubicacion]) porUbicacion[ubicacion] = [];
+      porUbicacion[ubicacion].push({ tipo, cantidad });
+    });
+
+    _andResumenUbicCache = Object.keys(porUbicacion)
+      .sort((a, b) => a.localeCompare(b, 'es'))
+      .map(ubicacion => {
+        const items = porUbicacion[ubicacion].sort((a, b) => a.tipo.localeCompare(b.tipo, 'es'));
+        const total = items.reduce((sum, it) => sum + it.cantidad, 0);
+        return { ubicacion, items, total };
+      });
+
+    andRenderResumenUbicaciones();
+  } catch (e) {
+    if (cont) cont.innerHTML = emptyState('No se pudo cargar el resumen', e.message);
+  }
+}
+
+function andRenderResumenUbicaciones() {
+  const cont = document.getElementById('and-resumen-ubic-lista');
+  if (!cont || !_andResumenUbicCache) return;
+  const txt = (document.getElementById('and-resumen-buscar').value || '').toLowerCase().trim();
+
+  const grupos = !txt ? _andResumenUbicCache : _andResumenUbicCache
+    .map(g => ({
+      ubicacion: g.ubicacion,
+      total: g.total,
+      items: g.ubicacion.toLowerCase().includes(txt) ? g.items : g.items.filter(it => it.tipo.toLowerCase().includes(txt)),
+    }))
+    .filter(g => g.items.length);
+
+  if (!grupos.length) {
+    cont.innerHTML = emptyState('Sin resultados', 'No hay stock que coincida con la búsqueda.');
+    return;
+  }
+
+  cont.innerHTML = grupos.map(g => `
+    <div class="form-sec" style="display:flex;justify-content:space-between;align-items:center">
+      <span>${g.ubicacion}</span>
+      <span style="color:var(--ink-soft);font-weight:600">${g.total} piezas</span>
+    </div>
+    ${g.items.map(it => `
+      <div class="and-ubic-row">
+        <span class="and-ubic-nombre">${it.tipo}</span>
+        <span style="font-size:19px;font-weight:800;color:var(--ink)">${it.cantidad}</span>
+      </div>`).join('')}
+  `).join('');
+}
+
+// Genera un Google Doc con el resumen completo (todas las ubicaciones,
+// todas las piezas) — reutiliza _crearDocDesdeHtml, la misma función que
+// arma los Docs de Ficha Técnica. Queda en la carpeta de Andamios en Drive.
+// Junta TODOS los módulos (Flota, Generadores, Maq. Menor, Herramientas,
+// Containers y Andamios) agrupados por ubicación, para un resumen general
+// de toda la flota — no solo Andamios. Si algún módulo todavía no está
+// cargado en esta sesión, lo carga antes de armar el documento.
+async function generarDocResumenGeneral() {
+  const btn = document.getElementById('and-resumen-btn-doc');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando datos de todos los módulos...'; }
+
+  try {
+    const cargas = [];
+    if (!allEquipos.length && typeof loadData === 'function') cargas.push(loadData(true));
+    if (!allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allContainers.length) {
+      cargas.push(loadInventario());
+    }
+    if (cargas.length) await Promise.all(cargas);
+
+    const escapar = (s) => (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // Estructura: { ubicacion: { NombreModulo: [ 'texto de cada ítem', ... ] } }
+    const porUbicacion = {};
+    const agregar = (ubicacion, modulo, texto) => {
+      const u = (ubicacion || '').toString().trim() || 'Sin ubicación';
+      if (!porUbicacion[u]) porUbicacion[u] = {};
+      if (!porUbicacion[u][modulo]) porUbicacion[u][modulo] = [];
+      porUbicacion[u][modulo].push(texto);
+    };
+
+    allEquipos.forEach(e => agregar(e.ubicacion, 'Flota', `${e.equipo || 'Vehículo'} — ${e.marca || ''} ${e.modelo || ''} (${e.patente || 's/patente'})`.replace(/\s+/g,' ')));
+    allGeneradores.forEach(g => agregar(g.ubicacion, 'Generadores', `${g.equipo} — ${g.marca || ''} ${g.modelo || ''}${g.codigo ? ' (' + g.codigo + ')' : ''}`.replace(/\s+/g,' ')));
+    allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}`.replace(/\s+/g,' ')));
+    allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}`.replace(/\s+/g,' ')));
+    allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
+
+    // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos)
+    const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    (rowsUbic || []).forEach(r => {
+      const tipo = (r[1] || '').toString().trim();
+      const cantidad = parseInt(r[3], 10) || 0;
+      if (tipo && cantidad > 0) agregar(r[2], 'Andamios', `${tipo} — ${cantidad} unidades`);
+    });
+
+    const ubicaciones = Object.keys(porUbicacion).sort((a, b) => a.localeCompare(b, 'es'));
+    if (!ubicaciones.length) { toast('No se encontró ningún dato cargado para armar el resumen', 'error'); return; }
+
+    const totalItems = ubicaciones.reduce((sum, u) =>
+      sum + Object.values(porUbicacion[u]).reduce((s2, lista) => s2 + lista.length, 0), 0);
+
+    const secciones = ubicaciones.map(u => {
+      const modulos = porUbicacion[u];
+      const cantidadEnUbic = Object.values(modulos).reduce((s, lista) => s + lista.length, 0);
+      const bloquesModulo = Object.keys(modulos).sort().map(mod => `
+        <div class="subtitulo-modulo">${escapar(mod)}</div>
+        <table class="grilla">
+          ${modulos[mod].map(txt => `<tr><td>${escapar(txt)}</td></tr>`).join('')}
+        </table>
+      `).join('');
+      return `
+        <div class="seccion"><span class="txt">${escapar(u)}</span><span class="total-grupo">${cantidadEnUbic} ítem(s)</span></div>
+        ${bloquesModulo}
+      `;
+    }).join('');
+
+    const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const hora = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 12.5px; line-height: 1.4; }
+      p, div { margin: 0; padding: 0; }
+      table.header-tabla { width: 100%; border-collapse: collapse; }
+      table.header-tabla td { background: #0f3d66; color: #fff; text-align: center; padding: 16px 20px; border: none; }
+      .empresa { font-size: 11px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
+      .titulo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
+      .subtitulo { font-size: 11px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
+      .fecha-gen { text-align: center; color: #8697a8; font-size: 10.5px; font-style: italic; margin: 10px 0 4px; }
+      .seccion { margin-top: 26px; margin-bottom: 8px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: baseline; }
+      .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }
+      .seccion .total-grupo { color: #6f8aa3; font-weight: bold; font-size: 11.5px; }
+      .subtitulo-modulo { color: #6f8aa3; font-weight: bold; font-size: 10.5px; letter-spacing: 0.8px; margin: 12px 0 5px; }
+      table.grilla { width: 100%; border-collapse: collapse; }
+      table.grilla td { border: 1px solid #e3ebf3; padding: 7px 11px; font-size: 12px; }
+      table.grilla tr:nth-child(even) td { background: #f7fafd; }
+    </style></head><body>
+      <table class="header-tabla"><tr><td>
+        <div class="empresa">CONSTRUCTORA LST</div>
+        <div class="titulo">RESUMEN GENERAL POR UBICACIÓN</div>
+        <div class="subtitulo">FLOTA · GENERADORES · MAQUINARIA MENOR · HERRAMIENTAS · CONTAINERS · ANDAMIOS</div>
+      </td></tr></table>
+      <div class="fecha-gen">Generado el ${fecha} a las ${hora} — ${totalItems} ítem(s) en ${ubicaciones.length} ubicación(es)</div>
+      ${secciones}
+    </body></html>`;
+
+    if (btn) btn.textContent = 'Generando documento...';
+    const archivo = await _crearDocDesdeHtml(`Resumen General — ${fecha}`, html, DRIVE_INV_FOLDER);
+    const url = `https://docs.google.com/document/d/${archivo.id}/edit`;
+    toast('✓ Documento generado');
+    window.open(url, '_blank');
+  } catch (e) {
+    toast('No se pudo generar el documento: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 Generar documento con TODO (Flota, Generadores, Herramientas, etc.)'; }
+  }
+}
+
 async function andVerUbicaciones(rowIndex) {
   _andUbicRowActual = rowIndex;
   const it = allAndamios.find(x => x.rowIndex === rowIndex);

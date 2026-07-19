@@ -1053,6 +1053,9 @@
           <div class="inv-desktop-stat-l and-total-label">Total de piezas contadas</div>
         </div>
       </div>
+      <div style="padding:0 20px 4px">
+        <button class="desktop-refresh-btn" onclick="andVerResumenUbicaciones()">📍 Resumen por ubicación</button>
+      </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
         <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
         <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M4 4v16M20 4v16M4 9h16M4 15h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Conteo de piezas</button>
@@ -1103,6 +1106,9 @@
     <div class="and-total-bar" id="and-mobile-stats">
       <span class="and-total-label">Total de piezas contadas</span>
       <span id="and-total">0</span>
+    </div>
+    <div style="padding:0 14px 8px">
+      <button class="action-btn" style="background:var(--neutral-soft);color:var(--ink-soft);border:none" onclick="andVerResumenUbicaciones()">📍 Resumen por ubicación</button>
     </div>
 
     <div id="and-import-bar" style="padding:0 14px 10px">
@@ -1251,6 +1257,21 @@
       <div id="and-ubicaciones-lista"></div>
       <button class="action-btn" style="margin-top:20px;background:var(--accent);color:#fff;border:none" onclick="abrirMoverAndamios(_andUbicRowActual)">🚚 Registrar movimiento</button>
       <div class="nota" style="margin-top:6px">Los traslados quedan registrados en el módulo de Movimientos, junto con los del resto de la flota.</div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Resumen general por ubicación (todas las piezas) ── -->
+  <div id="panel-and-resumen-ubic" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-and-resumen-ubic')">‹ Cerrar</button>
+      <span class="pnl-title">Resumen por ubicación</span>
+    </div>
+    <div class="panel-body">
+      <button class="action-btn" style="margin-bottom:14px;background:var(--accent);color:#fff;border:none" onclick="generarDocResumenGeneral()" id="and-resumen-btn-doc">📄 Generar documento con TODO (Flota, Generadores, Herramientas, etc.)</button>
+      <div class="form-group">
+        <input type="text" id="and-resumen-buscar" placeholder="Buscar ubicación o pieza..." oninput="andRenderResumenUbicaciones()">
+      </div>
+      <div id="and-resumen-ubic-lista"></div>
     </div>
   </div>
 
