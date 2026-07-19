@@ -3346,7 +3346,7 @@ function andRenderResumenUbicaciones() {
 // de toda la flota — no solo Andamios. Si algún módulo todavía no está
 // cargado en esta sesión, lo carga antes de armar el documento.
 async function generarDocResumenGeneral() {
-  const btn = document.getElementById('and-resumen-btn-doc');
+  const btn = document.getElementById('home-resumen-btn-doc');
   if (btn) { btn.disabled = true; btn.textContent = 'Cargando datos de todos los módulos...'; }
 
   try {
@@ -3433,14 +3433,20 @@ async function generarDocResumenGeneral() {
     </body></html>`;
 
     if (btn) btn.textContent = 'Generando documento...';
-    const archivo = await _crearDocDesdeHtml(`Resumen General — ${fecha}`, html, DRIVE_INV_FOLDER);
+    let carpetaResumenes = CONFIG.DRIVE_ROOT_FOLDER;
+    try {
+      carpetaResumenes = await findOrCreateFolder('Resúmenes Generales', CONFIG.DRIVE_ROOT_FOLDER);
+    } catch (fe) {
+      console.warn('No se pudo crear/ubicar la carpeta "Resúmenes Generales", se usa la carpeta raíz:', fe.message);
+    }
+    const archivo = await _crearDocDesdeHtml(`Resumen General — ${fecha}`, html, carpetaResumenes);
     const url = `https://docs.google.com/document/d/${archivo.id}/edit`;
     toast('✓ Documento generado');
     window.open(url, '_blank');
   } catch (e) {
     toast('No se pudo generar el documento: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📄 Generar documento con TODO (Flota, Generadores, Herramientas, etc.)'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen general (todos los módulos)'; }
   }
 }
 
