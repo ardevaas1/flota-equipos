@@ -1419,6 +1419,7 @@ function irAModulo(modulo) {
     // Flota usa su propio sidebar desktop nativo
     _setDesktopSidebarFlota(true);
     _pgTransition(homeEl, document.getElementById('main'), 'forward');
+    if (typeof chequearAlertaKilometraje === 'function') chequearAlertaKilometraje();
     const hdr = document.querySelector('#main .header');
     if (hdr && !document.getElementById('flota-back-btn')) {
       const backBtn = document.createElement('button');

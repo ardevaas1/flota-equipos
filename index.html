@@ -234,6 +234,11 @@
 
     <!-- Vista: Equipos -->
     <div id="dt-page-equipos" class="dt-page">
+      <div id="dt-km-alert-note" class="km-alert-note hidden">
+        <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="0.9" fill="currentColor"/></svg>
+        <span class="km-alert-note-txt">Recordatorio: actualiza el kilometraje/horómetro de los vehículos y maquinaria que no cuentan con GPS.</span>
+        <button class="km-alert-note-btn" onclick="descartarAlertaKilometraje()">Hecho</button>
+      </div>
       <div class="desktop-main-header">
         <div class="desktop-main-title">Equipos</div>
         <div class="desktop-search">
@@ -362,6 +367,11 @@
 
       <!-- Dashboard -->
       <div id="page-dashboard" class="page active">
+        <div id="km-alert-note" class="km-alert-note hidden">
+          <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="0.9" fill="currentColor"/></svg>
+          <span class="km-alert-note-txt">Recordatorio: actualiza el kilometraje/horómetro de los vehículos y maquinaria que no cuentan con GPS.</span>
+          <button class="km-alert-note-btn" onclick="descartarAlertaKilometraje()">Hecho</button>
+        </div>
         <div class="stats-row">
           <div class="stat green" onclick="goEquipos('op')">
             <div class="stat-n" id="stat-op">—</div>

@@ -95,6 +95,7 @@ function iniciarModoOffline() {
   document.getElementById('modulos-home').classList.remove('hidden');
   actualizarChipUsuario();
   actualizarBannerOffline(true);
+  chequearAlertaKilometraje();
   if (habiaCache) {
     _renderTodoDesdeMemoria();
   } else {
@@ -115,6 +116,36 @@ let userEmail = null;
 
 const ROLE_KEY  = 'lst_user_role';
 const EMAIL_KEY = 'lst_user_email';
+
+// ── Aviso de kilometraje/horómetro (solo admin) ─────────────────
+// Nota discreta dentro del módulo Flota (dashboard móvil y vista Equipos de
+// escritorio) que recuerda actualizar el kilometraje/horómetro de los
+// equipos que no tienen GPS. No depende de datos por vehículo (no hay campo
+// "tiene GPS" en la hoja): es simplemente un recordatorio periódico que se
+// guarda por navegador. Se muestra si pasaron KM_ALERT_DIAS desde la última
+// vez que el admin apretó "Hecho" (o si nunca se mostró), y desaparece al
+// apretar ese botón hasta que vuelvan a pasar esos días.
+const KM_ALERT_KEY  = 'lst_km_alert_last_ts';
+const KM_ALERT_DIAS = 10;
+const KM_ALERT_IDS  = ['km-alert-note', 'dt-km-alert-note'];
+
+function chequearAlertaKilometraje() {
+  const last = parseInt(localStorage.getItem(KM_ALERT_KEY) || '0');
+  const diasPasados = (Date.now() - last) / (1000 * 60 * 60 * 24);
+  const mostrar = userRole === 'admin' && (!last || diasPasados >= KM_ALERT_DIAS);
+  KM_ALERT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !mostrar);
+  });
+}
+
+function descartarAlertaKilometraje() {
+  try { localStorage.setItem(KM_ALERT_KEY, Date.now().toString()); } catch(e) {}
+  KM_ALERT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+}
 
 // ── OAuth / Google Identity Services ─────────────────────────
 let tokenClient  = null;
@@ -610,6 +641,7 @@ function hideSplash() {
     el.classList.add('hidden');
     // Mostrar pantalla de módulos en vez de ir directo al main
     document.getElementById('modulos-home').classList.remove('hidden');
+    chequearAlertaKilometraje();
   }, 400);
 }
 
@@ -2136,6 +2168,7 @@ async function loadData(background = false) {
         hideSplash();
         document.getElementById('modulos-home').classList.remove('hidden');
         actualizarBannerOffline(true);
+        chequearAlertaKilometraje();
         _renderTodoDesdeMemoria();
       }, 400);
     } else {

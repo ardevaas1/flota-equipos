@@ -80,6 +80,25 @@ button:active, .modulo-card:active, .equipo-card:active, .inv-card:active, .cont
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 #offline-banner-fecha { font-weight: 400; opacity: 0.85; }
+
+/* Aviso discreto (solo admin) para recordar actualizar kilometraje/horómetro
+   de equipos sin GPS. A diferencia de #offline-banner, no es un banner fijo
+   ni urgente: es una nota chica dentro de la pantalla de inicio, descartable,
+   que vuelve a aparecer sola recién pasados ~10 días. */
+.km-alert-note {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 16px 10px; padding: 8px 10px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; font-size: 12px; color: var(--ink-soft);
+}
+.km-alert-note .inline-ic { width: 15px; height: 15px; flex: none; opacity: 0.75; }
+.km-alert-note-txt { flex: 1; line-height: 1.35; }
+.km-alert-note-btn {
+  flex: none; background: var(--neutral-soft); border: 1px solid var(--line);
+  color: var(--ink); opacity: 0.85; font-size: 11.5px; font-weight: 600;
+  line-height: 1; padding: 6px 10px; border-radius: 7px; cursor: pointer;
+}
+.km-alert-note-btn:hover { opacity: 1; }
 /* Cuando el banner está visible, empujamos el contenido para que no quede tapado */
 body.is-offline #app { padding-top: 30px; }
 
@@ -888,6 +907,9 @@ body.is-offline #app { padding-top: 30px; }
   .desktop-main-header {
     padding: 20px 24px 0;
     flex-shrink: 0;
+  }
+  #dt-km-alert-note {
+    margin: 16px 24px 0;
   }
   .desktop-main-title {
     font-size: 20px;
