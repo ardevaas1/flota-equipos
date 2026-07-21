@@ -2513,13 +2513,19 @@ async function guardarMovimientoMulti() {
 
     const filas = [];
     const writes = [];
+    // Un solo timestamp compartido para todo el lote (antes se generaba uno
+    // por ítem dentro del bucle, así que ni siquiera quedaban con un ID en
+    // común de forma confiable). Con esto, todas las filas de este mismo
+    // movimiento múltiple quedan identificables como "un mismo lote" —
+    // necesario para poder confirmar la recepción de todas juntas.
+    const batchId = Date.now();
 
     for (const item of _movMultiItems) {
       const ov = _movMultiOverrides[item.key] || {};
       const destino = ov.destino || destinoGeneral;
       const guia = ov.guia || guiaGeneral;
       const obs = ov.obs || obsGeneral;
-      const idMov = 'MOV-' + Date.now() + '-' + item.rowIndex;
+      const idMov = 'MOV-' + batchId + '-' + item.rowIndex;
 
       filas.push([
         idMov, fechaFmt, item.tipoEquipo, '', item.nombreEquipo,
@@ -2809,13 +2815,35 @@ function movhAbrirMoverSeleccion() {
 }
 
 // Renderiza la lista de movimientos pendientes de recepción + badge en tabs
+// Extrae la "clave de lote" de un id de movimiento (formato 'MOV-{batchId}-{rowIndex}'
+// para movimientos múltiples). Devuelve null si es un movimiento individual
+// (formato 'MOV-{timestamp}', sin el tercer segmento).
+function _movBatchKey(id) {
+  const partes = (id || '').split('-');
+  return partes.length >= 3 ? partes[0] + '-' + partes[1] : null;
+}
+
 function movhRenderPendientes() {
-  const pendientes = (allMovimientos || [])
+  const pendientesRaw = (allMovimientos || [])
     .filter(m => !m.estado || m.estado === 'en_transito')
     .sort((a, b) => b.rowIndex - a.rowIndex);
 
-  // Actualizar badges en ambas tabs (móvil y desktop)
-  const n = pendientes.length;
+  // Agrupar por lote (mismos ítems movidos juntos desde "Trasladar varios") —
+  // así se pueden confirmar todos con una sola acción en vez de uno por uno.
+  // Los movimientos individuales (sin lote) se muestran igual que antes.
+  const grupos = [];      // [{ key, items: [m,...] }]
+  const yaAgrupado = new Set();
+  pendientesRaw.forEach(m => {
+    if (yaAgrupado.has(m.rowIndex)) return;
+    const key = _movBatchKey(m.id);
+    if (!key) { grupos.push({ key: null, items: [m] }); return; }
+    const items = pendientesRaw.filter(x => _movBatchKey(x.id) === key);
+    items.forEach(x => yaAgrupado.add(x.rowIndex));
+    grupos.push({ key, items });
+  });
+
+  // Actualizar badges en ambas tabs (móvil y desktop) — cuenta ítems, no grupos
+  const n = pendientesRaw.length;
   ['movh-dt-badge-pend', 'movh-mob-badge-pend'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2826,24 +2854,35 @@ function movhRenderPendientes() {
   const svgCamion = `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg>`;
 
   let html;
-  if (pendientes.length === 0) {
+  if (grupos.length === 0) {
     html = emptyState('Sin pendientes', 'Todos los movimientos han sido recepcionados');
   } else {
-    html = pendientes.map(m => `
-      <div class="evento-card-mini" onclick="movAbrirRecepcion('${m.id}', ${m.rowIndex})" style="cursor:pointer">
+    html = grupos.map(g => {
+      const esLote = g.items.length > 1;
+      const m = g.items[0]; // datos comunes del lote (origen/destino/fecha/guía son iguales para todos)
+      const titulo = esLote
+        ? `${g.items.length} ítems`
+        : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
+      const onclickAttr = esLote
+        ? `movAbrirRecepcionLote('${g.key}')`
+        : `movAbrirRecepcion('${m.id}', ${m.rowIndex})`;
+      return `
+      <div class="evento-card-mini" onclick="${onclickAttr}" style="cursor:pointer">
         <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">${svgCamion}</div>
         <div class="mant-body" style="flex:1">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <div class="mant-title">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+            <div class="mant-title">${titulo}</div>
             <span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>
           </div>
+          ${esLote ? `<div class="evento-desc" style="color:var(--ink-soft)">${g.items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</div>` : ''}
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
         </div>
         <div style="flex-shrink:0;padding-left:6px;color:#94a3b8">
           <svg viewBox="0 0 24 24" fill="none" style="width:16px;height:16px"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   const mob = document.getElementById('movh-pendientes-lista');
@@ -2886,6 +2925,46 @@ function movAbrirRecepcion(movId, rowIndex) {
   ].filter(Boolean);
   document.getElementById('recv-resumen-meta').textContent = metaParts.join(' · ');
 
+  document.getElementById('recv-lote-ids').value = '';
+  openPanel('panel-recepcionar');
+}
+
+// Abre el panel de recepción para TODOS los ítems de un mismo lote (movidos
+// juntos con "Trasladar varios") a la vez, en vez de uno por uno. Reutiliza
+// el mismo panel de recepción individual: la fecha/quién recibe/obs/foto que
+// se cargan ahí se aplican a todas las filas del lote al confirmar.
+function movAbrirRecepcionLote(batchKey) {
+  const items = (allMovimientos || [])
+    .filter(m => (!m.estado || m.estado === 'en_transito') && _movBatchKey(m.id) === batchKey);
+  if (!items.length) { toast('Movimientos no encontrados', 'error'); return; }
+
+  _recvFotoRef = null;
+  document.getElementById('recv-mov-id').value = '';
+  document.getElementById('recv-row-index').value = '';
+  document.getElementById('recv-lote-ids').value = JSON.stringify(items.map(m => ({ id: m.id, rowIndex: m.rowIndex })));
+  document.getElementById('recv-fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('recv-recibe').value = '';
+  document.getElementById('recv-obs').value = '';
+  const prevWrap = document.getElementById('recv-foto-preview');
+  const prevImg  = document.getElementById('recv-foto-preview-img');
+  const lblFoto  = document.getElementById('recv-foto-label');
+  const statusFoto = document.getElementById('recv-foto-status');
+  if (prevWrap) prevWrap.style.display = 'none';
+  if (prevImg)  prevImg.src = '';
+  if (lblFoto)  lblFoto.textContent = 'Seleccionar foto…';
+  if (statusFoto) statusFoto.style.display = 'none';
+
+  const m0 = items[0];
+  document.getElementById('recv-resumen-equipo').innerHTML =
+    `${items.length} ítems<br><span style="font-weight:400;font-size:12px">${items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</span>`;
+  const metaParts = [
+    m0.fechaSalida,
+    m0.origen && m0.destino ? `${m0.origen} → ${m0.destino}` : (m0.destino || ''),
+    m0.guiaDespacho ? `Guía N° ${m0.guiaDespacho}` : '',
+    m0.traslada ? `Traslada: ${m0.traslada}` : '',
+  ].filter(Boolean);
+  document.getElementById('recv-resumen-meta').textContent = metaParts.join(' · ');
+
   openPanel('panel-recepcionar');
 }
 
@@ -2912,13 +2991,19 @@ function onRecvFotoSelected(input) {
   input.value = '';
 }
 
-// Guarda la recepción: escribe en columnas M(estado), N, O, P, Q del Sheet
+// Guarda la recepción: escribe en columnas M(estado), N, O, P, Q del Sheet.
+// Si recv-lote-ids tiene contenido, escribe la misma recepción (fecha,
+// quién recibe, obs, foto) en TODAS las filas del lote, no solo una.
 async function movGuardarRecepcion() {
   const movId    = document.getElementById('recv-mov-id').value;
   const rowIndex = parseInt(document.getElementById('recv-row-index').value);
   const fecha    = document.getElementById('recv-fecha').value;
   const recibe   = document.getElementById('recv-recibe').value.trim();
   const obs      = document.getElementById('recv-obs').value.trim();
+  let loteIds = [];
+  try { loteIds = JSON.parse(document.getElementById('recv-lote-ids').value || '[]'); } catch(e) {}
+  const esLote = loteIds.length > 0;
+  const filasDestino = esLote ? loteIds : [{ id: movId, rowIndex }];
 
   if (!fecha)  { toast('La fecha de recepción es obligatoria', 'error'); document.getElementById('recv-fecha').focus(); return; }
   if (!recibe) { toast('Indica quién recibe', 'error'); document.getElementById('recv-recibe').focus(); return; }
@@ -2930,7 +3015,8 @@ async function movGuardarRecepcion() {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
     let fotoNombre = '';
 
-    // Subir foto a Drive si hay una seleccionada
+    // Subir foto a Drive si hay una seleccionada (una sola vez, se reutiliza
+    // el mismo archivo para todas las filas del lote)
     if (_recvFotoRef) {
       const statusEl = document.getElementById('recv-foto-status');
       if (statusEl) { statusEl.style.display = 'block'; statusEl.textContent = 'Subiendo foto…'; }
@@ -2975,12 +3061,16 @@ async function movGuardarRecepcion() {
     }
 
     // Escribir columnas M=ESTADO, N=FECHA_RECEPCION, O=RECIBE, P=OBS_RECEPCION, Q=FOTO
-    // Usamos batchUpdate escribiendo rango M:Q de la fila correspondiente
-    await writeSheet(`'${SHEET_MOVIMIENTOS}'!M${rowIndex}:Q${rowIndex}`, [[
-      'recibido', fechaFmt, recibe, obs, fotoNombre
-    ]]);
+    // en cada fila del lote (o la única fila, si es un movimiento individual)
+    if (esLote && btn) btn.textContent = `Guardando 1/${filasDestino.length}...`;
+    for (let i = 0; i < filasDestino.length; i++) {
+      if (esLote && btn) btn.textContent = `Guardando ${i+1}/${filasDestino.length}...`;
+      await writeSheet(`'${SHEET_MOVIMIENTOS}'!M${filasDestino[i].rowIndex}:Q${filasDestino[i].rowIndex}`, [[
+        'recibido', fechaFmt, recibe, obs, fotoNombre
+      ]]);
+    }
 
-    toast('Recepción confirmada ✓');
+    toast(esLote ? `Recepción confirmada ✓ (${filasDestino.length} ítems)` : 'Recepción confirmada ✓');
     _origClosePanel('panel-recepcionar');
     const idx = _panelStack.lastIndexOf('panel-recepcionar');
     if (idx !== -1) _panelStack.splice(idx, 1);
