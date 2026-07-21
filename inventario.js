@@ -3092,25 +3092,54 @@ async function movGuardarRecepcion() {
 function movhRenderHistorial() {
   const cont = document.getElementById('movh-historial-lista');
   const contDt = document.getElementById('movh-dt-historial-lista');
-  const hist = (allMovimientos || []).slice().sort((a, b) => b.rowIndex - a.rowIndex).slice(0, 100);
+
+  // Agrupar por lote (mismo criterio que en Pendientes) — un traslado
+  // múltiple se ve como una sola entrada con todos sus ítems adentro, en
+  // vez de una fila repetida por cada cosa que se movió.
+  const todos = (allMovimientos || []).slice();
+  const gruposMap = new Map(); // batchKey -> [m,...]
+  const sueltos = [];
+  todos.forEach(m => {
+    const key = _movBatchKey(m.id);
+    if (!key) { sueltos.push(m); return; }
+    if (!gruposMap.has(key)) gruposMap.set(key, []);
+    gruposMap.get(key).push(m);
+  });
+  const grupos = [
+    ...sueltos.map(m => ({ items: [m] })),
+    ...Array.from(gruposMap.values()).map(items => ({ items })),
+  ];
+  grupos.sort((a, b) => Math.max(...b.items.map(x => x.rowIndex)) - Math.max(...a.items.map(x => x.rowIndex)));
+  const hist = grupos.slice(0, 100);
 
   let html;
   if (hist.length === 0) {
     html = emptyState('Sin movimientos','No hay traslados registrados');
   } else {
-    html = hist.map(m => {
-      const recibido = m.estado === 'recibido';
-      const badge = recibido
-        ? `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Recibido</span>`
-        : `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>`;
+    html = hist.map(g => {
+      const esLote = g.items.length > 1;
+      const m = g.items[0]; // datos comunes del lote
+      const todosRecibidos  = g.items.every(x => x.estado === 'recibido');
+      const algunoRecibido  = g.items.some(x => x.estado === 'recibido');
+      const recibido = todosRecibidos;
+      let badge;
+      if (todosRecibidos) {
+        badge = `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Recibido</span>`;
+      } else if (esLote && algunoRecibido) {
+        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Parcial: ${g.items.filter(x=>x.estado==='recibido').length}/${g.items.length} recibidos</span>`;
+      } else {
+        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>`;
+      }
+      const titulo = esLote ? `${g.items.length} ítems` : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
       return `
       <div class="evento-card-mini">
         <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
         <div class="mant-body">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
-            <div class="mant-title" style="margin:0">${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}</div>
+            <div class="mant-title" style="margin:0">${titulo}</div>
             ${badge}
           </div>
+          ${esLote ? `<div class="evento-desc" style="color:var(--ink-soft)">${g.items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</div>` : ''}
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
           ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
