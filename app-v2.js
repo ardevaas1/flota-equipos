@@ -3086,6 +3086,7 @@ function enterApp() {
       userRole  = savedRole;
       userEmail = savedEmail || '';
       applyViewerMode();
+      actualizarChipUsuario();
     }
   } catch(e) {}
 
