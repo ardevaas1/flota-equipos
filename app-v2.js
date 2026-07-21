@@ -495,9 +495,7 @@ function cerrarSesion() {
   if (modulosHome) modulosHome.classList.add('hidden');
   if (mainEl)      mainEl.classList.add('hidden');
 
-  const loginHint = document.getElementById('login-hint');
-  if (loginHint) loginHint.textContent = 'Inicia sesión para acceder a los datos';
-  document.getElementById('login-screen').classList.remove('hidden');
+  mostrarLogin('Inicia sesión para acceder a los datos', false);
 }
 
 // ── Utilidades ────────────────────────────────────────────────
@@ -647,8 +645,13 @@ function hideSplash() {
   el.style.transition = 'opacity 0.4s';
   setTimeout(() => {
     el.classList.add('hidden');
-    // Mostrar pantalla de módulos en vez de ir directo al main
-    document.getElementById('modulos-home').classList.remove('hidden');
+    el.style.opacity = '';
+    // Mostrar pantalla de módulos en vez de ir directo al main, con una
+    // pequeña animación de aparición en vez de saltar de golpe
+    const home = document.getElementById('modulos-home');
+    home.classList.remove('hidden');
+    home.classList.add('app-enter');
+    setTimeout(() => home.classList.remove('app-enter'), 500);
     chequearAlertaKilometraje();
   }, 400);
 }
@@ -3050,6 +3053,18 @@ function validarPin() {
   }
 }
 
+// Muestra la pantalla de login con un mensaje dado. Si conectando=true,
+// oculta el botón y muestra el spinner en su lugar (reconexión en
+// silencio); si no, muestra el botón normal para que la persona entre
+// con Google. No usa el splash oscuro para este caso — mantiene una sola
+// pantalla consistente en vez de saltar entre login y splash.
+function mostrarLogin(hint, conectando) {
+  document.getElementById('login-hint').textContent = hint || 'Inicia sesión para acceder a los datos';
+  document.getElementById('login-btn').classList.toggle('hidden', !!conectando);
+  document.getElementById('login-spinner').classList.toggle('hidden', !conectando);
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
 function enterApp() {
   // Sin conexión al entrar → ir directo a modo offline con lo último guardado,
   // sin intentar login/token (fallaría igual y solo demora la espera).
@@ -3079,6 +3094,7 @@ function enterApp() {
 
   // ── Caso 1: token aún válido → splash normal + carga ──
   if (loadSavedToken()) {
+    document.getElementById('login-screen').classList.add('hidden');
     const splashEl = document.getElementById('splash');
     splashEl.classList.remove('hidden');
     document.getElementById('splash-progress').classList.add('splash-waiting');
@@ -3087,14 +3103,12 @@ function enterApp() {
     return;
   }
 
-  // ── Caso 2: ya hizo login antes → mostrar splash "Sincronizando..." mientras se renueva el token ──
+  // ── Caso 2: ya hizo login antes → reconectar en silencio con la misma
+  //    cuenta, mostrando el login con un spinner en vez del splash. Así el
+  //    arranque usa siempre la misma pantalla liviana hasta que efectivamente
+  //    hay datos que cargar (recién ahí aparece el splash con progreso). ──
   if (hadLogin) {
-    // Mostrar splash con mensaje de sincronización en vez de la home sin datos
-    const splashEl = document.getElementById('splash');
-    const hintEl   = document.getElementById('splash-hint');
-    splashEl.classList.remove('hidden');
-    document.getElementById('splash-progress').classList.add('splash-waiting');
-    splash(15, 'Sincronizando...');
+    mostrarLogin('Conectando...', true);
 
     let intentosInit = 0;
     function intentarSilencioso() {
@@ -3107,7 +3121,7 @@ function enterApp() {
         // puede quedar colgado sin disparar el callback NI de éxito NI de error
         // (problema conocido de Google Identity Services en Safari, relacionado
         // con el bloqueo de cookies/almacenamiento de terceros). Sin este timeout
-        // la app se queda pegada en "Sincronizando..." para siempre en esos casos.
+        // la app se queda pegada en "Conectando..." para siempre en esos casos.
         const watchdog = setTimeout(() => {
           if (resuelto) return;
           resuelto = true;
@@ -3115,8 +3129,7 @@ function enterApp() {
           if (intentosInit < 3) {
             setTimeout(intentarSilencioso, 1500);
           } else {
-            splashEl.classList.add('hidden');
-            document.getElementById('login-screen').classList.remove('hidden');
+            mostrarLogin('Inicia sesión para acceder a los datos', false);
           }
         }, 6000);
 
@@ -3130,8 +3143,7 @@ function enterApp() {
               setTimeout(intentarSilencioso, 2000);
             } else {
               // Tras múltiples fallos → login
-              splashEl.classList.add('hidden');
-              document.getElementById('login-screen').classList.remove('hidden');
+              mostrarLogin('Inicia sesión para acceder a los datos', false);
             }
             return;
           }
@@ -3141,24 +3153,27 @@ function enterApp() {
             const se = localStorage.getItem(EMAIL_KEY);
             if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); actualizarChipUsuario(); }
           } catch(e) {}
-          // Cargar datos — loadData() ya maneja el splash y al final muestra modulos-home
+          // Recién ahora, con la sesión ya renovada, pasamos del login al
+          // splash con progreso — loadData() ya maneja el splash y al final
+          // muestra modulos-home
+          document.getElementById('login-screen').classList.add('hidden');
+          document.getElementById('splash').classList.remove('hidden');
+          document.getElementById('splash-progress').classList.add('splash-waiting');
           loadData();
         };
         tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
       } else if (intentosInit < 8) {
         setTimeout(intentarSilencioso, 500);
       } else {
-        splashEl.classList.add('hidden');
-        document.getElementById('login-screen').classList.remove('hidden');
+        mostrarLogin('Inicia sesión para acceder a los datos', false);
       }
     }
     setTimeout(intentarSilencioso, 400);
     return;
   }
 
-  // ── Caso 3: primera vez → mostrar login ──
-  document.getElementById('splash').classList.add('hidden');
-  document.getElementById('login-screen').classList.remove('hidden');
+  // ── Caso 3: primera vez → el login ya está visible por defecto ──
+  mostrarLogin('Inicia sesión para acceder a los datos', false);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

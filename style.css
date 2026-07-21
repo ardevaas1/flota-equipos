@@ -157,6 +157,12 @@ body.is-offline #app { padding-top: 30px; }
 }
 .splash-hint { font-size: 12px; color: #64748b; }
 
+/* ── Animación de aparición al terminar de cargar ──────────────
+   Se aplica a modulos-home cuando el splash termina, en vez de que
+   aparezca de golpe con classList.remove('hidden') sin transición. */
+@keyframes appEnter { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.app-enter { animation: appEnter 0.45s cubic-bezier(0.16,1,0.3,1); }
+
 /* ── App shell ── */
 #app { height: 100%; max-width: 430px; margin: 0 auto; background: var(--bg); display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .main { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
@@ -695,6 +701,13 @@ body.is-offline #app { padding-top: 30px; }
 }
 .login-btn:active { transform: scale(0.97); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 .login-hint { font-size: 12px; color: #475569; margin-top: 16px; }
+.login-spinner { display: flex; justify-content: center; width: 100%; padding: 13px 0; }
+.login-spinner-ring {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2.5px solid rgba(74,143,193,0.25); border-top-color: var(--accent);
+  animation: loginSpin 0.7s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
 
 /* ── Doc open button ── */
 .doc-open-btn {
