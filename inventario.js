@@ -632,7 +632,7 @@ async function invAbrirFotoModal(fileName) {
   try {
     const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink,createdTime)&orderBy=createdTime desc&pageSize=1`,
       { headers: { 'Authorization': 'Bearer ' + accessToken } }
     );
     if (res.status === 403) {
@@ -1237,7 +1237,13 @@ async function contGuardar() {
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
         const ext      = _contFoto.name.split('.').pop() || 'jpg';
-        const fileName = `CONT_${contItem.num}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+        // Incluye la fila real de la hoja (siempre única) además del N° y un
+        // timestamp, para que el nombre nunca choque con el de otro container
+        // — antes solo usaba N°+fecha, y como todos comparten una carpeta
+        // plana en Drive, dos containers con el mismo N° (o una resubida el
+        // mismo día) terminaban con el mismo nombre de archivo, y al buscar
+        // la foto por nombre podía traer la de otro container.
+        const fileName = `CONT_${contItem.num}_F${row}_${Date.now()}.${ext}`;
         const boundary = 'lst_cont_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
         const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contFoto.mimeType,'Content-Transfer-Encoding: base64','',_contFoto.b64,'--'+boundary+'--'].join('\r\n');
@@ -1873,7 +1879,9 @@ async function contGuardarNuevo() {
         let folderId = DRIVE_INV_FOLDER;
         try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
         const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
-        const fileName = `CONT_${numFinal}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+        // Mismo criterio que en la edición: fila real + timestamp, no solo
+        // N°+fecha, para que nunca choque con el nombre de otro container.
+        const fileName = `CONT_${numFinal}_F${newRow}_${Date.now()}.${ext}`;
         const boundary = 'lst_cont_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
         const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_contNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
