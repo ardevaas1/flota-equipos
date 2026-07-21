@@ -2437,6 +2437,77 @@ function _movMultiRefrescarLista() {
   }).join('');
 }
 
+// ── Agregar más ítems a una selección múltiple ya en curso ─────
+// Se abre ENCIMA de panel-mover-multi (sin cerrarlo), así que todo lo ya
+// escrito en el formulario (origen, destino, fecha, guía, etc.) y los ítems
+// ya elegidos se mantienen intactos — no hace falta cancelar ni volver atrás.
+let _agregarMultiSeleccion = new Set();
+
+function abrirAgregarItemsMulti() {
+  _agregarMultiSeleccion = new Set();
+  const buscador = document.getElementById('agregarmulti-search');
+  if (buscador) buscador.value = '';
+  agregarItemsMultiRenderLista();
+  openPanel('panel-agregar-items-multi');
+}
+
+function agregarItemsMultiToggle(key) {
+  if (_agregarMultiSeleccion.has(key)) _agregarMultiSeleccion.delete(key);
+  else _agregarMultiSeleccion.add(key);
+  agregarItemsMultiRenderLista();
+}
+
+function agregarItemsMultiRenderLista() {
+  const yaElegidos = new Set(_movMultiItems.map(i => i.key));
+  const searchEl = document.getElementById('agregarmulti-search');
+  const txt = searchEl ? searchEl.value.toLowerCase() : '';
+
+  let items = _movhTodosLosItems().filter(i => !yaElegidos.has(i.key));
+  if (txt) {
+    items = items.filter(i => (i.nombreEquipo + i.codigoEquipo + i.ubicacionActual + i.tipoEquipo).toLowerCase().includes(txt));
+  }
+  items.sort((a, b) => a.nombreEquipo.localeCompare(b.nombreEquipo, 'es'));
+
+  const html = items.map(item => {
+    const checked = _agregarMultiSeleccion.has(item.key);
+    return `<div class="card" onclick="agregarItemsMultiToggle('${item.key}')">
+      <div class="card-checkbox movh-checkbox ${checked ? 'checked' : ''}">${checked ? '✓' : ''}</div>
+      <div class="card-icon">${item.icon}</div>
+      <div class="card-body">
+        <div class="card-title">${item.nombreEquipo}</div>
+        <div class="card-sub">${item.tipoEquipo} · ${item.codigoEquipo}</div>
+      </div>
+      <div class="card-right">
+        <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
+      </div>
+    </div>`;
+  }).join('') || emptyState('Sin resultados', yaElegidos.size > 0 ? 'Ya agregaste todo lo que coincide con la búsqueda' : 'Prueba con otro filtro o búsqueda');
+
+  const cont = document.getElementById('agregarmulti-lista');
+  if (cont) cont.innerHTML = html;
+}
+
+function agregarItemsMultiConfirmar() {
+  if (_agregarMultiSeleccion.size === 0) { toast('No elegiste ningún ítem', 'error'); return; }
+  const todos = _movhTodosLosItems();
+  let agregados = 0;
+  _agregarMultiSeleccion.forEach(key => {
+    const item = todos.find(i => i.key === key);
+    if (item && !_movMultiItems.some(i => i.key === key)) {
+      _movMultiItems.push(item);
+      agregados++;
+    }
+  });
+
+  _origClosePanel('panel-agregar-items-multi');
+  const idx = _panelStack.lastIndexOf('panel-agregar-items-multi');
+  if (idx !== -1) _panelStack.splice(idx, 1);
+
+  document.getElementById('movm-items-titulo').textContent = `Ítems seleccionados (${_movMultiItems.length})`;
+  _movMultiRefrescarLista();
+  toast(`${agregados} ítem${agregados === 1 ? '' : 's'} agregado${agregados === 1 ? '' : 's'} ✓`);
+}
+
 function abrirOverrideItemMulti(idx) {
   const item = _movMultiItems[idx];
   if (!item) return;

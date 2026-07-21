@@ -1564,6 +1564,23 @@
       </div>
       <div class="form-sec" id="movm-items-titulo">Ítems seleccionados</div>
       <div id="movm-items-lista"></div>
+      <button class="action-btn" onclick="abrirAgregarItemsMulti()" style="margin-top:10px">+ Agregar más ítems</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Agregar más ítems (dentro de Mover selección, sin perder lo ya cargado) ── -->
+  <div id="panel-agregar-items-multi" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-agregar-items-multi')">‹ Cancelar</button>
+      <span class="pnl-title">Agregar ítems</span>
+      <button class="pnl-action" onclick="agregarItemsMultiConfirmar()">Agregar</button>
+    </div>
+    <div class="panel-body">
+      <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:12px">
+        <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <input type="text" id="agregarmulti-search" placeholder="Buscar equipo, código, ubicación..." oninput="agregarItemsMultiRenderLista()" style="flex:1;border:none;outline:none;font-size:14px">
+      </div>
+      <div id="agregarmulti-lista"></div>
     </div>
   </div>
 
