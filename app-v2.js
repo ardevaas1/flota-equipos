@@ -2414,7 +2414,7 @@ function openFicha(patente, soloLectura) {
     <a class="ficha-link-btn" onclick="abrirCarpetaDrive('${e.patente}')" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5">
       <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Abrir carpeta en Drive
     </a>
-    ${typeof _renderHistorialMovimientos === 'function' ? _renderHistorialMovimientos(e.patente) : ''}
+    ${typeof _renderHistorialMovimientos === 'function' ? _renderHistorialMovimientos(e.patente, 'Maquinaria') : ''}
     <button class="action-btn" onclick="openEditPanel()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
   `;
 

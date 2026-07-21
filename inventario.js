@@ -484,7 +484,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
 
     ${secEventos}
 
-    ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex))}
+    ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
@@ -1058,6 +1058,18 @@ async function invGuardarEventoGen() {
 let contItem = null;
 let _contFoto = null;
 
+// Mapea el nombre de color guardado (predefinido u "otro" libre) a un tono
+// real, para mostrar un punto de color junto al texto — así se identifica
+// un container de un vistazo, sin tener que leer el nombre.
+const _COLOR_HEX = {
+  AMARILLO: '#eab308', NARANJO: '#f97316', ROJO: '#dc2626', AZUL: '#2563eb',
+  VERDE: '#16a34a', GRIS: '#6b7280', BLANCO: '#e5e7eb', NEGRO: '#1f2937',
+};
+function _colorHex(nombre) {
+  const v = (nombre || '').toUpperCase().trim();
+  return _COLOR_HEX[v] || '#94a3b8'; // gris neutro para colores "Otro..."
+}
+
 function renderContainers() {
   const searchEl = document.getElementById('cont-search');
   const txt = searchEl ? searchEl.value.toLowerCase() : '';
@@ -1086,6 +1098,10 @@ function renderContainers() {
       <div class="card-body">
         <div class="card-title">N° ${c.num} · ${c.tipo}</div>
         <div class="card-sub">${c.medidas}${c.equipamiento&&c.equipamiento!=='-'?' · '+c.equipamiento:''}</div>
+        ${c.color ? `<div class="card-sub" style="display:flex;align-items:center;gap:5px;margin-top:2px">
+          <span style="width:9px;height:9px;border-radius:50%;background:${_colorHex(c.color)};border:1px solid rgba(0,0,0,.15);flex:none"></span>
+          ${c.color}
+        </div>` : ''}
       </div>
       <div class="card-right">
         <span class="badge ${cls}">${c.estado||'Sin estado'}</span>
@@ -1147,7 +1163,7 @@ function contAbrirDetalle(rowIndex) {
       </div>
     </div>`:''}
 
-    ${_renderHistorialMovimientos(String(c.num || c.rowIndex))}
+    ${_renderHistorialMovimientos(String(c.num || c.rowIndex), 'Container')}
 
     <button class="action-btn" onclick="contAbrirEditar()" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
   `;
@@ -1996,9 +2012,13 @@ let allMovimientos = [];
 let _movPendienteActual = null; // item temporal mientras se llena el form de mover
 
 // Renderiza el historial de movimientos de un equipo (por código) para insertar en su ficha
-function _renderHistorialMovimientos(codigoEquipo) {
+// tipoEquipo es opcional por compatibilidad, pero SIEMPRE hay que pasarlo:
+// codigoEquipo por sí solo no es único entre módulos (ej. un Container N°4 y
+// un Generador N°4 comparten el mismo código), así que sin filtrar también
+// por tipoEquipo el historial de uno podía mostrar movimientos de otro.
+function _renderHistorialMovimientos(codigoEquipo, tipoEquipo) {
   const hist = (allMovimientos || [])
-    .filter(m => m.codigoEquipo === codigoEquipo)
+    .filter(m => m.codigoEquipo === codigoEquipo && (!tipoEquipo || m.tipoEquipo === tipoEquipo))
     .sort((a,b) => b.rowIndex - a.rowIndex)
     .slice(0, 8);
 
