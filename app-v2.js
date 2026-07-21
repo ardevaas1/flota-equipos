@@ -111,7 +111,7 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => actualizarBannerOffline(true));
 
 // ── Roles de usuario ──────────────────────────────────────────
-let userRole  = null;   // 'admin' | 'mover' | 'andamios' | 'viewer'
+let userRole  = null;   // 'admin' | 'mover' | 'andamios' | 'flota' | 'viewer'
 let userEmail = null;
 
 const ROLE_KEY  = 'lst_user_role';
@@ -385,7 +385,8 @@ function ensureToken() {
 // Busca el email en la hoja USUARIOS (col A=email, col B=rol).
 // Roles soportados: 'admin' (todo) · 'mover' (solo lectura + puede
 // registrar movimientos en el módulo Movimientos) · 'andamios' (solo
-// lectura + puede modificar todo dentro del módulo Andamios) ·
+// lectura + puede modificar todo dentro del módulo Andamios) · 'flota'
+// (solo lectura + puede modificar todo dentro del módulo Flota) ·
 // cualquier otro valor o ausencia de match → 'viewer' (solo lectura).
 async function checkUserRole() {
   try {
@@ -403,6 +404,8 @@ async function checkUserRole() {
       userRole = 'mover';
     } else if (rolHoja === 'andamios') {
       userRole = 'andamios';
+    } else if (rolHoja === 'flota') {
+      userRole = 'flota';
     } else {
       userRole = 'viewer';
     }
@@ -426,15 +429,20 @@ async function checkUserRole() {
 //              los controles del módulo Movimientos, marcados con .mov-action-btn)
 // - andamios → 'viewer-mode' (todo en solo lectura) + 'andamios-mode' (puede
 //              usar los controles del módulo Andamios, marcados con .and-action-btn)
+// - flota    → 'viewer-mode' (todo en solo lectura) + 'flota-mode' (puede
+//              modificar todo dentro del módulo Flota — ficha, editar equipo,
+//              registrar eventos/mantenciones)
 // - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
 function applyViewerMode() {
-  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode');
+  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode');
   if (userRole === 'viewer') {
     document.body.classList.add('viewer-mode');
   } else if (userRole === 'mover') {
     document.body.classList.add('viewer-mode', 'mover-mode');
   } else if (userRole === 'andamios') {
     document.body.classList.add('viewer-mode', 'andamios-mode');
+  } else if (userRole === 'flota') {
+    document.body.classList.add('viewer-mode', 'flota-mode');
   }
   // Controles reservados para admin (ej: herramientas de reparación de datos)
   // — ocultos por defecto en el HTML, se muestran solo si el rol es admin.
@@ -2340,6 +2348,23 @@ function openFicha(patente, soloLectura) {
     </div>` : ''}
 
     <div class="ficha-section">
+      <div class="ficha-sec-title">Fotos</div>
+      <div class="ficha-foto-row viewer-hidden">
+        <label class="ficha-foto-btn">
+          <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><rect x="3" y="4" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 16l5-5 3 3 4-4 6 6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Elegir fotos
+          <input type="file" accept="image/*" multiple onchange="onFichaFotoSelected(this,'${e.patente}')" style="display:none">
+        </label>
+        <label class="ficha-foto-btn">
+          <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Tomar foto
+          <input type="file" accept="image/*" capture="environment" multiple onchange="onFichaFotoSelected(this,'${e.patente}')" style="display:none">
+        </label>
+      </div>
+      <button class="ficha-link-btn" onclick="abrirCarpetaFotosEquipo('${e.patente}')" style="cursor:pointer;margin-top:8px;background:#f3f0ff;color:#6d43c9">
+        <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver fotos guardadas
+      </button>
+    </div>
+
+    <div class="ficha-section">
       <div class="ficha-sec-title">Horómetro / Odómetro</div>
       ${field('Actual', formatNum(e.horometro) + (e.mantCada ? ' · Cada ' + e.mantCada : ''))}
       ${field('Próxima mantención', formatNum(e.proxMant))}
@@ -2417,6 +2442,40 @@ async function abrirCarpetaDrive(patente) {
     toast('Error: ' + e.message, 'error');
   }
 }
+
+// ── Fotos sueltas del vehículo (sin foto de referencia ni evento) ──────
+// Se suben directo a [PATENTE]/Fotos/ en Drive, reutilizando uploadFile()
+// (mismo helper que usa el resto de la app para subir a subcarpetas). No
+// tocan la columna fotoRef ni requieren pasar por el panel de eventos —
+// es solo un lugar rápido para dejar fotos sueltas ("del día", control de
+// avance, etc.) asociadas al equipo.
+async function onFichaFotoSelected(input, patente) {
+  if (!input.files || !input.files.length) return;
+  const files = Array.from(input.files);
+  input.value = '';
+  let ok = 0;
+  for (let i = 0; i < files.length; i++) {
+    try {
+      await uploadFile(files[i], patente, 'FOTO', 'Fotos');
+      ok++;
+    } catch(err) {
+      toast('Error al subir foto: ' + err.message, 'error');
+    }
+  }
+  if (ok > 1) toast(`${ok} fotos subidas a Drive ✓`);
+}
+
+async function abrirCarpetaFotosEquipo(patente) {
+  toast('Buscando carpeta de fotos...', 'loading');
+  try {
+    await ensureToken();
+    const folderId = await getSubfolder(patente, 'Fotos');
+    window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
 async function openDocDrive(patente, prefix) {
   toast('Buscando documento en Drive...', 'loading');
   try {

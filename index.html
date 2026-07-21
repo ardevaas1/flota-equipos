@@ -94,6 +94,41 @@
       font-size: 10px;
     }
 
+    /* ── Rol 'flota': solo lectura en toda la app, pero acceso total dentro
+       del módulo Flota. A diferencia de Andamios (que vive todo adentro de
+       un único #mod-andamios), Flota está repartido en varios contenedores
+       propios: #main es la vista móvil (dashboard/equipos/alertas/eventos),
+       #desktop-sidebar/#desktop-main son la vista de escritorio, y
+       #panel-ficha/#panel-edit/#panel-evento son paneles HERMANOS de #main
+       con la ficha y los formularios de editar equipo / registrar evento
+       (por eso van con su propio selector, igual que pasa con los paneles
+       de Andamios). Se revierte, DENTRO de esos contenedores, todo lo que
+       el modo viewer-mode general esconde. */
+    body.flota-mode #main .pnl-action,
+    body.flota-mode #main .action-btn,
+    body.flota-mode #main .btn-add,
+    body.flota-mode #main .viewer-hidden,
+    body.flota-mode #desktop-sidebar .pnl-action,
+    body.flota-mode #desktop-sidebar .action-btn,
+    body.flota-mode #desktop-sidebar .btn-add,
+    body.flota-mode #desktop-main .pnl-action,
+    body.flota-mode #desktop-main .action-btn,
+    body.flota-mode #desktop-main .btn-add,
+    body.flota-mode #panel-ficha .pnl-action,
+    body.flota-mode #panel-ficha .action-btn,
+    body.flota-mode #panel-ficha .viewer-hidden,
+    body.flota-mode #panel-edit .pnl-action,
+    body.flota-mode #panel-edit .action-btn,
+    body.flota-mode #panel-evento .pnl-action,
+    body.flota-mode #panel-evento .action-btn {
+      display: inline-flex !important;
+    }
+    body.flota-mode .header-sub::after,
+    body.flota-mode .desktop-sidebar-sub::after {
+      content: ' · Solo lectura (puede modificar Flota)';
+      font-size: 10px;
+    }
+
     /* ── PIN Screen ── */
     #pin-screen {
       position: fixed; inset: 0; z-index: 9999;

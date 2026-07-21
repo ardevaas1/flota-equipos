@@ -511,6 +511,19 @@ body.is-offline #app { padding-top: 30px; }
 .action-btn { width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px; border: 1.5px solid var(--accent); color: var(--accent); font-size: 13px; font-weight: 600; background: none; }
 .action-btn:active { background: var(--accent-soft); }
 
+/* Botones de "agregar foto" dentro de la ficha del vehículo (fotos sueltas,
+   sin registrar evento). Variante clara de .foto-add-btn (que es oscura y
+   pensada para los formularios de evento/agregar sobre fondo oscuro) para
+   que combine con el fondo blanco de .ficha-section. */
+.ficha-foto-row { display: flex; gap: 8px; margin-top: 4px; }
+.ficha-foto-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--neutral-soft); color: var(--ink-soft);
+  border: 1.5px dashed var(--line); border-radius: 10px;
+  padding: 10px 8px; font-size: 12.5px; font-weight: 500; cursor: pointer; text-align: center;
+}
+.ficha-foto-btn:active { background: var(--line); }
+
 /* ── Mantención cards ── */
 .mant-card { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
 .mant-card:active { background: #f8f9fa; }
