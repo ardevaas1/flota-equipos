@@ -221,6 +221,7 @@ function parseGeneradores(rows) {
 }
 
 // Maq. Menor: Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
+// Maq. Menor: Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
 function parseMaqMenor(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 3 }))
@@ -237,10 +238,11 @@ function parseMaqMenor(rows) {
       estado:    r[7] || '',
       ubicacion: r[8] || '',
       obs:       r[9] || '',
+      numIdent:  r[10] || '',
     }));
 }
 
-// Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_SERIE
+// Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_IDENT
 function parseHerramientas(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 3 }))
@@ -260,7 +262,7 @@ function parseHerramientas(rows) {
       ultMant:   r[10] || '',
       obs:       r[11] || '',
       mantCada:  r[12] || '',
-      numSerie:  r[13] || '',
+      numIdent:  r[13] || '',
     }));
 }
 
@@ -289,7 +291,7 @@ async function loadInventario() {
   try {
     const [rowsGen, rowsMM, rowsH, rowsCont] = await Promise.all([
       fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
-      fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:J200`),
+      fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
       fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:N200`),
       fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
     ]);
@@ -344,7 +346,7 @@ function renderInvLista() {
 
   const filtrados = datos.filter(item => {
     if (!txt) return true;
-    return (item.equipo+item.marca+item.modelo+item.ubicacion+item.estado+item.codigo+item.numSerie+'').toLowerCase().includes(txt);
+    return (item.equipo+item.marca+item.modelo+item.ubicacion+item.estado+item.codigo+item.numIdent+'').toLowerCase().includes(txt);
   }).sort((a, b) => {
     const cmp = (a.equipo||'').localeCompare(b.equipo||'', 'es');
     if (cmp !== 0) return cmp;
@@ -355,7 +357,7 @@ function renderInvLista() {
     const cls   = invEstadoColor(item.estado);
     const icon  = invIcono(item.equipo);
     const titulo = [item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo;
-    const sub    = [item.equipo, item.codigo || item.motor, item.numSerie ? 'N° serie ' + item.numSerie : ''].filter(Boolean).join(' · ');
+    const sub    = [item.equipo, item.codigo || item.motor, item.numIdent ? 'ID ' + item.numIdent : ''].filter(Boolean).join(' · ');
     const key = `${invModulo}:${item.rowIndex}`;
     const checked = _invSeleccion.has(key);
     const onclickAttr = _invModoSeleccion
@@ -416,10 +418,13 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
       ${item.ultMant   ? `<div class="field-row"><span class="fl">Última mantención</span><span class="fv">${item.ultMant}</span></div>` : ''}
     `;
   } else if (modulo === 'maqmenor') {
-    extraFields = item.motor ? `<div class="field-row"><span class="fl">Motor</span><span class="fv">${item.motor}</span></div>` : '';
+    extraFields = `
+      ${item.numIdent ? `<div class="field-row"><span class="fl">N° de identificación</span><span class="fv">${item.numIdent}</span></div>` : ''}
+      ${item.motor ? `<div class="field-row"><span class="fl">Motor</span><span class="fv">${item.motor}</span></div>` : ''}
+    `;
   } else {
     extraFields = `
-      ${item.numSerie ? `<div class="field-row"><span class="fl">N° de serie</span><span class="fv">${item.numSerie}</span></div>` : ''}
+      ${item.numIdent ? `<div class="field-row"><span class="fl">N° de identificación</span><span class="fv">${item.numIdent}</span></div>` : ''}
       ${item.motor    ? `<div class="field-row"><span class="fl">Motor / Potencia</span><span class="fv">${item.motor}</span></div>` : ''}
       ${item.mantCada ? `<div class="field-row"><span class="fl">Mantención cada</span><span class="fv">${item.mantCada}</span></div>` : ''}
     `;
@@ -728,16 +733,16 @@ function invAbrirEditar() {
   _precargarColor('inv-edit-color', item.color || '');
   document.getElementById('inv-edit-obs').value        = item.obs || '';
 
-  // N° de serie: solo aplica a Herramientas (identificación del equipo)
-  const numserieSec = document.getElementById('inv-edit-numserie-sec');
-  const numserieRow = document.getElementById('inv-edit-numserie-row');
-  if (modulo === 'herramientas') {
-    if (numserieSec) numserieSec.style.display = '';
-    if (numserieRow) numserieRow.style.display = '';
-    document.getElementById('inv-edit-numserie').value = item.numSerie || '';
+  // N° de identificación: aplica a Herramientas y Maq. Menor
+  const numidentSec = document.getElementById('inv-edit-numident-sec');
+  const numidentRow = document.getElementById('inv-edit-numident-row');
+  if (modulo === 'herramientas' || modulo === 'maqmenor') {
+    if (numidentSec) numidentSec.style.display = '';
+    if (numidentRow) numidentRow.style.display = '';
+    document.getElementById('inv-edit-numident').value = item.numIdent || '';
   } else {
-    if (numserieSec) numserieSec.style.display = 'none';
-    if (numserieRow) numserieRow.style.display = 'none';
+    if (numidentSec) numidentSec.style.display = 'none';
+    if (numidentRow) numidentRow.style.display = 'none';
   }
 
   // Limpiar foto nueva pendiente
@@ -849,8 +854,8 @@ async function invGuardar() {
       writeSheet(`'${sheetName}'!${colUbic}${row}`,   [[ubic]]),
       writeSheet(`'${sheetName}'!${colColor}${row}`,  [[color]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
-      ...(modulo === 'herramientas'
-        ? [writeSheet(`'${sheetName}'!N${row}`, [[document.getElementById('inv-edit-numserie').value.trim()]])]
+      ...(modulo === 'herramientas' || modulo === 'maqmenor'
+        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : 'K'}${row}`, [[document.getElementById('inv-edit-numident').value.trim()]])]
         : []),
     ]);
 
@@ -1700,11 +1705,11 @@ function invAbrirNuevo() {
   // Código solo para generadores; maq. menor y herramientas no lo tienen en el sheet
   document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
-  // N° de serie solo aplica a Herramientas
-  document.getElementById('nuevo-numserie-row').style.display = mod === 'herramientas' ? '' : 'none';
+  // N° de identificación aplica a Herramientas y Maq. Menor
+  document.getElementById('nuevo-numident-row').style.display = (mod === 'herramientas' || mod === 'maqmenor') ? '' : 'none';
 
   // Limpiar campos
-  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color','nuevo-numserie'].forEach(id => {
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color','nuevo-numident'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   _precargarColor('nuevo-color', '');
@@ -1748,7 +1753,7 @@ async function invGuardarNuevo() {
   const color    = _valorColor('nuevo-color');
   const codigo   = mod === 'generadores' ? document.getElementById('nuevo-codigo').value.trim().toUpperCase() : '';
   const potencia = mod === 'generadores' ? document.getElementById('nuevo-potencia').value.trim().toUpperCase() : '';
-  const numSerie = mod === 'herramientas' ? document.getElementById('nuevo-numserie').value.trim().toUpperCase() : '';
+  const numIdent = (mod === 'herramientas' || mod === 'maqmenor') ? document.getElementById('nuevo-numident').value.trim().toUpperCase() : '';
 
   _limpiarErrores('panel-nuevo-inv');
   let valido = true;
@@ -1782,13 +1787,13 @@ async function invGuardarNuevo() {
       sheetName = SHEET_GENERADORES;
       fila = [numFinal, equipo, codigo, marca, modelo, '', color, potencia, estado, ubicacion, '', '', '', ''];
     } else if (mod === 'maqmenor') {
-      // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
+      // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
       sheetName = SHEET_MAQ_MENOR;
-      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, ''];
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', numIdent];
     } else {
       // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_SERIE
       sheetName = SHEET_HERRAMIENTAS;
-      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', '', numSerie];
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', '', numIdent];
     }
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
