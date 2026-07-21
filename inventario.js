@@ -2107,7 +2107,7 @@ function abrirMoverCont() {
   _abrirPanelMover({
     tipoEquipo: 'Container',
     codigoEquipo: String(contItem.num || contItem.rowIndex),
-    nombreEquipo: contItem.tipo || 'Container',
+    nombreEquipo: `N° ${contItem.num} · ${contItem.tipo || 'Container'}`,
     ubicacionActual: contItem.ubicacion || '',
     rowIndex: contItem.rowIndex,
     onGuardar: 'cont',
@@ -2373,6 +2373,7 @@ function abrirMoverSeleccionInv() {
     _movMultiItems.push({
       key, modulo, rowIndex,
       tipoEquipo: modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
+      codigoEquipo: item.codigo || String(item.rowIndex),
       nombreEquipo: nombre,
       ubicacionActual: item.ubicacion || '',
     });
@@ -2391,7 +2392,8 @@ function abrirMoverSeleccionCont() {
     _movMultiItems.push({
       key, modulo: 'cont', rowIndex,
       tipoEquipo: 'Container',
-      nombreEquipo: item.tipo || 'Container',
+      codigoEquipo: String(item.num || item.rowIndex),
+      nombreEquipo: `N° ${item.num} · ${item.tipo || 'Container'}`,
       ubicacionActual: item.ubicacion || '',
     });
   });
@@ -2528,7 +2530,10 @@ async function guardarMovimientoMulti() {
       const idMov = 'MOV-' + batchId + '-' + item.rowIndex;
 
       filas.push([
-        idMov, fechaFmt, item.tipoEquipo, '', item.nombreEquipo,
+        // Antes acá siempre quedaba '' (vacío): eso hacía que este movimiento
+        // nunca apareciera en el historial propio del equipo, porque ese
+        // historial filtra comparando el código exacto.
+        idMov, fechaFmt, item.tipoEquipo, item.codigoEquipo || '', item.nombreEquipo,
         origenGeneral || item.ubicacionActual, destino, autoriza, traslada, obs,
         registradoPor, guia, 'en_transito'
       ]);
@@ -2709,7 +2714,7 @@ function _movhTodosLosItems() {
       key: `cont:${e.rowIndex}`, modulo: 'cont', rowIndex: e.rowIndex,
       tipoEquipo: 'Container',
       codigoEquipo: String(e.num || e.rowIndex),
-      nombreEquipo: e.tipo || 'Container',
+      nombreEquipo: `N° ${e.num} · ${e.tipo || 'Container'}`,
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.tipo),
     });
