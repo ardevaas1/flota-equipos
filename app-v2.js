@@ -652,6 +652,10 @@ function hideSplash() {
     home.classList.remove('hidden');
     home.classList.add('app-enter');
     setTimeout(() => home.classList.remove('app-enter'), 500);
+    // Limpiar cualquier tema de color de módulo que haya quedado aplicado —
+    // la home siempre debe verse con su propio degradado, nunca heredar el
+    // color de Inventario/Containers/Movimientos/Andamios.
+    document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
     chequearAlertaKilometraje();
   }, 400);
 }

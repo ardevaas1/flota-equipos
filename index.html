@@ -259,7 +259,7 @@
       </button>
     </nav>
     <div class="desktop-sidebar-footer">
-      <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+      <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
       <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
     </div>
   </div>
@@ -395,7 +395,7 @@
         <div class="header-title" id="page-title">Inicio</div>
         <div class="header-sub">Constructora LST</div>
       </div>
-      <button class="header-btn" onclick="loadData()" id="refresh-btn">↻</button>
+      <button class="header-btn" onclick="loadData(true)" id="refresh-btn">↻</button>
     </header>
 
     <div class="pages">
@@ -797,7 +797,7 @@
     <div class="modulos-footer">
       <div class="modulos-footer-user" id="user-chip-email"></div>
       <div class="modulos-footer-actions">
-        <button class="modulos-footer-btn modulos-footer-btn--refresh" onclick="loadData()">
+        <button class="modulos-footer-btn modulos-footer-btn--refresh" onclick="loadData(true)">
           <span class="mfb-ic">↻</span> Actualizar datos
         </button>
         <button class="modulos-footer-btn modulos-footer-btn--logout" onclick="cerrarSesion()">
@@ -839,7 +839,7 @@
         <button class="inv-desktop-tab" id="inv-dt-tab-herramientas" onclick="invSetModulo('herramientas')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Herramientas</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
-        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
@@ -866,7 +866,7 @@
         <div class="header-title" id="inv-titulo">Inventario</div>
         <div class="header-sub">Constructora LST</div>
       </div>
-      <button class="header-btn" onclick="loadData()" id="inv-refresh-btn">↻</button>
+      <button class="header-btn" onclick="loadData(true)" id="inv-refresh-btn">↻</button>
     </header>
     <div class="inv-tabs" id="inv-mobile-tabs">
       <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Generadores</button>
@@ -923,7 +923,7 @@
         <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Todos los containers</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
-        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
@@ -950,7 +950,7 @@
         <div class="header-title">Containers</div>
         <div class="header-sub">Constructora LST</div>
       </div>
-      <button class="header-btn" onclick="loadData()">↻</button>
+      <button class="header-btn" onclick="loadData(true)">↻</button>
     </header>
     <div class="inv-stats" id="cont-mobile-stats">
       <div class="inv-stat blue"><div class="inv-stat-n" id="cont-stat-total">—</div><div class="inv-stat-l">Total</div></div>
@@ -989,7 +989,7 @@
         <button class="inv-desktop-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Historial</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
-        <button class="desktop-refresh-btn" onclick="loadData()">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
@@ -1038,7 +1038,7 @@
         <div class="header-title">Movimientos</div>
         <div class="header-sub">Constructora LST</div>
       </div>
-      <button class="header-btn" onclick="loadData()">↻</button>
+      <button class="header-btn" onclick="loadData(true)">↻</button>
     </header>
     <div class="inv-tabs" id="movh-mobile-tabs">
       <button class="inv-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Registrar</button>
