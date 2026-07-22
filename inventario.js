@@ -852,6 +852,14 @@ async function invGuardar() {
   const btn = document.querySelector('#panel-inv-edit .pnl-action');
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
+  // N° de identificación: valor anterior (el que ya está usando la carpeta
+  // de Drive de este ítem) vs. el nuevo que se acaba de escribir en el
+  // formulario. Si cambia, más abajo renombramos la carpeta sola para que
+  // no quede una carpeta vieja huérfana y otra nueva con el mismo ítem.
+  const numIdentAntes = invItem ? (invItem.numIdent || '') : '';
+  const numIdentNuevo = (modulo === 'herramientas' || modulo === 'maqmenor')
+    ? document.getElementById('inv-edit-numident').value.trim() : '';
+
   try {
     // Mapeo de columnas por módulo
     // Generadores:  I=estado(9) J=ubicacion(10) G=color(7) N=obs(14) O=imagen(15)
@@ -877,9 +885,39 @@ async function invGuardar() {
       writeSheet(`'${sheetName}'!${colColor}${row}`,  [[color]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
       ...(modulo === 'herramientas' || modulo === 'maqmenor'
-        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : 'K'}${row}`, [[document.getElementById('inv-edit-numident').value.trim()]])]
+        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : 'K'}${row}`, [[numIdentNuevo]])]
         : []),
     ]);
+
+    // Si cambió el N° de identificación, renombrar sola la carpeta de Drive
+    // de este ítem (la que estaba usando el N° anterior) al valor nuevo —
+    // así nunca queda una carpeta vieja huérfana + una carpeta nueva para
+    // el mismo ítem. Solo aplica si el ítem no tiene "codigo" propio
+    // (Generadores ya tiene su código real, no usa N° de identificación
+    // para la carpeta) y si de verdad cambió algo.
+    if (!invItem.codigo && numIdentNuevo && numIdentNuevo !== numIdentAntes) {
+      try {
+        const nombreCarpetaVieja = numIdentAntes || String(invItem.num || row);
+        const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+        const qFolder = encodeURIComponent(`'${sheetFolder}' in parents and name = '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        const rFolder = await fetch(`https://www.googleapis.com/drive/v3/files?q=${qFolder}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        if (rFolder.ok) {
+          const dFolder = await rFolder.json();
+          if (dFolder.files && dFolder.files.length) {
+            await fetch(`https://www.googleapis.com/drive/v3/files/${dFolder.files[0].id}`, {
+              method: 'PATCH',
+              headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: numIdentNuevo }),
+            });
+          }
+          // Si no había carpeta vieja (nunca subió foto), no hay nada que
+          // renombrar — la próxima foto que suba ya va a crear la carpeta
+          // directo con el N° de identificación nuevo.
+        }
+      } catch(fe) {
+        console.warn('[INV CARPETA] No se pudo renombrar la carpeta:', fe.message);
+      }
+    }
 
     // Quitar foto si se marcó
     if (_invFotoQuitar) {
@@ -892,7 +930,7 @@ async function invGuardar() {
       if (btn) btn.textContent = 'Subiendo foto...';
       toast('Subiendo foto de referencia...', 'loading');
       try {
-        const codigo = invItem.codigo || invItem.numIdent || invItem.num || row;
+        const codigo = invItem.codigo || numIdentNuevo || invItem.num || row;
         // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO] /
         let folderId = DRIVE_INV_FOLDER;
         try {
