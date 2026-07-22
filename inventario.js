@@ -491,7 +491,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
 
     ${secEventos}
 
-    ${_renderHistorialMovimientos(item.codigo || String(item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
+    ${_renderHistorialMovimientos(item.codigo || item.numIdent || String(item.num || item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
@@ -2118,7 +2118,7 @@ function abrirMoverInv() {
   _abrirPanelMover({
     tipoEquipo: invItem._modulo === 'generadores' ? 'Generador'
               : invItem._modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
-    codigoEquipo: invItem.codigo || String(invItem.rowIndex),
+    codigoEquipo: invItem.codigo || invItem.numIdent || String(invItem.num || invItem.rowIndex),
     nombreEquipo: nombre,
     ubicacionActual: invItem.ubicacion || '',
     rowIndex: invItem.rowIndex,
@@ -2398,7 +2398,7 @@ function abrirMoverSeleccionInv() {
     _movMultiItems.push({
       key, modulo, rowIndex,
       tipoEquipo: modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
-      codigoEquipo: item.codigo || String(item.rowIndex),
+      codigoEquipo: item.codigo || item.numIdent || String(item.num || item.rowIndex),
       nombreEquipo: nombre,
       ubicacionActual: item.ubicacion || '',
     });
@@ -2777,7 +2777,7 @@ function _movhTodosLosItems() {
     items.push({
       key: `generadores:${e.rowIndex}`, modulo: 'generadores', rowIndex: e.rowIndex,
       tipoEquipo: 'Generador',
-      codigoEquipo: e.codigo || String(e.rowIndex),
+      codigoEquipo: e.codigo || e.numIdent || String(e.num || e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Generador',
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.equipo),
@@ -2788,7 +2788,7 @@ function _movhTodosLosItems() {
     items.push({
       key: `maqmenor:${e.rowIndex}`, modulo: 'maqmenor', rowIndex: e.rowIndex,
       tipoEquipo: 'Maq. Menor',
-      codigoEquipo: e.codigo || String(e.rowIndex),
+      codigoEquipo: e.codigo || e.numIdent || String(e.num || e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Maq. Menor',
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.equipo),
@@ -2799,7 +2799,7 @@ function _movhTodosLosItems() {
     items.push({
       key: `herramientas:${e.rowIndex}`, modulo: 'herramientas', rowIndex: e.rowIndex,
       tipoEquipo: 'Herramienta',
-      codigoEquipo: e.codigo || String(e.rowIndex),
+      codigoEquipo: e.codigo || e.numIdent || String(e.num || e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Herramienta',
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.equipo),
