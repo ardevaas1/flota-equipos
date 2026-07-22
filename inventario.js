@@ -702,7 +702,7 @@ async function invAbrirCarpetaDrive() {
   toast('Buscando carpeta en Drive...', 'loading');
   try {
     await ensureToken();
-    const codigo = invItem.codigo || invItem.num || '';
+    const codigo = invItem.codigo || invItem.numIdent || invItem.num || '';
     const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
                     : invItem._modulo === 'maqmenor'    ? SHEET_MAQ_MENOR
                     : SHEET_HERRAMIENTAS;
@@ -892,7 +892,7 @@ async function invGuardar() {
       if (btn) btn.textContent = 'Subiendo foto...';
       toast('Subiendo foto de referencia...', 'loading');
       try {
-        const codigo = invItem.codigo || invItem.num || row;
+        const codigo = invItem.codigo || invItem.numIdent || invItem.num || row;
         // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO] /
         let folderId = DRIVE_INV_FOLDER;
         try {
@@ -1295,15 +1295,15 @@ async function contGuardar() {
       toast('Subiendo foto...', 'loading');
       try {
         let folderId = DRIVE_INV_FOLDER;
-        try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
+        try {
+          const contFolder = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder(String(contItem.num || row), contFolder);
+        } catch(fe) {}
         const ext      = _contFoto.name.split('.').pop() || 'jpg';
-        // Incluye la fila real de la hoja (siempre única) además del N° y un
-        // timestamp, para que el nombre nunca choque con el de otro container
-        // — antes solo usaba N°+fecha, y como todos comparten una carpeta
-        // plana en Drive, dos containers con el mismo N° (o una resubida el
-        // mismo día) terminaban con el mismo nombre de archivo, y al buscar
-        // la foto por nombre podía traer la de otro container.
-        const fileName = `CONT_${contItem.num}_F${row}_${Date.now()}.${ext}`;
+        // Ya no hace falta que el nombre sea único a nivel global (cada
+        // container tiene su propia carpeta ahora), pero se deja igual de
+        // descriptivo por si se navega directo en Drive.
+        const fileName = `CONT_${contItem.num}_${Date.now()}.${ext}`;
         const boundary = 'lst_cont_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
         const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contFoto.mimeType,'Content-Transfer-Encoding: base64','',_contFoto.b64,'--'+boundary+'--'].join('\r\n');
@@ -1828,7 +1828,8 @@ async function invGuardarNuevo() {
         // Obtener rowIndex del nuevo ítem (última fila del sheet)
         const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
         const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
-        const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : numFinal;
+        const numIdentNuevo = (mod === 'herramientas' || mod === 'maqmenor') ? document.getElementById('nuevo-numident')?.value.trim() : '';
+        const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : (numIdentNuevo || numFinal);
         let folderId = DRIVE_INV_FOLDER;
         try {
           const sf = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
@@ -1940,11 +1941,12 @@ async function contGuardarNuevo() {
       toast('Subiendo foto de referencia...', 'loading');
       try {
         let folderId = DRIVE_INV_FOLDER;
-        try { folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER); } catch(fe) {}
+        try {
+          const contFolder = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder(String(numFinal || newRow), contFolder);
+        } catch(fe) {}
         const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
-        // Mismo criterio que en la edición: fila real + timestamp, no solo
-        // N°+fecha, para que nunca choque con el nombre de otro container.
-        const fileName = `CONT_${numFinal}_F${newRow}_${Date.now()}.${ext}`;
+        const fileName = `CONT_${numFinal}_${Date.now()}.${ext}`;
         const boundary = 'lst_cont_' + Date.now();
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
         const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_contNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
@@ -2044,6 +2046,106 @@ async function contRepararFotos() {
     toast('Error al reparar: ' + err.message, 'error');
   } finally {
     btns.forEach(b => { b.disabled = false; b.textContent = '🔧 Reparar fotos desincronizadas'; });
+  }
+}
+
+// ── Migración: renombrar la carpeta de Drive de cada ítem de Maq. Menor
+// o Herramientas para que use el N° de identificación en vez del N°
+// normal — solo para los ítems que YA tengan el N° de identificación
+// cargado. Los que todavía no lo tengan quedan con su carpeta actual
+// hasta que se cargue (no hace falta correr esto de nuevo después: al
+// subir una foto nueva para ese ítem, la carpeta correcta se crea sola). ──
+async function invMigrarCarpetas(modulo) {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (modulo !== 'maqmenor' && modulo !== 'herramientas') {
+    toast('Usa invMigrarCarpetas(\'maqmenor\') o invMigrarCarpetas(\'herramientas\')', 'error');
+    return;
+  }
+  const datos = modulo === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const sheetName = modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+  const conNumIdent = datos.filter(i => i.numIdent);
+  if (!conNumIdent.length) { toast('Ningún ítem tiene N° de identificación cargado todavía', 'error'); return; }
+  const etiqueta = modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramientas';
+  if (!confirm(`Esto va a renombrar la carpeta de Drive de ${conNumIdent.length} ítem(s) de ${etiqueta} para que usen su N° de identificación en vez del N° normal. ¿Continuar?`)) return;
+
+  try {
+    await ensureToken();
+    toast('Buscando carpeta de ' + etiqueta + '...', 'loading');
+    const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+
+    let ok = 0, saltados = 0, fallidos = 0;
+    for (const item of conNumIdent) {
+      try {
+        const q = encodeURIComponent(`'${sheetFolder}' in parents and name = '${String(item.num)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        if (!res.ok) throw new Error('Drive ' + res.status);
+        const data = await res.json();
+        if (!data.files || !data.files.length) { saltados++; continue; } // no tenía carpeta previa (nunca subió foto)
+        const folderId = data.files[0].id;
+        const up = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: item.numIdent }),
+        });
+        if (!up.ok) throw new Error('Drive ' + up.status);
+        ok++;
+      } catch(e) {
+        console.warn('[MIGRAR CARPETAS INV] N°' + item.num, e.message);
+        fallidos++;
+      }
+    }
+    toast(`✓ Migración terminada: ${ok} renombradas, ${saltados} sin carpeta previa, ${fallidos} con error`);
+    console.log(`[MIGRAR CARPETAS INV ${modulo}] renombradas=${ok} sin_carpeta=${saltados} fallidos=${fallidos}`);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+// subcarpeta propia por cada container (según su N°) ────────────────────
+// Se ejecuta una sola vez desde la consola del navegador. No borra nada:
+// mueve el archivo (le cambia de carpeta), no crea copias. Es seguro
+// correrla más de una vez — si un archivo ya se movió, simplemente no lo
+// vuelve a encontrar en la carpeta plana y lo salta.
+async function contMigrarCarpetas() {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (!confirm('Esto va a mover cada foto de container desde la carpeta plana "Containers" a una subcarpeta propia por cada container (según su N°). No se borra ni duplica nada, solo se reordena. ¿Continuar?')) return;
+
+  try {
+    await ensureToken();
+    toast('Buscando carpeta "Containers"...', 'loading');
+    const contFolderRoot = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+
+    let ok = 0, fallidos = 0, saltados = 0;
+    for (const c of allContainers) {
+      if (!c.foto) { saltados++; continue; }
+      try {
+        const q = encodeURIComponent(`'${contFolderRoot}' in parents and name = '${c.foto}' and trashed = false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        if (!res.ok) throw new Error('Drive ' + res.status);
+        const data = await res.json();
+        if (!data.files || !data.files.length) { saltados++; continue; } // ya migrado o no está ahí
+        const fileId = data.files[0].id;
+        const destFolder = await findOrCreateFolder(String(c.num || c.rowIndex), contFolderRoot);
+        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${destFolder}&removeParents=${contFolderRoot}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + accessToken },
+        });
+        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        ok++;
+      } catch(e) {
+        console.warn('[MIGRAR CONTAINERS] N°' + c.num, e.message);
+        fallidos++;
+      }
+    }
+    toast(`✓ Migración terminada: ${ok} movidas, ${saltados} sin cambios, ${fallidos} con error`);
+    console.log(`[MIGRAR CONTAINERS] movidas=${ok} sin_cambios=${saltados} fallidos=${fallidos}`);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
   }
 }
 
@@ -3533,6 +3635,52 @@ let _andUbicRowActual = null;
 // vieja, su total se recalcularía a 0. Segura de correr más de una vez —
 // se saltea las piezas que ya tengan alguna ubicación cargada.
 //   andMigrarUbicaciones()
+// ── Migración: mover fotos de la carpeta plana "Andamios" a una
+// subcarpeta propia por cada tipo de pieza — misma lógica que
+// contMigrarCarpetas(), adaptada a Andamios. Segura de correr más de una
+// vez: si una foto ya se movió, simplemente no la vuelve a encontrar en
+// la carpeta plana y la salta. ──────────────────────────────────────────
+async function andMigrarCarpetas() {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (!confirm('Esto va a mover cada foto de Andamios desde la carpeta plana "Andamios" a una subcarpeta propia por tipo de pieza. No se borra ni duplica nada, solo se reordena. ¿Continuar?')) return;
+
+  try {
+    await ensureToken();
+    toast('Buscando carpeta "Andamios"...', 'loading');
+    const andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+
+    let ok = 0, fallidos = 0, saltados = 0;
+    for (const it of allAndamios) {
+      if (!it.foto) { saltados++; continue; }
+      try {
+        const q = encodeURIComponent(`'${andFolderRoot}' in parents and name = '${it.foto}' and trashed = false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        if (!res.ok) throw new Error('Drive ' + res.status);
+        const data = await res.json();
+        if (!data.files || !data.files.length) { saltados++; continue; }
+        const fileId = data.files[0].id;
+        const destFolder = await findOrCreateFolder((it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || it.tipo, andFolderRoot);
+        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${destFolder}&removeParents=${andFolderRoot}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + accessToken },
+        });
+        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        ok++;
+      } catch(e) {
+        console.warn('[MIGRAR ANDAMIOS]', it.tipo, e.message);
+        fallidos++;
+      }
+    }
+    toast(`✓ Migración terminada: ${ok} movidas, ${saltados} sin cambios, ${fallidos} con error`);
+    console.log(`[MIGRAR ANDAMIOS] movidas=${ok} sin_cambios=${saltados} fallidos=${fallidos}`);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
 async function andMigrarUbicaciones() {
   try {
     const data = await _andEscrituraRemota('and_migrar_ubicaciones', {});
@@ -4266,7 +4414,8 @@ async function andGuardarNuevo() {
     if (_andNuevoFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
       try {
-        const folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const andFolder = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const folderId = await findOrCreateFolder(nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
         const ext = _andNuevoFoto.name.split('.').pop() || 'jpg';
         const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
         const boundary = 'lst_and_' + Date.now();
@@ -4362,7 +4511,8 @@ async function andGuardarEdit() {
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
       try {
-        const folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const andFolder = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+        const folderId = await findOrCreateFolder(nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
         const ext = _andEditFoto.name.split('.').pop() || 'jpg';
         const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
         const boundary = 'lst_and_' + Date.now();
@@ -4427,7 +4577,8 @@ async function andImportarSeed() {
   btns.forEach(b => b.disabled = true);
 
   let folderId = DRIVE_INV_FOLDER;
-  try { folderId = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER); } catch (e) {}
+  let andFolderRoot = DRIVE_INV_FOLDER;
+  try { andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER); } catch (e) {}
 
   let ok = 0, fallidos = 0;
   for (let i = 0; i < ANDAMIOS_SEED.length; i++) {
@@ -4438,6 +4589,7 @@ async function andImportarSeed() {
     let fotoNombre = '';
     if (item.fotoB64) {
       try {
+        folderId = await findOrCreateFolder(item.tipo.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || item.tipo, andFolderRoot);
         const fileName = `AND_${item.tipo.replace(/[^a-zA-Z0-9]+/g, '_')}.jpg`;
         const boundary = 'lst_and_seed_' + Date.now() + '_' + i;
         const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
