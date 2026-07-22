@@ -616,7 +616,10 @@ async function invAbrirFotoModal(fileName) {
         width:40px;height:40px;font-size:22px;color:#fff;cursor:pointer;
         display:flex;align-items:center;justify-content:center;line-height:1
       ">✕</button>
-      <div id="foto-modal-spinner" style="color:#64748b;font-size:14px">Cargando imagen...</div>
+      <div id="foto-modal-spinner" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;animation:loginSpin 0.7s linear infinite"></div>
+        <span id="foto-modal-spinner-txt" style="color:#94a3b8;font-size:13px">Cargando imagen...</span>
+      </div>
       <img id="foto-modal-img" src="" alt="Foto"
         style="max-width:100%;max-height:88vh;object-fit:contain;border-radius:12px;display:none">
       <div id="foto-modal-name" style="color:#94a3b8;font-size:11px;margin-top:10px;text-align:center;word-break:break-all"></div>
@@ -629,7 +632,10 @@ async function invAbrirFotoModal(fileName) {
 
   // Mostrar modal con spinner
   modal.style.display = 'flex';
-  document.getElementById('foto-modal-spinner').style.display = 'block';
+  const spinnerEl = document.getElementById('foto-modal-spinner');
+  const spinnerTxt = document.getElementById('foto-modal-spinner-txt');
+  spinnerEl.style.display = 'flex';
+  spinnerTxt.textContent = 'Cargando imagen...';
   const imgEl = document.getElementById('foto-modal-img');
   imgEl.style.display = 'none';
   imgEl.src = '';
@@ -643,28 +649,44 @@ async function invAbrirFotoModal(fileName) {
       { headers: { 'Authorization': 'Bearer ' + accessToken } }
     );
     if (res.status === 403) {
-      document.getElementById('foto-modal-spinner').textContent = '⚠️ No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan';
+      spinnerTxt.textContent = '⚠️ No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan';
       return;
     }
     const data = res.ok ? await res.json() : { files: [] };
     if (data.files && data.files.length > 0) {
       const f = data.files[0];
-      const url = f.thumbnailLink
-        ? f.thumbnailLink.replace('=s220', '=s1600')
-        : `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`;
+      // Varias formas posibles de traer la imagen — se prueban en orden.
+      // Antes se probaba solo la primera y, si fallaba (algo bastante común
+      // la primera vez que Drive genera esa miniatura grande), se mostraba
+      // el mensaje de error aunque la imagen SÍ terminara cargando después
+      // con un reintento del navegador — confundía. Ahora se van probando
+      // las siguientes automáticamente y el error solo se muestra si todas
+      // fallan de verdad.
+      const intentos = [
+        f.thumbnailLink ? f.thumbnailLink.replace('=s220', '=s1600') : null,
+        `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`,
+        `https://drive.google.com/uc?export=view&id=${f.id}`,
+        `https://lh3.googleusercontent.com/d/${f.id}`,
+      ].filter(Boolean);
+      let intentoActual = 0;
       imgEl.onload = () => {
-        document.getElementById('foto-modal-spinner').style.display = 'none';
+        spinnerEl.style.display = 'none';
         imgEl.style.display = 'block';
       };
       imgEl.onerror = () => {
-        document.getElementById('foto-modal-spinner').textContent = '⚠️ No se pudo cargar la imagen';
+        intentoActual++;
+        if (intentoActual < intentos.length) {
+          imgEl.src = intentos[intentoActual];
+        } else {
+          spinnerTxt.textContent = '⚠️ No se pudo cargar la imagen';
+        }
       };
-      imgEl.src = url;
+      imgEl.src = intentos[0];
     } else {
-      document.getElementById('foto-modal-spinner').textContent = '⚠️ Archivo no encontrado en Drive';
+      spinnerTxt.textContent = '⚠️ Archivo no encontrado en Drive';
     }
   } catch(e) {
-    document.getElementById('foto-modal-spinner').textContent = '⚠️ Error: ' + e.message;
+    spinnerTxt.textContent = '⚠️ Error: ' + e.message;
   }
 }
 
