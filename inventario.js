@@ -3681,6 +3681,74 @@ async function andMigrarCarpetas() {
   }
 }
 
+// ── Reparar + migrar: para fotos que están en la carpeta plana "Andamios"
+// pero que NUNCA quedaron vinculadas en la hoja (columna foto vacía) — por
+// ejemplo si en algún momento se subieron directo en Drive, o si and_set_foto
+// no llegó a guardarse. Intenta adivinar a qué pieza pertenece cada foto
+// suelta por el NOMBRE del archivo (que arranca con "AND_<tipo>_..."),
+// y si encuentra una coincidencia clara: la vincula en la hoja Y la mueve
+// a la subcarpeta de esa pieza, todo en un solo paso.
+// Los archivos que no se puedan relacionar con ninguna pieza por el nombre
+// (por ejemplo si alguien subió una foto directo a Drive con un nombre
+// cualquiera, tipo "IMG_1234.jpg") quedan sin tocar — esos hay que
+// asignarlos a mano desde la ficha de la pieza correspondiente.
+async function andRepararFotos() {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (!confirm('Esto revisa la carpeta plana "Andamios" en Drive, intenta adivinar a qué pieza pertenece cada foto suelta por su nombre de archivo, la vincula en la hoja y la mueve a la subcarpeta de esa pieza. Solo actúa donde encuentra una coincidencia clara por nombre. ¿Continuar?')) return;
+
+  try {
+    await ensureToken();
+    toast('Buscando carpeta "Andamios"...', 'loading');
+    const andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+
+    toast('Listando fotos sueltas...', 'loading');
+    const q = encodeURIComponent(`'${andFolderRoot}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=1000`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+    if (!res.ok) throw new Error('Drive ' + res.status);
+    const data = await res.json();
+    const sueltos = data.files || [];
+    if (!sueltos.length) { toast('No hay fotos sueltas en la carpeta plana — nada que reparar'); return; }
+
+    // Para cada pieza, el prefijo exacto que usa la app al subir su foto
+    const piezasConPrefijo = allAndamios.map(it => ({
+      it,
+      prefijo: `AND_${(it.tipo || '').replace(/[^a-zA-Z0-9]+/g,'_')}_`,
+    }));
+
+    let vinculadas = 0, sinCoincidencia = 0, fallidas = 0;
+    const sinCoincidenciaNombres = [];
+    for (const file of sueltos) {
+      const match = piezasConPrefijo.find(p => file.name.startsWith(p.prefijo));
+      if (!match) { sinCoincidencia++; sinCoincidenciaNombres.push(file.name); continue; }
+      try {
+        // 1) Vincular en la hoja
+        await _andEscrituraRemota('and_set_foto', { row: match.it.rowIndex, foto: file.name });
+        // 2) Mover a la subcarpeta de esa pieza
+        const destFolder = await findOrCreateFolder((match.it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || match.it.tipo, andFolderRoot);
+        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?addParents=${destFolder}&removeParents=${andFolderRoot}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + accessToken },
+        });
+        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        vinculadas++;
+      } catch(e) {
+        console.warn('[REPARAR ANDAMIOS]', file.name, e.message);
+        fallidas++;
+      }
+    }
+
+    toast(`✓ Listo: ${vinculadas} vinculadas y movidas, ${sinCoincidencia} sin coincidencia clara, ${fallidas} con error`);
+    console.log(`[REPARAR ANDAMIOS] vinculadas=${vinculadas} sin_coincidencia=${sinCoincidencia} fallidas=${fallidas}`);
+    if (sinCoincidenciaNombres.length) console.log('[REPARAR ANDAMIOS] Sin coincidencia:', sinCoincidenciaNombres.join(', '));
+    await andCargar();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
 async function andMigrarUbicaciones() {
   try {
     const data = await _andEscrituraRemota('and_migrar_ubicaciones', {});
