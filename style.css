@@ -773,8 +773,8 @@ body.is-offline #app { padding-top: 30px; }
     align-items: center;
     text-align: center;
     aspect-ratio: 1 / 1;
-    justify-content: center;
-    padding: 24px 16px;
+    justify-content: flex-start;
+    padding: 26px 16px 20px;
   }
   #modulos-home .modulo-icon {
     width: 60px; height: 60px; border-radius: 16px;
