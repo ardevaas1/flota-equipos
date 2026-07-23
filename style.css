@@ -1157,10 +1157,11 @@ body.is-offline #app { padding-top: 30px; }
     background: var(--bg);
   }
 
-  /* Sidebar izquierda de inventario/containers */
+  /* Sidebar izquierda de inventario/containers/andamios */
   #mod-inventario .header,
   #mod-containers .header,
-  #mod-movimientos .header {
+  #mod-movimientos .header,
+  #mod-andamios .header {
     width: 220px;
     flex-shrink: 0;
     height: 100vh;
@@ -1177,7 +1178,8 @@ body.is-offline #app { padding-top: 30px; }
   /* Header top dentro del sidebar */
   #mod-inventario .header > *,
   #mod-containers .header > *,
-  #mod-movimientos .header > * { display: none; }
+  #mod-movimientos .header > *,
+  #mod-andamios .header > * { display: none; }
 
   /* Reemplazamos el header móvil con pseudo-sidebar via un wrapper */
   .inv-desktop-sidebar {
@@ -1338,7 +1340,10 @@ body.is-offline #app { padding-top: 30px; }
   #mod-movimientos #movh-vista-registrar .chips,
   #mod-movimientos .searchbox,
   #movh-selbar,
-  #mod-movimientos > .header {
+  #mod-movimientos > .header,
+  #mod-andamios .and-total-bar,
+  #mod-andamios .and-mobile-actions,
+  #mod-andamios > .header {
     display: none !important;
   }
 
