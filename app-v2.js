@@ -2682,6 +2682,46 @@ function abrirFotoRefModal(patente) {
   modal.style.display = 'flex';
 }
 
+// ── Reparar filas de MAQUINARIA que ya quedaron con saltos de línea en
+// fallaOperativa (col W) o fallaEstetica (col X) — de antes de este
+// arreglo. Reemplaza los saltos por " · " en cada celda afectada. No toca
+// la altura de la fila (eso hay que ajustarlo a mano si ya quedó alta:
+// seleccioná esas filas → click derecho → Cambiar tamaño de filas → un
+// valor chico, tipo 21px) — pero de acá en adelante, con el texto ya en
+// una sola línea, no debería volver a agrandarse sola.
+async function repararFallasConSaltos() {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede ejecutar esto', 'error');
+    return;
+  }
+  if (!confirm('Esto revisa toda la hoja MAQUINARIA y, en las fallas operativas/estéticas que tengan saltos de línea guardados, los reemplaza por " · " para que la celda quede en una sola línea. ¿Continuar?')) return;
+
+  try {
+    await ensureToken();
+    toast('Revisando MAQUINARIA...', 'loading');
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A3:X2000`);
+    let corregidas = 0;
+    for (let i = 0; i < (rows || []).length; i++) {
+      const r = rows[i];
+      if (!r || !r[0]) continue;
+      const row = i + 3;
+      const fallaOpOrig  = r[22] || '';
+      const fallaEstOrig = r[23] || '';
+      const fallaOpNueva  = fallaOpOrig.replace(/\r?\n+/g, ' · ').trim();
+      const fallaEstNueva = fallaEstOrig.replace(/\r?\n+/g, ' · ').trim();
+      const writes = [];
+      if (fallaOpNueva !== fallaOpOrig)   writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!W${row}`, [[fallaOpNueva]]));
+      if (fallaEstNueva !== fallaEstOrig) writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!X${row}`, [[fallaEstNueva]]));
+      if (writes.length) { await Promise.all(writes); corregidas++; }
+    }
+    toast(`✓ Listo: ${corregidas} fila(s) corregida(s)`);
+    console.log(`[REPARAR FALLAS] filas corregidas=${corregidas}`);
+    await loadData(true);
+  } catch(err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
 async function saveEquipo() {
   const row       = document.getElementById('edit-row').value;
   const estado    = document.getElementById('edit-estado').value;
@@ -2693,8 +2733,14 @@ async function saveEquipo() {
   const permiso   = document.getElementById('edit-permiso').value;
   const revision  = document.getElementById('edit-revision').value;
   const obs       = document.getElementById('edit-obs').value;
-  const fallaOp   = document.getElementById('edit-falla-operativa')?.value || '';
-  const fallaEst  = document.getElementById('edit-falla-estetica')?.value || '';
+  // Las fallas se escriben en una sola línea: si el textarea tiene saltos de
+  // línea (Enter entre puntos), Sheets SIEMPRE expande la altura de la fila
+  // para mostrarlos —ningún formato de ajuste de texto puede evitar eso una
+  // vez que hay un salto de línea real adentro de la celda. Por eso se
+  // reemplazan por " · " antes de guardar: se sigue viendo cada punto por
+  // separado, pero la celda queda de una sola línea y no mueve la fila.
+  const fallaOp   = (document.getElementById('edit-falla-operativa')?.value || '').replace(/\r?\n+/g, ' · ').trim();
+  const fallaEst  = (document.getElementById('edit-falla-estetica')?.value  || '').replace(/\r?\n+/g, ' · ').trim();
   const patente   = document.getElementById('edit-patente').value;
   if (!row) return;
 
