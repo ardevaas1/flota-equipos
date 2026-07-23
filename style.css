@@ -757,11 +757,11 @@ body.is-offline #app { padding-top: 30px; }
     padding: 44px 20px 36px;
   }
   #modulos-home .modulos-lista {
-    max-width: 1180px;
+    max-width: 1320px;
     margin: 0 auto;
     width: 100%;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 18px;
     padding: 40px 24px;
   }
   /* Cancela el "ancho completo" del último módulo impar (regla pensada
