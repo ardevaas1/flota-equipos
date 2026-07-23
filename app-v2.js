@@ -383,13 +383,14 @@ function ensureToken() {
 
 // ── Control de roles ──────────────────────────────────────────
 // Busca el email en la hoja USUARIOS (col A=email, col B=rol).
-// Roles soportados: 'admin' (todo) · 'mover' (solo lectura + puede
-// registrar movimientos en el módulo Movimientos) · 'andamios' (solo
-// lectura + puede modificar todo dentro del módulo Andamios) · 'flota'
-// (solo lectura + puede modificar todo dentro del módulo Flota) ·
-// 'chofer' (NO ve ningún otro módulo — solo entra a Bitácora & Combustible,
-// donde puede registrar viajes y cargas de combustible) ·
-// cualquier otro valor o ausencia de match → 'viewer' (solo lectura).
+// Roles soportados: 'admin' (todo) · 'mover' (solo Movimientos) ·
+// 'andamios' (solo Andamios) · 'flota' (solo Flota) · 'chofer' (solo
+// Bitácora & Combustible) · 'inventario' (solo Generadores/Maq. Menor/
+// Herramientas) · 'containers' (solo Containers) — cada uno de estos 6
+// roles de módulo SOLO ve y puede entrar a su propio módulo en la
+// pantalla de inicio, el resto queda oculto. 'viewer' (cualquier otro
+// valor o ausencia de match) sigue viendo todo en solo lectura, sin
+// restricción de módulo — es el único rol "de solo mirar todo".
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -410,6 +411,10 @@ async function checkUserRole() {
       userRole = 'flota';
     } else if (rolHoja === 'chofer') {
       userRole = 'chofer';
+    } else if (rolHoja === 'inventario') {
+      userRole = 'inventario';
+    } else if (rolHoja === 'containers') {
+      userRole = 'containers';
     } else {
       userRole = 'viewer';
     }
@@ -438,7 +443,7 @@ async function checkUserRole() {
 //              registrar eventos/mantenciones)
 // - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
 function applyViewerMode() {
-  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode');
+  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode', 'inventario-mode', 'containers-mode');
   if (userRole === 'viewer') {
     document.body.classList.add('viewer-mode');
   } else if (userRole === 'mover') {
@@ -447,12 +452,16 @@ function applyViewerMode() {
     document.body.classList.add('viewer-mode', 'andamios-mode');
   } else if (userRole === 'flota') {
     document.body.classList.add('viewer-mode', 'flota-mode');
+  } else if (userRole === 'inventario') {
+    document.body.classList.add('viewer-mode', 'inventario-mode');
+  } else if (userRole === 'containers') {
+    document.body.classList.add('viewer-mode', 'containers-mode');
   } else if (userRole === 'chofer') {
-    // A diferencia de mover/andamios/flota (que ven todo en solo lectura y
-    // pueden editar dentro de su módulo), chofer no debe ver NINGÚN otro
-    // módulo — solo entra a Bitácora & Combustible. La clase chofer-mode
-    // oculta las tarjetas de los demás módulos en la pantalla de inicio
-    // (ver CSS .modulo-otro) además de dar permiso de edición ahí adentro.
+    // A diferencia de mover/andamios/flota/inventario/containers (que
+    // solo ven en la pantalla de inicio la tarjeta de su propio módulo,
+    // pero técnicamente comparten la misma lógica de restricción unificada
+    // en CSS), chofer sigue el mismo esquema — su único módulo permitido
+    // es Bitácora & Combustible.
     document.body.classList.add('viewer-mode', 'chofer-mode');
   }
   // Controles reservados para admin (ej: herramientas de reparación de datos)
