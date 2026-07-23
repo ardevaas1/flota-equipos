@@ -328,6 +328,7 @@ body.is-offline #app { padding-top: 30px; }
 .and-btn--minus { background: #fde8e8; color: #c0392b; }
 .and-btn--minus:active { background: #e0554a; color: #fff; }
 .and-num { min-width: 34px; text-align: center; font-size: 19px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; cursor: text; }
+.and-num--fijo { cursor: default; }
 .and-hist-btn {
   width: 26px; height: 26px; border-radius: 50%; border: none; flex-shrink: 0;
   background: var(--neutral-soft); color: #7a7f88;

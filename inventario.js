@@ -3567,9 +3567,7 @@ function andRenderLista() {
         ${it.obs ? `<div class="and-obs">${it.obs}</div>` : ''}
       </div>
       <div class="and-counter">
-        <button class="and-btn and-btn--minus" onclick="andCambiarCantidad(${it.rowIndex},-1)">−</button>
-        <span class="and-num" id="and-num${suffix}-${it.rowIndex}" onclick="andEditarCantidadInline(${it.rowIndex}, this)">${it.cantidad}</span>
-        <button class="and-btn" onclick="andCambiarCantidad(${it.rowIndex},1)">+</button>
+        <span class="and-num and-num--fijo">${it.cantidad}</span>
       </div>
       <div class="and-acciones">
         <button class="and-hist-btn" onclick="event.stopPropagation();andVerUbicaciones(${it.rowIndex})" title="Ver ubicaciones">
@@ -4309,94 +4307,16 @@ function andVerFoto(rowIndex) {
   invAbrirFotoModal(it.foto);
 }
 
-// ── Botones +1 / -1 ──────────────────────────────────────────
-// Actualiza en memoria y en pantalla al instante (feedback inmediato para
-// contar rápido), y escribe a Sheets en segundo plano.
-async function andCambiarCantidad(rowIndex, delta) {
-  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
-  const it = allAndamios.find(x => x.rowIndex === rowIndex);
-  if (!it) return;
+// ── El sistema de conteo rápido (+/- y tap-to-edit sobre el número) se
+// quitó a pedido: ahora la única forma de cambiar la cantidad es editando
+// la pieza (panel-and-edit → andGuardarEdit), que ajusta específicamente
+// el stock en COLIMA. Las funciones andCambiarCantidad / andEditarCantidadInline
+// / andSetCantidadAbsoluta que hacían esto ya no existen — si algo las
+// sigue llamando, es un rastro viejo que hay que actualizar.
 
-  const nueva = Math.max(0, (it.cantidad || 0) + delta);
-  if (nueva === it.cantidad) return; // ya estaba en 0 y se intentó restar
-  it.cantidad = nueva;
-
-  // Feedback visual inmediato en ambas copias (móvil y desktop)
-  const num = document.getElementById(`and-num-${rowIndex}`);
-  if (num) num.textContent = nueva;
-  const numDt = document.getElementById(`and-num-dt-${rowIndex}`);
-  if (numDt) numDt.textContent = nueva;
-  const total = allAndamios.reduce((sum, x) => sum + (x.cantidad || 0), 0);
-  const totalEl = document.getElementById('and-total');
-  if (totalEl) totalEl.textContent = total;
-  const totalDtEl = document.getElementById('and-dt-total');
-  if (totalDtEl) totalDtEl.textContent = total;
-
-  // Escribir la cantidad vía el Apps Script (no requiere que el usuario
-  // tenga permiso de Editor directo sobre la planilla)
-  try {
-    await _andEscrituraRemota('and_set_cantidad', { row: rowIndex, cantidad: nueva });
-  } catch (e) {
-    toast('No se pudo guardar el conteo: ' + e.message, 'error');
-    // revertir en memoria y en pantalla si falló el guardado
-    it.cantidad = nueva - delta;
-    if (num) num.textContent = it.cantidad;
-    if (numDt) numDt.textContent = it.cantidad;
-  }
-}
-
-// ── Editar cantidad exacta con un tap (útil para conteos grandes) ──────
-// Reemplaza el número por un input numérico en línea; al confirmar
-// (blur o Enter) guarda el valor absoluto. Esc cancela sin guardar.
-function andEditarCantidadInline(rowIndex, spanEl) {
-  if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
-  if (spanEl.tagName === 'INPUT') return; // ya está en edición
-
-  const valorActual = spanEl.textContent;
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '0';
-  input.className = 'and-num-input';
-  input.value = valorActual;
-  input.id = spanEl.id;
-  spanEl.replaceWith(input);
-  input.focus();
-  input.select();
-
-  let resuelto = false;
-  const confirmar = () => {
-    if (resuelto) return;
-    resuelto = true;
-    const nueva = Math.max(0, parseInt(input.value) || 0);
-    andSetCantidadAbsoluta(rowIndex, nueva);
-  };
-  input.addEventListener('blur', confirmar);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') input.blur();
-    if (e.key === 'Escape') { resuelto = true; andRenderLista(); }
-  });
-}
-
-async function andSetCantidadAbsoluta(rowIndex, nueva) {
-  const it = allAndamios.find(x => x.rowIndex === rowIndex);
-  if (!it) return;
-  const anterior = it.cantidad;
-  it.cantidad = nueva;
-  andRenderLista(); // restaura el span (ya no input) y recalcula el total con el valor nuevo
-
-  try {
-    await _andEscrituraRemota('and_set_cantidad', { row: rowIndex, cantidad: nueva });
-    toast('✓ Cantidad actualizada');
-  } catch (e) {
-    it.cantidad = anterior;
-    toast('No se pudo guardar: ' + e.message, 'error');
-    andRenderLista();
-  }
-}
-
-// ── Bajas (piezas dadas de baja) — mismo patrón que el contador de cantidad,
-// pero es un contador independiente por pieza: no resta de "cantidad", solo
-// lleva la cuenta aparte de cuántas de ese tipo están dadas de baja. ─────
+// ── Bajas (piezas dadas de baja) — contador independiente por pieza: no
+// resta de "cantidad", solo lleva la cuenta aparte de cuántas de ese tipo
+// están dadas de baja. ─────────────────────────────────────────────────
 async function andCambiarBaja(rowIndex, delta) {
   if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const it = allAndamios.find(x => x.rowIndex === rowIndex);
@@ -4556,14 +4476,14 @@ async function andGuardarNuevo() {
 }
 
 // ── Editar tipo existente ───────────────────────────────────────
-function andAbrirEditar(rowIndex) {
+async function andAbrirEditar(rowIndex) {
   const it = allAndamios.find(x => x.rowIndex === rowIndex);
   if (!it) return;
   andItemActual = it;
 
   document.getElementById('and-edit-row').value = it.rowIndex;
   document.getElementById('and-edit-nombre').value = it.tipo;
-  document.getElementById('and-edit-cantidad').value = it.cantidad;
+  document.getElementById('and-edit-cantidad').value = '...';
   document.getElementById('and-edit-obs').value = it.obs || '';
   document.getElementById('and-edit-sistema').value = it.sistema || 'Europeo';
   _andEditFoto = null;
@@ -4581,6 +4501,30 @@ function andAbrirEditar(rowIndex) {
   if (fotoRow) fotoRow.style.display = soloLectura ? 'none' : '';
 
   openPanel('panel-and-edit');
+
+  // El campo "Cantidad" de este panel ajusta específicamente el stock en
+  // COLIMA (bodega), no el total de la pieza — el total puede incluir
+  // stock repartido en obras (ver "Ubicaciones"). Antes se precargaba el
+  // TOTAL acá, pero al guardar solo se pisaba COLIMA sin tocar el resto:
+  // si la pieza tenía stock en alguna obra, el total quedaba inflado cada
+  // vez que se editaba (esto era el bug del "número muy grande").
+  try {
+    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    const filasPieza = (rows || []).filter(r => parseInt(r[0], 10) === rowIndex);
+    const filaColima = filasPieza.find(r => (r[2] || '').toString().trim().toUpperCase() === 'COLIMA');
+    const cantidadColima = filaColima
+      ? (parseInt(filaColima[3], 10) || 0)
+      : (filasPieza.length === 0 ? (it.cantidad || 0) : 0); // sin ubicaciones cargadas todavía = todo está en COLIMA implícito
+    const campoCant = document.getElementById('and-edit-cantidad');
+    // Si mientras cargaba se cerró el panel o se abrió otra pieza, no pisar nada
+    if (campoCant && document.getElementById('and-edit-row').value == rowIndex) {
+      campoCant.value = cantidadColima;
+    }
+  } catch(e) {
+    console.warn('[AND EDITAR] No se pudo cargar la cantidad en COLIMA:', e.message);
+    const campoCant = document.getElementById('and-edit-cantidad');
+    if (campoCant && document.getElementById('and-edit-row').value == rowIndex) campoCant.value = 0;
+  }
 }
 
 function onAndEditFotoSelected(input) {
