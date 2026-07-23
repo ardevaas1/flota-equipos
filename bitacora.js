@@ -321,7 +321,7 @@ function bitAbrirViaje() {
   document.getElementById('bit-viaje-kmi').value = _bitUltimoKmConocido(patente) || '';
   document.getElementById('bit-viaje-kmf').value = '';
   document.getElementById('bit-viaje-destino').value = '';
-  document.getElementById('bit-viaje-chofer').value = (typeof userEmail !== 'undefined' ? userEmail : '');
+  document.getElementById('bit-viaje-chofer').value = '';
 
   openPanel('panel-bit-viaje');
 }
@@ -371,7 +371,7 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-fecha').value = new Date().toISOString().slice(0, 10);
   document.getElementById('bit-comb-km').value = _bitUltimoKmConocido(patente) || '';
   document.getElementById('bit-comb-litros').value = '';
-  document.getElementById('bit-comb-chofer').value = (typeof userEmail !== 'undefined' ? userEmail : '');
+  document.getElementById('bit-comb-chofer').value = '';
 
   openPanel('panel-bit-combustible');
 }
