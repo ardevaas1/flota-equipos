@@ -1231,7 +1231,46 @@
 
   <!-- ══ MÓDULO BITÁCORA & COMBUSTIBLE ══ -->
   <div id="mod-bitacora" class="main hidden">
-    <header class="header header--bit">
+
+    <!-- SIDEBAR DESKTOP -->
+    <div class="inv-desktop-sidebar" id="bit-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--bit">
+        <img src="logo-white.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Bitácora</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div style="padding:14px 20px 0">
+        <label style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px">Mes</label>
+        <select id="bit-dt-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-top:6px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);font-size:13px;font-family:inherit;background:#fff"></select>
+      </div>
+      <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
+        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulo</div>
+        <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 16h6M9 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Todos los vehículos</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="bit-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title">Bitácora &amp; Combustible</div>
+        <div class="inv-desktop-search">
+          <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <input type="text" id="bit-dt-search" placeholder="Buscar patente, marca, modelo..." oninput="bitSyncSearch()">
+        </div>
+      </div>
+      <div class="inv-desktop-list">
+        <div id="bit-dt-lista"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL -->
+    <header class="header header--bit" id="bit-mobile-header">
       <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
@@ -1241,16 +1280,15 @@
       <button class="header-btn" onclick="loadData(true)">↻</button>
     </header>
 
-    <div style="max-width:640px;margin:0 auto;width:100%">
-      <div style="padding:14px 14px 0">
-        <div class="searchbox">
-          <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="bitRenderLista()" style="flex:1;border:none;outline:none;font-size:14px">
-        </div>
+    <div id="bit-mobile-search" style="padding:14px 14px 0">
+      <select id="bit-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-family:inherit;background:#fff"></select>
+      <div class="searchbox">
+        <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="_deb('bit-mob', () => bitRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
-      <div class="pages" style="padding:10px 14px 80px">
-        <div id="bit-lista"></div>
-      </div>
+    </div>
+    <div class="pages" style="padding:10px 14px 80px" id="bit-mobile-list">
+      <div id="bit-lista"></div>
     </div>
   </div>
 
@@ -1262,6 +1300,10 @@
     </div>
     <div class="panel-body">
       <div id="bit-ficha-header"></div>
+      <div class="form-group">
+        <label>Mes de las métricas</label>
+        <select id="bit-ficha-mes-select" onchange="bitCambiarMes(this.value)"></select>
+      </div>
       <div id="bit-ficha-metricas"></div>
       <div style="display:flex;gap:8px;margin:14px 0">
         <button class="action-btn" style="margin-top:0" onclick="bitAbrirViaje()">+ Registrar viaje</button>

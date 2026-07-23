@@ -1154,7 +1154,8 @@ body.is-offline #app { padding-top: 30px; }
   #mod-inventario,
   #mod-containers,
   #mod-movimientos,
-  #mod-andamios {
+  #mod-andamios,
+  #mod-bitacora {
     position: fixed;
     inset: 0;
     width: 100vw !important;
@@ -1223,6 +1224,11 @@ body.is-offline #app { padding-top: 30px; }
     background:
       radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
       linear-gradient(135deg, #9c2f2f 0%, #d64545 55%, #e79494 100%);
+  }
+  .inv-desktop-sidebar-top--bit {
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #c4b5fd 100%);
   }
   .inv-desktop-sidebar-top img {
     width: 36px; height: 36px; object-fit: contain;

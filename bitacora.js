@@ -12,8 +12,14 @@
 
 let allBitacora    = []; // [{ rowIndex, id, fecha, patente, kmInicial, kmFinal, destino, chofer, registradoPor }]
 let allCombustible  = []; // [{ rowIndex, id, fecha, patente, km, litros, chofer, registradoPor }]
-let _bitPatenteActual = null;
-let _bitHojasListas   = false;
+let _bitPatenteActual   = null;
+let _bitHojasListas     = false;
+let _bitMesSeleccionado = null; // 'YYYY-MM' — se inicializa en bitInit() con el mes actual
+
+// SVG del vehículo (mismo trazo que usa el ícono del módulo Flota en la
+// pantalla de inicio) — nada de emoji, así queda consistente con el resto
+// de la app.
+const _BIT_ICONO_VEHICULO = '<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 17h1M3 17V8a1 1 0 0 1 1-1h7v10M11 17h7M18 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 11h5l3 3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="currentColor" stroke-width="1.8"/></svg>';
 
 function _bitSoloLectura() {
   return typeof userRole !== 'undefined' && userRole !== 'admin' && userRole !== 'chofer';
@@ -103,6 +109,46 @@ async function bitInit() {
   if (!allBitacora.length && !allCombustible.length) {
     await Promise.all([loadBitacora(), loadCombustible()]);
   }
+  if (!_bitMesSeleccionado) _bitMesSeleccionado = _bitMesActual();
+  _bitRenderSelectoresMes();
+  bitRenderLista();
+}
+
+// Últimos 12 meses (incluye el actual), más reciente primero
+function _bitOpcionesMeses() {
+  const meses = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const valor = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    let label = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+    meses.push({ valor, label });
+  }
+  return meses;
+}
+
+function _bitRenderSelectoresMes() {
+  const opciones = _bitOpcionesMeses()
+    .map(m => `<option value="${m.valor}" ${m.valor === _bitMesSeleccionado ? 'selected' : ''}>${m.label}</option>`)
+    .join('');
+  ['bit-mes-select', 'bit-dt-mes-select', 'bit-ficha-mes-select'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opciones;
+  });
+}
+
+function bitCambiarMes(valor) {
+  _bitMesSeleccionado = valor;
+  _bitRenderSelectoresMes();
+  bitRenderLista();
+  if (_bitPatenteActual) bitRenderMetricasYHistorial();
+}
+
+function bitSyncSearch() {
+  const dt  = document.getElementById('bit-dt-search');
+  const mob = document.getElementById('bit-search');
+  if (dt && mob) mob.value = dt.value;
   bitRenderLista();
 }
 
@@ -124,36 +170,40 @@ function _bitMetricasVehiculo(patente, mes) {
 }
 
 function bitRenderLista() {
-  const cont = document.getElementById('bit-lista');
-  if (!cont) return;
+  const cont   = document.getElementById('bit-lista');
+  const contDt = document.getElementById('bit-dt-lista');
+  if (!cont && !contDt) return;
   const txt = (document.getElementById('bit-search')?.value || '').toLowerCase();
-  const mes = _bitMesActual();
+  const mes = _bitMesSeleccionado || _bitMesActual();
 
+  // Sin ordenar de nuevo: allEquipos ya viene en el mismo orden en que las
+  // filas aparecen en la hoja MAQUINARIA (así se pidió específicamente).
   let vehiculos = (typeof allEquipos !== 'undefined' ? allEquipos : []).slice();
   if (txt) {
     vehiculos = vehiculos.filter(e => ((e.patente || '') + (e.marca || '') + (e.modelo || '')).toLowerCase().includes(txt));
   }
-  vehiculos.sort((a, b) => (a.patente || '').localeCompare(b.patente || '', 'es'));
 
+  let html;
   if (!vehiculos.length) {
-    cont.innerHTML = emptyState('Sin vehículos', 'No hay vehículos cargados en Flota todavía');
-    return;
+    html = emptyState('Sin vehículos', 'No hay vehículos cargados en Flota todavía');
+  } else {
+    html = vehiculos.map(eq => {
+      const m = _bitMetricasVehiculo(eq.patente, mes);
+      const nombre = [eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo || eq.patente;
+      return `<div class="card" onclick="bitAbrirFicha('${eq.patente}')">
+        <div class="card-icon">${_BIT_ICONO_VEHICULO}</div>
+        <div class="card-body">
+          <div class="card-title">${nombre}</div>
+          <div class="card-sub">${eq.patente}</div>
+        </div>
+        <div class="card-right">
+          <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} km<br>${m.litros.toLocaleString('es-CL')} L</span>
+        </div>
+      </div>`;
+    }).join('');
   }
-
-  cont.innerHTML = vehiculos.map(eq => {
-    const m = _bitMetricasVehiculo(eq.patente, mes);
-    const nombre = [eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo || eq.patente;
-    return `<div class="card" onclick="bitAbrirFicha('${eq.patente}')">
-      <div class="card-icon" style="font-size:20px">🚛</div>
-      <div class="card-body">
-        <div class="card-title">${nombre}</div>
-        <div class="card-sub">${eq.patente}</div>
-      </div>
-      <div class="card-right">
-        <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} km<br>${m.litros.toLocaleString('es-CL')} L (mes)</span>
-      </div>
-    </div>`;
-  }).join('');
+  if (cont)   cont.innerHTML   = html;
+  if (contDt) contDt.innerHTML = html;
 }
 
 function bitAbrirFicha(patente) {
@@ -162,9 +212,16 @@ function bitAbrirFicha(patente) {
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
 
   document.getElementById('bit-ficha-header').innerHTML = `
+    ${eq && eq.fotoRef ? `
+    <div class="ficha-section" style="padding:0;overflow:hidden;border-radius:14px;cursor:pointer;margin-bottom:12px" onclick="abrirFotoRefModal('${patente}')">
+      <img src="${eq.fotoRef}" alt="Foto de referencia" style="width:100%;height:190px;object-fit:cover;display:block;border-radius:14px">
+    </div>` : ''}
     <div style="font-size:18px;font-weight:800;color:var(--ink)">${nombre}</div>
     <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">${patente}</div>
   `;
+
+  const selFicha = document.getElementById('bit-ficha-mes-select');
+  if (selFicha) selFicha.value = _bitMesSeleccionado || _bitMesActual();
 
   bitRenderMetricasYHistorial();
   openPanel('panel-bit-ficha');
@@ -173,13 +230,15 @@ function bitAbrirFicha(patente) {
 function bitRenderMetricasYHistorial() {
   const patente = _bitPatenteActual;
   if (!patente) return;
-  const mes = _bitMesActual();
+  const mes = _bitMesSeleccionado || _bitMesActual();
   const m = _bitMetricasVehiculo(patente, mes);
-  const nombreMes = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const [anio, mesNum] = mes.split('-');
+  let nombreMes = new Date(parseInt(anio), parseInt(mesNum) - 1, 1).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
 
   document.getElementById('bit-ficha-metricas').innerHTML = `
     <div class="ficha-section">
-      <div class="ficha-sec-title">Este mes (${nombreMes})</div>
+      <div class="ficha-sec-title">${nombreMes}</div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>

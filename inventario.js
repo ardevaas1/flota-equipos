@@ -1552,7 +1552,7 @@ function irAModulo(modulo) {
   } else if (modulo === 'bitacora') {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-bitacora'), 'forward');
-    requestAnimationFrame(() => bitInit());
+    requestAnimationFrame(() => { _invActivarDesktop('bitacora'); bitInit(); });
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
@@ -1595,7 +1595,7 @@ function _invActivarDesktop(tipo) {
     if (mSearch)  mSearch.style.display  = esDesktop ? 'none'  : '';
     if (mList)    mList.style.display    = esDesktop ? 'none'  : '';
   } else {
-    const pre = tipo === 'andamios' ? 'and' : 'cont';
+    const pre = tipo === 'andamios' ? 'and' : tipo === 'bitacora' ? 'bit' : 'cont';
     const sidebar  = document.getElementById(`${pre}-desktop-sidebar`);
     const content  = document.getElementById(`${pre}-desktop-content`);
     const mHdr     = document.getElementById(`${pre}-mobile-header`);
