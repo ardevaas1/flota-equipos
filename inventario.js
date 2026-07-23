@@ -1394,7 +1394,7 @@ function _setDesktopSidebarFlota(visible) {
 // ══ TRANSICIÓN DE NAVEGACIÓN (push/pop simple, una sola pantalla en movimiento) ═══════
 // PG_ANIM_MS debe ser >= la duración CSS más larga (enter: 250ms, exit: 220ms)
 const PG_ANIM_MS = 260;
-const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios'];
+const PG_CONTAINERS = ['modulos-home', 'main', 'mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'mod-bitacora'];
 let _pgTimeoutId = null;
 let _pgAnimEl    = null; // elemento que está animando actualmente
 let _pgOnEnd     = null; // listener transitionend activo
@@ -1506,17 +1506,18 @@ function irAModulo(modulo) {
   document.getElementById('mod-flota').classList.add('hidden');
 
   // Ocultar instantáneamente cualquier módulo que no sea el destino (no participa en la animación)
-  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'main'].forEach(id => {
+  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'main'].forEach(id => {
     const el = document.getElementById(id);
     if (el && id !== _moduloElId(modulo)) el.classList.add('hidden');
   });
 
   // Tema de color por módulo — aplicado en <body> para que también
   // alcance a los paneles de editar/agregar (viven fuera del contenedor del módulo)
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit');
   if (modulo === 'containers') document.body.classList.add('tema-cont');
   else if (modulo === 'movimientos') document.body.classList.add('tema-mov');
   else if (modulo === 'andamios') document.body.classList.add('tema-and');
+  else if (modulo === 'bitacora') document.body.classList.add('tema-bit');
   else if (modulo !== 'flota') document.body.classList.add('tema-inv');
 
   if (modulo === 'flota') {
@@ -1548,6 +1549,10 @@ function irAModulo(modulo) {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-andamios'), 'forward');
     requestAnimationFrame(() => { _invActivarDesktop('andamios'); andInit(); });
+  } else if (modulo === 'bitacora') {
+    _setDesktopSidebarFlota(false);
+    _pgTransition(homeEl, document.getElementById('mod-bitacora'), 'forward');
+    requestAnimationFrame(() => bitInit());
   } else {
     // Inventario (generadores, maqmenor, herramientas)
     _setDesktopSidebarFlota(false);
@@ -1567,6 +1572,7 @@ function _moduloElId(modulo) {
   if (modulo === 'containers') return 'mod-containers';
   if (modulo === 'movimientos') return 'mod-movimientos';
   if (modulo === 'andamios') return 'mod-andamios';
+  if (modulo === 'bitacora') return 'mod-bitacora';
   return 'mod-inventario';
 }
 
@@ -1645,12 +1651,12 @@ function contSyncSearch() {
 
 function volverAInicio() {
   const homeEl = document.getElementById('modulos-home');
-  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'main']
+  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'main']
     .map(id => document.getElementById(id));
   const saliente = candidatos.find(el => el && !el.classList.contains('hidden'));
 
   candidatos.forEach(el => { if (el && el !== saliente) el.classList.add('hidden'); });
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit');
   // Ocultar sidebar de Flota para que no quede sobre la home
   const s = document.getElementById('desktop-sidebar');
   const m = document.getElementById('desktop-main');

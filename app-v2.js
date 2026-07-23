@@ -387,6 +387,8 @@ function ensureToken() {
 // registrar movimientos en el módulo Movimientos) · 'andamios' (solo
 // lectura + puede modificar todo dentro del módulo Andamios) · 'flota'
 // (solo lectura + puede modificar todo dentro del módulo Flota) ·
+// 'chofer' (NO ve ningún otro módulo — solo entra a Bitácora & Combustible,
+// donde puede registrar viajes y cargas de combustible) ·
 // cualquier otro valor o ausencia de match → 'viewer' (solo lectura).
 async function checkUserRole() {
   try {
@@ -406,6 +408,8 @@ async function checkUserRole() {
       userRole = 'andamios';
     } else if (rolHoja === 'flota') {
       userRole = 'flota';
+    } else if (rolHoja === 'chofer') {
+      userRole = 'chofer';
     } else {
       userRole = 'viewer';
     }
@@ -434,7 +438,7 @@ async function checkUserRole() {
 //              registrar eventos/mantenciones)
 // - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
 function applyViewerMode() {
-  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode');
+  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode');
   if (userRole === 'viewer') {
     document.body.classList.add('viewer-mode');
   } else if (userRole === 'mover') {
@@ -443,6 +447,13 @@ function applyViewerMode() {
     document.body.classList.add('viewer-mode', 'andamios-mode');
   } else if (userRole === 'flota') {
     document.body.classList.add('viewer-mode', 'flota-mode');
+  } else if (userRole === 'chofer') {
+    // A diferencia de mover/andamios/flota (que ven todo en solo lectura y
+    // pueden editar dentro de su módulo), chofer no debe ver NINGÚN otro
+    // módulo — solo entra a Bitácora & Combustible. La clase chofer-mode
+    // oculta las tarjetas de los demás módulos en la pantalla de inicio
+    // (ver CSS .modulo-otro) además de dar permiso de edición ahí adentro.
+    document.body.classList.add('viewer-mode', 'chofer-mode');
   }
   // Controles reservados para admin (ej: herramientas de reparación de datos)
   // — ocultos por defecto en el HTML, se muestran solo si el rol es admin.
