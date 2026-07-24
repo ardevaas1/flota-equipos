@@ -728,6 +728,7 @@ async function invAbrirCarpetaDrive() {
     if (!d1.files || !d1.files.length) {
       // Carpeta de hoja no existe aún → abrir carpeta raíz de inventario
       window.open(`https://drive.google.com/drive/folders/${DRIVE_INV_FOLDER}`, '_blank');
+      toast('Carpeta abierta ✓');
       return;
     }
     const sheetFolderId = d1.files[0].id;
@@ -742,6 +743,7 @@ async function invAbrirCarpetaDrive() {
       // Subcarpeta no existe aún → abrir carpeta de la hoja
       window.open(`https://drive.google.com/drive/folders/${sheetFolderId}`, '_blank');
     }
+    toast('Carpeta abierta ✓');
   } catch(e) {
     toast('Error abriendo Drive: ' + e.message, 'error');
   }

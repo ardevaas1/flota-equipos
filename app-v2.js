@@ -2521,6 +2521,7 @@ async function abrirCarpetaDrive(patente) {
     if (data.files && data.files.length > 0) {
       const folderId = data.files[0].id;
       window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
+      toast('Carpeta abierta ✓');
     } else {
       // Carpeta no existe aún — abrir la raíz
       toast('Carpeta no encontrada, abriendo carpeta raíz...', 'warn');
@@ -2559,6 +2560,7 @@ async function abrirCarpetaFotosEquipo(patente) {
     await ensureToken();
     const folderId = await getSubfolder(patente, 'Fotos');
     window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
+    toast('Carpeta abierta ✓');
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   }
