@@ -288,26 +288,40 @@ function parseContainers(rows) {
 
 // ── Cargar todos los módulos ──────────────────────────────────
 async function loadInventario() {
-  try {
-    const [rowsGen, rowsMM, rowsH, rowsCont] = await Promise.all([
-      fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
-      fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
-      fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:N200`),
-      fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
-    ]);
+  // Las 5 hojas se piden todas a la vez (arrancan al mismo tiempo), pero
+  // con manejo de error SEPARADO entre "las 4 de inventario" y "eventos de
+  // generadores" — si un día la pestaña MANT-GEN no existe con ese nombre
+  // exacto (pasó antes, ver el comentario más abajo), que falle sola y no
+  // se lleve puesto el resto del inventario que sí cargó bien.
+  const pInv = Promise.all([
+    fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
+    fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
+    fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:N200`),
+    fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
+  ]);
+  const pGenEventos = fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
+
+  const [invResult, geResult] = await Promise.all([
+    pInv.then(r => ({ ok: true, r })).catch(e => ({ ok: false, e })),
+    pGenEventos.then(r => ({ ok: true, r })).catch(e => ({ ok: false, e })),
+  ]);
+
+  if (invResult.ok) {
+    const [rowsGen, rowsMM, rowsH, rowsCont] = invResult.r;
     allGeneradores  = parseGeneradores(rowsGen);
     allMaqMenor     = parseMaqMenor(rowsMM);
     allHerramientas = parseHerramientas(rowsH);
     allContainers   = parseContainers(rowsCont);
     console.log('[INV] Cargado:', allGeneradores.length, 'gen,', allMaqMenor.length, 'mm,', allHerramientas.length, 'h,', allContainers.length, 'cont');
-  } catch(e) {
-    console.error('[INV] Error cargando inventario:', e.message);
-    toast('Error cargando inventario: ' + e.message, 'error');
+  } else {
+    console.error('[INV] Error cargando inventario:', invResult.e.message);
+    toast('Error cargando inventario: ' + invResult.e.message, 'error');
   }
 
-  // Cargar eventos de generadores (hoja MANT-GEN)
+  // Eventos de generadores (hoja MANT-GEN)
   try {
-    const rowsGE = await fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
+    if (!geResult.ok) throw geResult.e;
+    const rowsGE = geResult.r;
     allGenEventos = rowsGE
       .filter(r => r[0] || r[1])
       .map((r, i) => ({
@@ -4261,52 +4275,75 @@ function andSyncSearch() {
 }
 
 // Miniatura simplificada (reutiliza la búsqueda en Drive por nombre de archivo,
-// pero con thumb cuadrado en vez del formato "hero" de fichas)
+// pero con thumb cuadrado en vez del formato "hero" de fichas).
+//
+// _andThumbCache guarda tanto resultados YA resueltos ({imgUrl,fallbackUrl})
+// como promesas EN CURSO — así, cuando la misma foto se pide dos veces casi
+// al mismo tiempo (ej: la copia mobile y la de escritorio de la misma
+// tarjeta, que antes disparaban 2 búsquedas idénticas a Drive porque
+// ninguna alcanzaba a terminar antes de que empezara la otra), la segunda
+// espera la MISMA promesa en vez de volver a golpear la API.
+async function _andResolverThumb(fileName) {
+  if (_andThumbCache[fileName]) return _andThumbCache[fileName];
+
+  const promesa = (async () => {
+    try {
+      const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
+        { headers: { 'Authorization': 'Bearer ' + accessToken } }
+      );
+      if (!res.ok) {
+        // No se avisa con un toast por cada foto (serían decenas de avisos), pero
+        // queda clarísimo en consola, y si es específicamente un problema de
+        // permisos (403) se avisa UNA sola vez por sesión con un toast — es la
+        // causa más común de "no me salen las fotos" y antes quedaba invisible.
+        console.warn(`[ANDAMIOS] No se pudo cargar foto "${fileName}": ${_friendlyGoogleApiError(res.status, await res.text())}`);
+        if (res.status === 403 && !window._andAvisoPermisoFotos) {
+          window._andAvisoPermisoFotos = true;
+          toast('No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan', 'error');
+        }
+        return null;
+      }
+      const data = await res.json();
+      if (!data.files || data.files.length === 0) {
+        console.warn(`[ANDAMIOS] Foto "${fileName}" no encontrada en Drive (¿nombre distinto o archivo movido/borrado?)`);
+        return null;
+      }
+      const file = data.files[0];
+      return {
+        imgUrl: `https://drive.google.com/uc?export=view&id=${file.id}`,
+        fallbackUrl: file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '',
+      };
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  _andThumbCache[fileName] = promesa;
+  const resultado = await promesa;
+  // Si falló, no dejar el fallo cacheado — así el próximo render lo reintenta
+  // en vez de quedar roto para siempre en la sesión.
+  if (resultado) _andThumbCache[fileName] = resultado;
+  else delete _andThumbCache[fileName];
+  return resultado;
+}
+
 async function invCargarMiniaturaAndamio(fileName, thumbId) {
   const el = document.getElementById(thumbId);
   if (!el || !fileName) return;
 
-  // Ya se había resuelto esta foto antes (misma foto en otro render): usar directo, sin llamar a Drive de nuevo
-  if (_andThumbCache[fileName]) {
-    const { imgUrl, fallbackUrl } = _andThumbCache[fileName];
-    el.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
-    return;
+  const resultado = await _andResolverThumb(fileName);
+  if (!resultado) return; // sin foto válida: se queda el ícono placeholder
+
+  // El elemento pudo haber sido reemplazado por un re-render mientras esperábamos
+  // la respuesta de Drive (ej: el usuario siguió escribiendo en el buscador);
+  // se vuelve a buscar por id antes de pintar para no escribir sobre un nodo viejo.
+  const elAhora = document.getElementById(thumbId);
+  if (elAhora) {
+    const { imgUrl, fallbackUrl } = resultado;
+    elAhora.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
   }
-
-  try {
-    const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
-      { headers: { 'Authorization': 'Bearer ' + accessToken } }
-    );
-    if (!res.ok) {
-      // No se avisa con un toast por cada foto (serían decenas de avisos), pero
-      // queda clarísimo en consola, y si es específicamente un problema de
-      // permisos (403) se avisa UNA sola vez por sesión con un toast — es la
-      // causa más común de "no me salen las fotos" y antes quedaba invisible.
-      console.warn(`[ANDAMIOS] No se pudo cargar foto "${fileName}": ${_friendlyGoogleApiError(res.status, await res.text())}`);
-      if (res.status === 403 && !window._andAvisoPermisoFotos) {
-        window._andAvisoPermisoFotos = true;
-        toast('No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan', 'error');
-      }
-      return;
-    }
-    const data = await res.json();
-    if (!data.files || data.files.length === 0) {
-      console.warn(`[ANDAMIOS] Foto "${fileName}" no encontrada en Drive (¿nombre distinto o archivo movido/borrado?)`);
-      return;
-    }
-    const file = data.files[0];
-    const imgUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
-    const fallbackUrl = file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '';
-    _andThumbCache[fileName] = { imgUrl, fallbackUrl }; // cachear para los próximos renders
-
-    // El elemento pudo haber sido reemplazado por un re-render mientras esperábamos
-    // la respuesta de Drive (ej: el usuario siguió escribiendo en el buscador);
-    // se vuelve a buscar por id antes de pintar para no escribir sobre un nodo viejo.
-    const elAhora = document.getElementById(thumbId);
-    if (elAhora) elAhora.innerHTML = `<img src="${imgUrl}" alt="Foto" onerror="if(this.src!=='${fallbackUrl}' && '${fallbackUrl}'){this.src='${fallbackUrl}'}">`;
-  } catch (e) { /* silencioso: si falla, se queda el ícono placeholder */ }
 }
 
 // Abre la foto de un tipo en pantalla completa (reutiliza el modal genérico)

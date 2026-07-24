@@ -2181,7 +2181,19 @@ async function loadData(background = false) {
     // I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT
     // N=SOAP O=PERMISO P=REVISION Q=? R=PATENTE2 S=OBS T=MANT_CADA
     // U=PROPIETARIO V=RUT W=LINK_FICHA_TECNICA
-    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:X200`);
+    //
+    // Antes esto se cargaba en 4 pasos uno atrás del otro (Flota → Eventos →
+    // Inventario → Movimientos), cada uno esperando al anterior aunque
+    // ninguno depende del resultado de los demás — eran 4 idas y vueltas a
+    // Google en fila. Pedirlos todos a la vez corta el tiempo total de
+    // carga a lo que tarda el más lento de los cuatro, no la suma de todos.
+    if (!background) splash(30, 'Cargando datos...');
+    const [rows] = await Promise.all([
+      fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:X200`),
+      loadEventos(),
+      loadInventario(),
+      (typeof loadMovimientos === 'function' ? loadMovimientos().catch(e => console.warn('[MOV]', e.message)) : Promise.resolve()),
+    ]);
     if (!background) splash(70, 'Procesando equipos...');
 
     allEquipos = rows
@@ -2224,13 +2236,6 @@ async function loadData(background = false) {
         fallaOperativa: r[22] || '',
         fallaEstetica:  r[23] || '',
       }));
-
-    if (!background) splash(80, 'Cargando eventos...');
-    await loadEventos();
-
-    if (!background) splash(90, 'Cargando inventario...');
-    await loadInventario();
-    if (typeof loadMovimientos === 'function') { try { await loadMovimientos(); } catch(e) {} }
 
     if (!background) splash(100, '¡Listo!');
     renderDashboard();
