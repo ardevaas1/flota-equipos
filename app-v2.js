@@ -798,11 +798,29 @@ async function _conIndicadorCarga(promesa) {
   }
 }
 
+// Reintenta automáticamente cuando Google responde 429 ("demasiadas
+// solicitudes"), esperando cada vez un poco más antes de reintentar
+// (0.8s, luego 1.8s, luego 3.5s). La mayoría de estos errores son
+// pasajeros — varias peticiones que salieron casi juntas — así que con
+// un par de reintentos casi siempre se resuelve solo, sin que la persona
+// tenga que volver a apretar Guardar a mano.
+async function _fetchConReintento(url, options, intentos = 3) {
+  const esperas = [800, 1800, 3500];
+  let ultimoRes;
+  for (let i = 0; i < intentos; i++) {
+    const res = await fetch(url, options);
+    if (res.status !== 429) return res;
+    ultimoRes = res;
+    if (i < intentos - 1) await new Promise(r => setTimeout(r, esperas[i] || 3500));
+  }
+  return ultimoRes;
+}
+
 async function fetchSheet(range) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
   return _conIndicadorCarga((async () => {
-    const res = await fetch(url, { headers: authHeader() });
+    const res = await _fetchConReintento(url, { headers: authHeader() });
     if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
     return (await res.json()).values || [];
   })());
@@ -812,7 +830,7 @@ async function writeSheet(range, values) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
   return _conIndicadorCarga((async () => {
-    const res = await fetch(url, {
+    const res = await _fetchConReintento(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
@@ -826,7 +844,7 @@ async function appendSheet(range, values) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   return _conIndicadorCarga((async () => {
-    const res = await fetch(url, {
+    const res = await _fetchConReintento(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
