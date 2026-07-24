@@ -267,6 +267,7 @@ body.is-offline #app { padding-top: 30px; }
   padding: 13px 14px; margin-bottom: 8px; cursor: pointer;
   display: flex; align-items: center; gap: 12px;
   border-left-width: 4px; /* sobreescrito por los modificadores de estado abajo */
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 /* Strip de color según estado */
 .card--op  { border-left-color: #43a047; }
@@ -314,6 +315,7 @@ body.is-offline #app { padding-top: 30px; }
 .and-card {
   background: #fff; border-radius: 14px; border: 1px solid var(--line);
   padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .and-thumb {
   width: 44px; height: 44px; border-radius: 9px; flex-shrink: 0; overflow: hidden;
@@ -1388,7 +1390,8 @@ body.is-offline #app { padding-top: 30px; }
     box-shadow: 0 8px 20px rgba(0,0,0,0.09);
     border-color: var(--accent);
   }
-  .and-card:hover, .cont-card:hover, .equipo-card:hover, .movh-card:hover {
+  .card:hover, .and-card:hover {
+    background: var(--accent-soft);
     border-color: var(--accent);
     box-shadow: 0 3px 10px rgba(0,0,0,0.06);
   }
@@ -1461,6 +1464,7 @@ body.is-offline #app { padding-top: 30px; }
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(0,0,0,0.05);
   position: relative; overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 /* Acento de color en la esquina superior derecha como "brillo" del gradiente */
 .modulo-card::before {
