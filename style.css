@@ -1395,7 +1395,6 @@ body.is-offline #app { padding-top: 30px; }
     border-color: var(--accent);
   }
   .card:hover, .and-card:hover, .mant-card:hover, .evento-card:hover, .movm-item-card:hover, .evento-card-mini--clickable:hover {
-    background: var(--accent-soft);
     border-color: var(--accent);
     box-shadow: 0 3px 10px rgba(0,0,0,0.06);
   }
