@@ -599,6 +599,14 @@ function invAbrirFotoModalUrl(imgUrl) {
 
 
 // ── Modal foto pantalla completa ───────────────────────────────
+// Token de la invocación más reciente de invAbrirFotoModal — cada llamada
+// se queda con "su" número; si la búsqueda en Drive de una llamada VIEJA
+// responde después de que ya se abrió una foto distinta más nueva, esa
+// respuesta tardía se descarta en vez de pisar lo que ya se está mostrando.
+// Sin esto: cerrar una foto y abrir otra rápido podía terminar mostrando
+// la foto anterior si su búsqueda tardaba más que la de la nueva.
+let _fotoModalToken = 0;
+
 async function invAbrirFotoModal(fileName) {
   // Si recibe URL directa, delegar a invAbrirFotoModalUrl
   if (fileName && fileName.startsWith('http')) {
@@ -611,6 +619,8 @@ async function invAbrirFotoModal(fileName) {
     invAbrirFotoModalUrl(url);
     return;
   }
+
+  const miToken = ++_fotoModalToken;
 
   // Crear modal si no existe
   let modal = document.getElementById('foto-modal-overlay');
@@ -662,6 +672,7 @@ async function invAbrirFotoModal(fileName) {
       `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink,createdTime)&orderBy=createdTime desc&pageSize=1`,
       { headers: { 'Authorization': 'Bearer ' + accessToken } }
     );
+    if (miToken !== _fotoModalToken) return; // se abrió otra foto mientras esperábamos esta respuesta
     if (res.status === 403) {
       spinnerTxt.textContent = '⚠️ No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan';
       return;
@@ -684,10 +695,12 @@ async function invAbrirFotoModal(fileName) {
       ].filter(Boolean);
       let intentoActual = 0;
       imgEl.onload = () => {
+        if (miToken !== _fotoModalToken) return;
         spinnerEl.style.display = 'none';
         imgEl.style.display = 'block';
       };
       imgEl.onerror = () => {
+        if (miToken !== _fotoModalToken) return;
         intentoActual++;
         if (intentoActual < intentos.length) {
           imgEl.src = intentos[intentoActual];
@@ -700,6 +713,7 @@ async function invAbrirFotoModal(fileName) {
       spinnerTxt.textContent = '⚠️ Archivo no encontrado en Drive';
     }
   } catch(e) {
+    if (miToken !== _fotoModalToken) return;
     spinnerTxt.textContent = '⚠️ Error: ' + e.message;
   }
 }
