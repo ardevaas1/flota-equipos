@@ -544,7 +544,11 @@ body.is-offline #app { padding-top: 30px; }
 .ficha-foto-btn:active { background: var(--line); }
 
 /* ── Mantención cards ── */
-.mant-card { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.mant-card { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+/* .evento-card (historial de eventos de Flota) no tenía NINGÚN estilo propio
+   definido — quedaba sin borde, sin fondo ni padding. Usa el mismo look que
+   .mant-card, que es la tarjeta "hermana" del resto de la pantalla Eventos. */
+.evento-card { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
 .mant-card:active { background: #f8f9fa; }
 .mant-icon {
   font-size: 16px; flex-shrink: 0; width: 34px; height: 34px;
@@ -558,7 +562,7 @@ body.is-offline #app { padding-top: 30px; }
 .mant-meta { font-size: 11px; color: #888; margin-top: 2px; }
 
 /* ── Eventos / Movimientos cards (generadores, mantenciones, traslados) ── */
-.evento-card-mini { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; }
+.evento-card-mini { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
 .evento-card-mini:active { background: #f8f9fa; }
 .evento-tipo-icon {
   font-size: 16px; flex-shrink: 0; width: 32px; height: 32px;
@@ -1390,7 +1394,7 @@ body.is-offline #app { padding-top: 30px; }
     box-shadow: 0 8px 20px rgba(0,0,0,0.09);
     border-color: var(--accent);
   }
-  .card:hover, .and-card:hover {
+  .card:hover, .and-card:hover, .mant-card:hover, .evento-card:hover, .movm-item-card:hover, .evento-card-mini--clickable:hover {
     background: var(--accent-soft);
     border-color: var(--accent);
     box-shadow: 0 3px 10px rgba(0,0,0,0.06);
@@ -1638,6 +1642,7 @@ body.is-offline #app { padding-top: 30px; }
   padding: 10px 12px; margin-bottom: 8px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .movm-item-title { font-size: 13px; font-weight: 600; }
 .movm-item-sub { font-size: 11px; color: #888; margin-top: 2px; }

@@ -3152,7 +3152,7 @@ function movhRenderPendientes() {
         ? `movAbrirRecepcionLote('${g.key}')`
         : `movAbrirRecepcion('${m.id}', ${m.rowIndex})`;
       return `
-      <div class="evento-card-mini" onclick="${onclickAttr}" style="cursor:pointer">
+      <div class="evento-card-mini evento-card-mini--clickable" onclick="${onclickAttr}" style="cursor:pointer">
         <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">${svgCamion}</div>
         <div class="mant-body" style="flex:1">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
