@@ -3170,7 +3170,11 @@ function enterApp() {
     splashEl.classList.remove('hidden');
     document.getElementById('splash-progress').classList.add('splash-waiting');
     document.getElementById('splash-hint').textContent = 'Conectando...';
-    loadData();
+    // Revisar el rol de nuevo cada vez que se abre la app (no solo cuando
+    // se toca "Iniciar sesión con Google") — así, si alguien le cambia el
+    // rol a una persona en la hoja USUARIOS, se aplica solo la próxima vez
+    // que esa persona entra, sin que tenga que cerrar sesión a propósito.
+    checkUserRole().finally(() => loadData());
     return;
   }
 
@@ -3219,18 +3223,17 @@ function enterApp() {
             return;
           }
           saveToken(response.access_token, response.expires_in || 3600);
-          try {
-            const sr = localStorage.getItem(ROLE_KEY);
-            const se = localStorage.getItem(EMAIL_KEY);
-            if (sr) { userRole = sr; userEmail = se || ''; applyViewerMode(); actualizarChipUsuario(); }
-          } catch(e) {}
+          userEmail = savedEmail || localStorage.getItem(EMAIL_KEY) || '';
           // Recién ahora, con la sesión ya renovada, pasamos del login al
           // splash con progreso — loadData() ya maneja el splash y al final
           // muestra modulos-home
           document.getElementById('login-screen').classList.add('hidden');
           document.getElementById('splash').classList.remove('hidden');
           document.getElementById('splash-progress').classList.add('splash-waiting');
-          loadData();
+          // Revisar el rol de nuevo (mismo motivo que en el Caso 1: que un
+          // cambio de rol en USUARIOS se aplique solo con volver a entrar,
+          // sin tener que cerrar sesión a propósito)
+          checkUserRole().finally(() => loadData());
         };
         tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
       } else if (intentosInit < 8) {
