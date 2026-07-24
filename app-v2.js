@@ -111,10 +111,18 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => actualizarBannerOffline(true));
 
 // ── Roles de usuario ──────────────────────────────────────────
-let userRole  = null;   // 'admin' | 'mover' | 'andamios' | 'flota' | 'viewer'
+// userRole: valor singular ('admin' | 'viewer' | el primer módulo asignado)
+//   — se mantiene por compatibilidad con chequeos puntuales que solo
+//   necesitan saber "¿es admin?" o similar.
+// userRoles: lista completa de módulos asignados (puede tener más de uno,
+//   ej. ['flota','containers']) — es la fuente real para saber a qué
+//   módulos puede entrar la persona. Vacía si es 'admin' o 'viewer'.
+let userRole  = null;
+let userRoles = [];
 let userEmail = null;
 
 const ROLE_KEY  = 'lst_user_role';
+const ROLES_KEY = 'lst_user_roles';
 const EMAIL_KEY = 'lst_user_email';
 
 // ── Aviso de kilometraje/horómetro (solo admin) ─────────────────
@@ -391,6 +399,8 @@ function ensureToken() {
 // pantalla de inicio, el resto queda oculto. 'viewer' (cualquier otro
 // valor o ausencia de match) sigue viendo todo en solo lectura, sin
 // restricción de módulo — es el único rol "de solo mirar todo".
+const ROLES_DE_MODULO = ['mover', 'andamios', 'flota', 'chofer', 'inventario', 'containers'];
+
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -400,36 +410,41 @@ async function checkUserRole() {
     const data = await res.json();
     const rows = data.values || [];
     const match = rows.find(r => (r[0]||'').toLowerCase().trim() === userEmail);
-    const rolHoja = match ? (match[1]||'').toLowerCase().trim() : '';
-    if (rolHoja === 'admin') {
-      userRole = 'admin';
-    } else if (rolHoja === 'mover') {
-      userRole = 'mover';
-    } else if (rolHoja === 'andamios') {
-      userRole = 'andamios';
-    } else if (rolHoja === 'flota') {
-      userRole = 'flota';
-    } else if (rolHoja === 'chofer') {
-      userRole = 'chofer';
-    } else if (rolHoja === 'inventario') {
-      userRole = 'inventario';
-    } else if (rolHoja === 'containers') {
-      userRole = 'containers';
+    const celda = match ? (match[1]||'').toLowerCase().trim() : '';
+
+    // La celda puede traer varios roles separados por coma (ej: "flota,containers")
+    // para dar acceso a más de un módulo a la misma persona.
+    const tokens = celda.split(',').map(t => t.trim()).filter(Boolean);
+
+    if (tokens.includes('admin')) {
+      userRole  = 'admin';
+      userRoles = ['admin'];
     } else {
-      userRole = 'viewer';
+      const validos = tokens.filter(t => ROLES_DE_MODULO.includes(t));
+      if (validos.length) {
+        userRoles = validos;
+        // userRole (singular) se mantiene por compatibilidad con chequeos
+        // puntuales que solo miran un valor — guarda el primero de la lista.
+        userRole = validos[0];
+      } else {
+        userRole  = 'viewer';
+        userRoles = [];
+      }
     }
   } catch(e) {
     // Si la hoja no existe o hay error, cualquier email desconocido es viewer
     console.warn('[ROLE] No se pudo leer USUARIOS, asignando viewer:', e.message);
-    userRole = 'viewer';
+    userRole  = 'viewer';
+    userRoles = [];
   }
   try {
     localStorage.setItem(ROLE_KEY, userRole);
+    localStorage.setItem(ROLES_KEY, JSON.stringify(userRoles));
     localStorage.setItem(EMAIL_KEY, userEmail || '');
   } catch(e) {}
   applyViewerMode();
   actualizarChipUsuario();
-  console.log('[ROLE] Email:', userEmail, '→ Rol:', userRole);
+  console.log('[ROLE] Email:', userEmail, '→ Roles:', userRoles.length ? userRoles.join(', ') : userRole);
 }
 
 // Aplica las clases de modo en el body según el rol:
@@ -442,32 +457,73 @@ async function checkUserRole() {
 //              modificar todo dentro del módulo Flota — ficha, editar equipo,
 //              registrar eventos/mantenciones)
 // - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
+const MODO_CLASE = {
+  mover: 'mover-mode', andamios: 'andamios-mode', flota: 'flota-mode',
+  chofer: 'chofer-mode', inventario: 'inventario-mode', containers: 'containers-mode',
+};
+// Clase distintiva de cada tarjeta de módulo en la pantalla de inicio, para
+// saber cuáles mostrar según los roles de la persona.
+const MODO_TARJETA_CLASE = {
+  mover: 'modulo-card--mov', andamios: 'modulo-card--and', flota: 'modulo-card--flota',
+  chofer: 'modulo-card--bit', inventario: 'modulo-card--inv', containers: 'modulo-card--cont',
+};
+
 function applyViewerMode() {
   document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode', 'inventario-mode', 'containers-mode');
-  if (userRole === 'viewer') {
+
+  if (userRole !== 'admin') {
     document.body.classList.add('viewer-mode');
-  } else if (userRole === 'mover') {
-    document.body.classList.add('viewer-mode', 'mover-mode');
-  } else if (userRole === 'andamios') {
-    document.body.classList.add('viewer-mode', 'andamios-mode');
-  } else if (userRole === 'flota') {
-    document.body.classList.add('viewer-mode', 'flota-mode');
-  } else if (userRole === 'inventario') {
-    document.body.classList.add('viewer-mode', 'inventario-mode');
-  } else if (userRole === 'containers') {
-    document.body.classList.add('viewer-mode', 'containers-mode');
-  } else if (userRole === 'chofer') {
-    // A diferencia de mover/andamios/flota/inventario/containers (que
-    // solo ven en la pantalla de inicio la tarjeta de su propio módulo,
-    // pero técnicamente comparten la misma lógica de restricción unificada
-    // en CSS), chofer sigue el mismo esquema — su único módulo permitido
-    // es Bitácora & Combustible.
-    document.body.classList.add('viewer-mode', 'chofer-mode');
+    // Se agregan TODAS las clases de modo que correspondan — si la persona
+    // tiene más de un módulo asignado (ej. userRoles = ['flota','containers']),
+    // cada clase reactiva la edición solo dentro de SU módulo; al no haber
+    // ninguna regla de "ocultar los demás" mezclada ahí, combinan bien
+    // sin pisarse entre sí.
+    userRoles.forEach(r => {
+      const clase = MODO_CLASE[r];
+      if (clase) document.body.classList.add(clase);
+    });
   }
+
+  // Qué tarjetas de módulo se ven en la pantalla de inicio: admin y viewer
+  // ven las 6; el resto ve solo la(s) de los módulos que tenga asignados.
+  aplicarRestriccionModulosHome();
+
   // Controles reservados para admin (ej: herramientas de reparación de datos)
   // — ocultos por defecto en el HTML, se muestran solo si el rol es admin.
   document.querySelectorAll('.admin-only-btn').forEach(el => {
     el.style.display = (userRole === 'admin') ? '' : 'none';
+  });
+}
+
+// Muestra/oculta las tarjetas de módulo y el botón "Generar resumen" según
+// los roles de la persona. Vive en JS (no en CSS con selectores fijos por
+// rol) justamente para poder combinar cualquier cantidad de módulos sin
+// que las reglas de "ocultar los demás" de cada rol se pisen entre sí.
+function aplicarRestriccionModulosHome() {
+  const cards = document.querySelectorAll('.modulo-card');
+  const resumenWrap = document.querySelector('.modulos-resumen-wrap');
+  const listas = document.querySelectorAll('.modulos-lista');
+
+  const irrestricto = (userRole === 'admin' || userRole === 'viewer' || !userRoles.length);
+
+  cards.forEach(c => { c.style.display = ''; });
+  if (resumenWrap) resumenWrap.style.display = '';
+  listas.forEach(l => { l.style.display = ''; l.style.justifyContent = ''; l.style.flexWrap = ''; });
+
+  if (irrestricto) return;
+
+  const clasesPermitidas = userRoles.map(r => MODO_TARJETA_CLASE[r]).filter(Boolean);
+  cards.forEach(c => {
+    const permitida = clasesPermitidas.some(cls => c.classList.contains(cls));
+    c.style.display = permitida ? '' : 'none';
+  });
+  if (resumenWrap) resumenWrap.style.display = 'none';
+  // Con menos de las 6 tarjetas visibles, se centran en vez de quedar
+  // pegadas a la izquierda (donde les tocaba en la grilla fija de 6).
+  listas.forEach(l => {
+    l.style.display = 'flex';
+    l.style.flexWrap = 'wrap';
+    l.style.justifyContent = 'center';
   });
 }
 
@@ -502,12 +558,14 @@ function cerrarSesion() {
     localStorage.removeItem('lst_has_drive_scope');
     localStorage.removeItem(EMAIL_KEY);
     localStorage.removeItem(ROLE_KEY);
+    localStorage.removeItem(ROLES_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(EXPIRY_KEY);
   } catch(e) {}
 
   userEmail = null;
   userRole  = null;
+  userRoles = [];
   tokenClient = null; // fuerza a initOAuth() a crear un tokenClient nuevo en el próximo login
 
   const modulosHome = document.getElementById('modulos-home');
@@ -3151,9 +3209,11 @@ function enterApp() {
   // Restaurar rol guardado
   try {
     const savedRole  = localStorage.getItem(ROLE_KEY);
+    const savedRoles = localStorage.getItem(ROLES_KEY);
     const savedEmail = localStorage.getItem(EMAIL_KEY);
     if (savedRole) {
       userRole  = savedRole;
+      userRoles = savedRoles ? (JSON.parse(savedRoles) || []) : [];
       userEmail = savedEmail || '';
       applyViewerMode();
       actualizarChipUsuario();

@@ -3442,7 +3442,10 @@ let andFiltroSistema = ''; // '' = todos, 'Europeo', 'Multidireccional'
 // para editar/contar piezas acá — antes esta función solo revisaba 'viewer'
 // y dejaba a 'mover' con vía libre para todo en este módulo.
 function _andSoloLectura() {
-  return typeof userRole !== 'undefined' && (userRole === 'viewer' || userRole === 'mover');
+  if (typeof userRole === 'undefined') return false;
+  if (userRole === 'admin') return false;
+  if (typeof userRoles !== 'undefined' && userRoles.includes('andamios')) return false;
+  return true;
 }
 
 // Envía una escritura de Andamios al Apps Script en vez de escribir directo a

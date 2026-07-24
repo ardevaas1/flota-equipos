@@ -22,7 +22,10 @@ let _bitMesSeleccionado = null; // 'YYYY-MM' — se inicializa en bitInit() con 
 const _BIT_ICONO_VEHICULO = '<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 17h1M3 17V8a1 1 0 0 1 1-1h7v10M11 17h7M18 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 11h5l3 3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0Z" stroke="currentColor" stroke-width="1.8"/></svg>';
 
 function _bitSoloLectura() {
-  return typeof userRole !== 'undefined' && userRole !== 'admin' && userRole !== 'chofer';
+  if (typeof userRole === 'undefined') return false;
+  if (userRole === 'admin') return false;
+  if (typeof userRoles !== 'undefined' && userRoles.includes('chofer')) return false;
+  return true;
 }
 
 // Crea las hojas BITACORA / COMBUSTIBLE (con sus encabezados) si todavía

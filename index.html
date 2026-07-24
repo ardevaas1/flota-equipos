@@ -179,40 +179,11 @@
     /* ── Modo Chofer: reactiva edición dentro de Bitácora & Combustible.
        La restricción de "solo ve su propia tarjeta" está unificada más
        abajo para los 6 roles de módulo. */
-    /* ── Restricción de pantalla de inicio: cada rol atado a un módulo
-       (flota / mover / andamios / chofer / inventario / containers) solo
-       ve la tarjeta de SU módulo — el resto queda oculto, igual que
-       "Generar resumen" (que junta todos los módulos, no aplica acá).
-       admin y viewer no llevan ninguna de estas clases, así que no los
-       toca esta regla y siguen viendo la pantalla de inicio completa. */
-    body.flota-mode      .modulo-card:not(.modulo-card--flota),
-    body.mover-mode      .modulo-card:not(.modulo-card--mov),
-    body.andamios-mode   .modulo-card:not(.modulo-card--and),
-    body.chofer-mode     .modulo-card:not(.modulo-card--bit),
-    body.inventario-mode .modulo-card:not(.modulo-card--inv),
-    body.containers-mode .modulo-card:not(.modulo-card--cont) {
-      display: none !important;
-    }
-    body.flota-mode      .modulo-otro,
-    body.mover-mode      .modulo-otro,
-    body.andamios-mode   .modulo-otro,
-    body.chofer-mode     .modulo-otro,
-    body.inventario-mode .modulo-otro,
-    body.containers-mode .modulo-otro {
-      display: none !important;
-    }
-    /* Con una sola tarjeta visible, se centra en vez de quedar pegada
-       a la izquierda (donde caía su celda en la grilla de 6 columnas) */
-    body.flota-mode      .modulos-lista,
-    body.mover-mode      .modulos-lista,
-    body.andamios-mode   .modulos-lista,
-    body.chofer-mode     .modulos-lista,
-    body.inventario-mode .modulos-lista,
-    body.containers-mode .modulos-lista {
-      display: flex !important;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    /* La restricción de qué tarjetas se ven en la pantalla de inicio ahora
+       vive en JS (aplicarRestriccionModulosHome, en app-v2.js) — así se
+       puede combinar cualquier cantidad de roles/módulos por persona sin
+       que las reglas de "ocultar los demás" de cada rol se pisen entre sí,
+       cosa que con puro CSS por selector de rol no se podía lograr bien. */
 
     body.chofer-mode #mod-bitacora .pnl-action,
     body.chofer-mode #mod-bitacora .action-btn,
