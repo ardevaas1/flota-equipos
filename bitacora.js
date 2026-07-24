@@ -28,6 +28,29 @@ function _bitSoloLectura() {
   return true;
 }
 
+// Algunos equipos (generadores, cierta maquinaria) se miden por horómetro
+// (horas), no por kilometraje — se marca por vehículo en la ficha de Flota
+// (campo "Unidad de medida"). Todo lo que se muestra en Bitácora se adapta
+// según esto: "Km inicial/final" vs "Horas inicial/final", "km recorridos"
+// vs "horas trabajadas", etc. Por defecto (equipo no encontrado, o sin el
+// campo cargado) se asume KM, que es el caso más común.
+function _bitUnidad(patente) {
+  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  return (eq && eq.unidadUso === 'HORAS') ? 'HORAS' : 'KM';
+}
+function _bitEsHoras(patente) { return _bitUnidad(patente) === 'HORAS'; }
+// Textos según unidad, en varias formas gramaticales para no armar frases feas
+function _bitTextos(patente) {
+  const horas = _bitEsHoras(patente);
+  return {
+    unidadCorta:   horas ? 'h'      : 'km',
+    unidadLarga:   horas ? 'horas'  : 'km',
+    unidadLargaCap:horas ? 'Horas'  : 'Km',
+    rendimiento:   horas ? 'h / litro' : 'km / litro',
+    recorridoLabel:horas ? 'horas trabajadas' : 'km recorridos',
+  };
+}
+
 // Crea las hojas BITACORA / COMBUSTIBLE (con sus encabezados) si todavía
 // no existen en el Sheet. Se corre una sola vez por sesión.
 async function _bitAsegurarHojas() {
@@ -192,6 +215,7 @@ function bitRenderLista() {
   } else {
     html = vehiculos.map(eq => {
       const m = _bitMetricasVehiculo(eq.patente, mes);
+      const t = _bitTextos(eq.patente);
       const nombre = [eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo || eq.patente;
       return `<div class="card" onclick="bitAbrirFicha('${eq.patente}')">
         <div class="card-icon">${_BIT_ICONO_VEHICULO}</div>
@@ -200,7 +224,7 @@ function bitRenderLista() {
           <div class="card-sub">${eq.patente}</div>
         </div>
         <div class="card-right">
-          <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} km<br>${m.litros.toLocaleString('es-CL')} L</span>
+          <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} ${t.unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</span>
         </div>
       </div>`;
     }).join('');
@@ -213,13 +237,17 @@ function bitAbrirFicha(patente) {
   _bitPatenteActual = patente;
   const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
+  const esHoras = _bitEsHoras(patente);
 
   document.getElementById('bit-ficha-header').innerHTML = `
     ${eq && eq.fotoRef ? `
     <div class="ficha-section" style="padding:0;overflow:hidden;border-radius:14px;cursor:pointer;margin-bottom:12px" onclick="abrirFotoRefModal('${patente}')">
       <img src="${eq.fotoRef}" alt="Foto de referencia" style="width:100%;height:190px;object-fit:cover;display:block;border-radius:14px">
     </div>` : ''}
-    <div style="font-size:18px;font-weight:800;color:var(--ink)">${nombre}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-size:18px;font-weight:800;color:var(--ink)">${nombre}</div>
+      ${esHoras ? `<span style="background:var(--accent-soft);color:var(--accent-dark);border-radius:99px;padding:2px 9px;font-size:10.5px;font-weight:700">Se mide en horas</span>` : ''}
+    </div>
     <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">${patente}</div>
   `;
 
@@ -235,6 +263,7 @@ function bitRenderMetricasYHistorial() {
   if (!patente) return;
   const mes = _bitMesSeleccionado || _bitMesActual();
   const m = _bitMetricasVehiculo(patente, mes);
+  const t = _bitTextos(patente);
   const [anio, mesNum] = mes.split('-');
   let nombreMes = new Date(parseInt(anio), parseInt(mesNum) - 1, 1).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
   nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
@@ -245,7 +274,7 @@ function bitRenderMetricasYHistorial() {
       <div style="display:flex;gap:10px;margin-top:6px">
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">km recorridos</div>
+          <div style="font-size:11px;color:var(--ink-soft)">${t.recorridoLabel}</div>
         </div>
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.litros.toLocaleString('es-CL')}</div>
@@ -253,7 +282,7 @@ function bitRenderMetricasYHistorial() {
         </div>
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.rendimiento ? m.rendimiento.toFixed(1) : '—'}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">km / litro</div>
+          <div style="font-size:11px;color:var(--ink-soft)">${t.rendimiento}</div>
         </div>
       </div>
     </div>
@@ -279,7 +308,7 @@ function bitRenderMetricasYHistorial() {
         </div>
         <div class="mant-body">
           <div class="mant-title">Viaje a ${ev.destino || '—'}</div>
-          <div class="mant-meta">${ev.fecha} · ${ev.kmInicial.toLocaleString('es-CL')} → ${ev.kmFinal.toLocaleString('es-CL')} km (${km.toLocaleString('es-CL')} km)</div>
+          <div class="mant-meta">${ev.fecha} · ${ev.kmInicial.toLocaleString('es-CL')} → ${ev.kmFinal.toLocaleString('es-CL')} ${t.unidadCorta} (${km.toLocaleString('es-CL')} ${t.unidadCorta})</div>
           ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
         </div>
       </div>`;
@@ -290,7 +319,7 @@ function bitRenderMetricasYHistorial() {
       </div>
       <div class="mant-body">
         <div class="mant-title">Carga de combustible</div>
-        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} km · ${ev.litros} L</div>
+        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L</div>
         ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
       </div>
     </div>`;
@@ -317,6 +346,7 @@ function bitAbrirViaje() {
   const patente = _bitPatenteActual;
   const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
+  const t = _bitTextos(patente);
 
   document.getElementById('bit-viaje-patente').value = patente;
   document.getElementById('bit-viaje-vehiculo').textContent = `${nombre} — ${patente}`;
@@ -325,6 +355,10 @@ function bitAbrirViaje() {
   document.getElementById('bit-viaje-kmf').value = '';
   document.getElementById('bit-viaje-destino').value = '';
   document.getElementById('bit-viaje-chofer').value = '';
+  document.getElementById('bit-viaje-kmi-label').textContent = `${t.unidadLargaCap} inicial`;
+  document.getElementById('bit-viaje-kmf-label').textContent = `${t.unidadLargaCap} final`;
+  document.getElementById('bit-viaje-kmi').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1200' : 'Ej: 45200';
+  document.getElementById('bit-viaje-kmf').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
 
   openPanel('panel-bit-viaje');
 }
@@ -368,6 +402,7 @@ function bitAbrirCombustible() {
   const patente = _bitPatenteActual;
   const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
+  const t = _bitTextos(patente);
 
   document.getElementById('bit-comb-patente').value = patente;
   document.getElementById('bit-comb-vehiculo').textContent = `${nombre} — ${patente}`;
@@ -375,6 +410,8 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-km').value = _bitUltimoKmConocido(patente) || '';
   document.getElementById('bit-comb-litros').value = '';
   document.getElementById('bit-comb-chofer').value = '';
+  document.getElementById('bit-comb-km-label').textContent = `${t.unidadLargaCap} actual`;
+  document.getElementById('bit-comb-km').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
 
   openPanel('panel-bit-combustible');
 }

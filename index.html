@@ -622,6 +622,14 @@
 
       <div class="form-sec">Horómetro / Odómetro</div>
       <div class="form-group">
+        <label>Unidad de medida</label>
+        <select id="edit-unidad-uso">
+          <option value="KM">Kilómetros</option>
+          <option value="HORAS">Horas (horómetro)</option>
+        </select>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">Afecta cómo se muestra este equipo en Bitácora (Km inicial/final vs. Horas inicial/final).</div>
+      </div>
+      <div class="form-group">
         <label>Kilometraje / Horómetro actual</label>
         <input type="number" id="edit-horometro" placeholder="—" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
@@ -1377,11 +1385,11 @@
         <input type="date" id="bit-viaje-fecha">
       </div>
       <div class="form-group">
-        <label>Km inicial</label>
+        <label id="bit-viaje-kmi-label">Km inicial</label>
         <input type="number" id="bit-viaje-kmi" min="0" placeholder="Ej: 45200">
       </div>
       <div class="form-group">
-        <label>Km final</label>
+        <label id="bit-viaje-kmf-label">Km final</label>
         <input type="number" id="bit-viaje-kmf" min="0" placeholder="Ej: 45350">
       </div>
       <div class="form-group">
@@ -1410,7 +1418,7 @@
         <input type="date" id="bit-comb-fecha">
       </div>
       <div class="form-group">
-        <label>Km actual</label>
+        <label id="bit-comb-km-label">Km actual</label>
         <input type="number" id="bit-comb-km" min="0" placeholder="Ej: 45350">
       </div>
       <div class="form-group">

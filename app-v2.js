@@ -2189,7 +2189,7 @@ async function loadData(background = false) {
     // carga a lo que tarda el más lento de los cuatro, no la suma de todos.
     if (!background) splash(30, 'Cargando datos...');
     const [rows] = await Promise.all([
-      fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:X200`),
+      fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!A2:Y200`),
       loadEventos(),
       loadInventario(),
       (typeof loadMovimientos === 'function' ? loadMovimientos().catch(e => console.warn('[MOV]', e.message)) : Promise.resolve()),
@@ -2235,6 +2235,10 @@ async function loadData(background = false) {
         })(),
         fallaOperativa: r[22] || '',
         fallaEstetica:  r[23] || '',
+        // Y = con qué se mide el uso de este equipo: KM (por defecto, la
+        // mayoría de los vehículos) u HORAS (generadores y cierta
+        // maquinaria que se mide por horómetro, no por kilometraje).
+        unidadUso: (r[24] || 'KM').toString().trim().toUpperCase() === 'HORAS' ? 'HORAS' : 'KM',
       }));
 
     if (!background) splash(100, '¡Listo!');
@@ -2661,6 +2665,7 @@ function openEditPanel() {
 
   document.getElementById('edit-ubicacion').value = e.ubicacion;
   document.getElementById('edit-horometro').value = e.horometro;
+  document.getElementById('edit-unidad-uso').value = e.unidadUso || 'KM';
   document.getElementById('edit-proxima').value   = e.proxMant;
   document.getElementById('edit-ultima').value    = e.ultMant;
 
@@ -2799,6 +2804,7 @@ async function saveEquipo() {
   const estado    = document.getElementById('edit-estado').value;
   const ubicacion = document.getElementById('edit-ubicacion').value;
   const horometro = document.getElementById('edit-horometro').value;
+  const unidadUso = document.getElementById('edit-unidad-uso').value;
   const proxima   = document.getElementById('edit-proxima').value;
   const ultima    = document.getElementById('edit-ultima').value;
   const soap      = document.getElementById('edit-soap').value;
@@ -2904,6 +2910,7 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!V${row}`, [[fotoRefVal]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!W${row}`, [[fallaOp]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!X${row}`, [[fallaEst]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Y${row}`, [[unidadUso]]),
     ]);
     console.log('[SAVE] Sheet OK');
 
