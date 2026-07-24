@@ -508,7 +508,7 @@ function aplicarRestriccionModulosHome() {
 
   cards.forEach(c => { c.style.display = ''; });
   if (resumenWrap) resumenWrap.style.display = '';
-  listas.forEach(l => { l.style.display = ''; l.style.justifyContent = ''; l.style.flexWrap = ''; });
+  listas.forEach(l => l.classList.remove('modulos-lista--restringido'));
 
   if (irrestricto) return;
 
@@ -518,13 +518,11 @@ function aplicarRestriccionModulosHome() {
     c.style.display = permitida ? '' : 'none';
   });
   if (resumenWrap) resumenWrap.style.display = 'none';
-  // Con menos de las 6 tarjetas visibles, se centran en vez de quedar
-  // pegadas a la izquierda (donde les tocaba en la grilla fija de 6).
-  listas.forEach(l => {
-    l.style.display = 'flex';
-    l.style.flexWrap = 'wrap';
-    l.style.justifyContent = 'center';
-  });
+  // Con menos de las 6 tarjetas visibles, se centran (en vez de quedar
+  // pegadas a la izquierda) y quedan todas del mismo ancho fijo (ver
+  // .modulos-lista--restringido en style.css) — así ninguna se ve más
+  // angosta o más ancha que las demás según lo largo de su texto.
+  listas.forEach(l => l.classList.add('modulos-lista--restringido'));
 }
 
 function authHeader() {

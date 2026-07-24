@@ -1434,6 +1434,19 @@ body.is-offline #app { padding-top: 30px; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* Se agrega por JS (aplicarRestriccionModulosHome) cuando la persona tiene
+   menos de 6 módulos permitidos: sin esto, al pasar de grid a flex para
+   poder centrar, cada tarjeta terminaba con el ancho de su propio texto
+   (una más angosta que la otra) en vez de quedar todas parejas. */
+.modulos-lista--restringido {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.modulos-lista--restringido .modulo-card {
+  flex: 0 1 200px;
+  width: 200px;
+}
 /* Cuando el número de módulos es impar, el último queda solo en su fila;
    se le da el ancho completo para que la grilla se vea simétrica en vez
    de dejar un hueco vacío al lado. Funciona automáticamente sin importar
