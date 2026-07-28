@@ -196,6 +196,53 @@ function _hojaUbicacionesAnd() {
   return sh;
 }
 
+// Fuerza el total de una pieza a un número EXACTO desde el panel "Editar" —
+// a diferencia de _fijarCantidadUbicacionAnd (que solo toca UNA ubicación
+// puntual y deja que el total salga de sumar todas), esta función además
+// pone en 0 cualquier otra fila de ubicación que haya quedado suelta para
+// esa misma pieza con un nombre distinto a "COLIMA" (por ejemplo un resto
+// de la antigua "Bodega", de antes de renombrarla) — así el total nunca
+// puede terminar sumando algo que la persona no ve ni puede editar desde
+// acá. Pensada para cuando todavía no hay ubicaciones reales aparte de
+// COLIMA; si en el futuro se usan obras de verdad, esta función ya no
+// debería usarse desde "Editar" (se dejaría de tocar solo COLIMA).
+function _forzarTotalPiezaAnd(shAndamios, row, nueva, tipoNombre, email) {
+  const shUbic = _hojaUbicacionesAnd();
+  const datos = shUbic.getDataRange().getValues();
+  let anteriorTotal = 0;
+  let filaColima = -1;
+  const filasSueltas = [];
+
+  for (let i = 1; i < datos.length; i++) {
+    if (parseInt(datos[i][0], 10) === row) {
+      anteriorTotal += parseInt(datos[i][3], 10) || 0;
+      const esColima = (datos[i][2] || '').toString().trim().toUpperCase() === 'COLIMA';
+      if (esColima && filaColima === -1) {
+        filaColima = i + 1;
+      } else {
+        filasSueltas.push(i + 1);
+      }
+    }
+  }
+
+  // Las filas sueltas (con otro nombre de ubicación) se ponen en 0 en vez
+  // de borrarse — más simple y seguro que reindexar filas del Sheet, y el
+  // resultado es el mismo: no vuelven a sumar en el total.
+  filasSueltas.forEach(fila => shUbic.getRange(fila, 4).setValue(0));
+
+  if (filaColima === -1) {
+    shUbic.appendRow([row, tipoNombre || '', 'COLIMA', nueva]);
+  } else {
+    shUbic.getRange(filaColima, 4).setValue(nueva);
+  }
+
+  shAndamios.getRange(row, 3).setValue(nueva); // total = exactamente lo que se pidió, sin vueltas
+  if (anteriorTotal !== nueva) {
+    _registrarHistorialAnd(row, tipoNombre, anteriorTotal, nueva, email, 'Cantidad (editar)');
+  }
+  return nueva;
+}
+
 // Recalcula el total de una pieza (suma de todas sus ubicaciones) y lo
 // deja escrito en la columna C de ANDAMIOS — así el resto de la app puede
 // seguir leyendo un solo número sin tener que sumar nada del lado del
@@ -380,10 +427,11 @@ function manejarAccionAndamios(p) {
         sh.getRange(row, 4).setValue(p.obs || '');
         sh.getRange(row, 5).setValue(p.sistema || 'Europeo');
         if (p.foto) sh.getRange(row, 2).setValue(p.foto);
-        // La "cantidad" del panel de editar ajusta específicamente Bodega,
-        // igual que el botón +/- — el total (col C) se recalcula solo.
+        // La "cantidad" del panel de editar es el TOTAL de la pieza — se
+        // fuerza exacto, sin dejar que sume filas de ubicación sueltas con
+        // otro nombre (ver _forzarTotalPiezaAnd).
         const nueva = parseInt(p.cantidad, 10) || 0;
-        const total = _fijarCantidadUbicacionAnd(sh, row, 'COLIMA', nueva, p.tipo || '', email);
+        const total = _forzarTotalPiezaAnd(sh, row, nueva, p.tipo || '', email);
         return _jsonOut({ success: true, total });
       }
 

@@ -4620,17 +4620,6 @@ async function andGuardarEdit() {
     toast('Guardando...', 'loading');
     await _andEscrituraRemota('and_editar', { row, tipo: nombre, cantidad, obs, sistema });
 
-    // Forzar que el total de esta pieza quede EXACTAMENTE en el número que
-    // se escribió acá — se hace DESPUÉS de and_editar (no en paralelo),
-    // para que sea la última palabra y no dependa de cómo haya quedado el
-    // cálculo por ubicaciones. Por ahora todo el stock vive en COLIMA (no
-    // hay obras cargadas todavía), así que "Cantidad" acá es directamente
-    // el total, sin vueltas. Esto corrige de raíz cualquier caso donde
-    // hubiera quedado una fila de ubicación con otro nombre (ej. un resto
-    // de la antigua "Bodega" antes de renombrarla) que hiciera que el
-    // total se viera más alto de lo que se acababa de escribir.
-    await writeSheet(`'${SHEET_ANDAMIOS}'!C${row}`, [[cantidad]]);
-
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
       try {
