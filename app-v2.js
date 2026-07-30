@@ -679,8 +679,38 @@ function docBadge(dias) {
   return `<span class="badge green">Vigente ${dias}d</span>`;
 }
 
+// Convierte un número guardado en el Sheet (que puede venir con distintos
+// formatos: "300", "1.200" con punto de miles, "1.200,5" formato chileno,
+// o "100.5" con punto DECIMAL) a un number de JS, sin asumir a ciegas que
+// todo punto es separador de miles.
+//
+// Antes, todo el código sacaba los puntos siempre ("100.5" → "1005"), lo
+// que multiplicaba por 10 o 100 cualquier horómetro con decimales — muy
+// común en equipos que se miden en horas — y disparaba alertas de
+// mantención atrasada sin motivo real.
+function _parseNumeroSheet(v) {
+  let s = (v || '').toString().trim();
+  if (!s) return NaN;
+  if (s.includes(',')) {
+    // Formato chileno con miles y decimales: "1.234,56" → sacar puntos
+    // (miles), coma a punto (decimal)
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    // Sin coma: si hay un único punto y le siguen 1 o 2 dígitos, es punto
+    // DECIMAL (ej: "100.5") y se deja intacto. Si tiene 3 dígitos después
+    // (ej: "1.200") o hay más de un punto, es separador de miles y se saca.
+    const partes = s.split('.');
+    if (partes.length > 1) {
+      const ultimaParte = partes[partes.length - 1];
+      const pareceDecimal = partes.length === 2 && ultimaParte.length <= 2;
+      if (!pareceDecimal) s = s.replace(/\./g, '');
+    }
+  }
+  return parseFloat(s);
+}
+
 function formatNum(v) {
-  const n = parseFloat((v || '').toString().replace(/\./g,'').replace(',','.'));
+  const n = _parseNumeroSheet(v);
   if (isNaN(n)) return v || '—';
   return n.toLocaleString('es-CL');
 }
@@ -1057,8 +1087,8 @@ function renderEventos() {
   const conHoro = allEquipos
     .filter(e => e.horometro && e.proxMant)
     .map(e => {
-      const actual = parseFloat((e.horometro||'').toString().replace(/\./g,'')) || 0;
-      const prox   = parseFloat((e.proxMant ||'').toString().replace(/\./g,'')) || 0;
+      const actual = _parseNumeroSheet(e.horometro) || 0;
+      const prox   = _parseNumeroSheet(e.proxMant) || 0;
       return { ...e, actual, prox, diff: prox - actual };
     })
     .filter(e => e.prox > 0)
@@ -1984,6 +2014,24 @@ function openEventoPanel(patente) {
   document.getElementById('evento-proxima').value   = '';
   document.getElementById('evento-obs').value       = '';
   limpiarFotos();
+
+  // Calcular sola la "Próxima mantención" (horómetro actual + intervalo del
+  // vehículo) en vez de que alguien tenga que sumarlo a mano — así no puede
+  // volver a pasar que quede un número viejo/equivocado ahí, desincronizado
+  // del intervalo real ("Cada"). Sigue siendo editable por si hace falta
+  // ajustarla a mano en algún caso puntual.
+  const equipoSel = document.getElementById('evento-equipo');
+  const horometroInput = document.getElementById('evento-horometro');
+  const proximaInput = document.getElementById('evento-proxima');
+  const recalcularProxima = () => {
+    const eq = allEquipos.find(x => x.patente === equipoSel.value);
+    const cada = _parseNumeroSheet(eq && eq.mantCada) || 0;
+    const actual = _parseNumeroSheet(horometroInput.value) || 0;
+    if (cada > 0 && actual > 0) proximaInput.value = actual + cada;
+  };
+  equipoSel.onchange = recalcularProxima;
+  horometroInput.oninput = recalcularProxima;
+
   // Mostrar/ocultar campo próxima según tipo
   const tipoSel = document.getElementById('evento-tipo');
   const toggleProxima = () => {
@@ -2343,8 +2391,8 @@ function renderDashboard() {
   const conHoro = allEquipos
     .filter(e => e.horometro && e.proxMant)
     .map(e => {
-      const actual = parseFloat((e.horometro||'').toString().replace(/\./g,'').replace(',','.')) || 0;
-      const prox   = parseFloat((e.proxMant ||'').toString().replace(/\./g,'').replace(',','.')) || 0;
+      const actual = _parseNumeroSheet(e.horometro) || 0;
+      const prox   = _parseNumeroSheet(e.proxMant) || 0;
       return { ...e, actual, prox, diff: prox - actual };
     })
     .filter(e => e.prox > 0)
@@ -2684,6 +2732,7 @@ function openEditPanel() {
   document.getElementById('edit-ubicacion').value = e.ubicacion;
   document.getElementById('edit-horometro').value = e.horometro;
   document.getElementById('edit-unidad-uso').value = e.unidadUso || 'KM';
+  document.getElementById('edit-mantcada').value = e.mantCada || '';
   document.getElementById('edit-proxima').value   = e.proxMant;
   document.getElementById('edit-ultima').value    = e.ultMant;
 
@@ -2823,6 +2872,7 @@ async function saveEquipo() {
   const ubicacion = document.getElementById('edit-ubicacion').value;
   const horometro = document.getElementById('edit-horometro').value;
   const unidadUso = document.getElementById('edit-unidad-uso').value;
+  const mantCada  = document.getElementById('edit-mantcada').value;
   const proxima   = document.getElementById('edit-proxima').value;
   const ultima    = document.getElementById('edit-ultima').value;
   const soap      = document.getElementById('edit-soap').value;
@@ -2929,6 +2979,7 @@ async function saveEquipo() {
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!W${row}`, [[fallaOp]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!X${row}`, [[fallaEst]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Y${row}`, [[unidadUso]]),
+      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[mantCada]]),
     ]);
     console.log('[SAVE] Sheet OK');
 
