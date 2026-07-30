@@ -645,7 +645,12 @@
       </div>
       <div class="form-group">
         <label>Próxima mantención (en)</label>
-        <input type="number" id="edit-proxima" placeholder="Ej: 13000">
+        <input type="number" id="edit-proxima" placeholder="—" disabled
+          style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
+        <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          Se calcula sola al registrar una mantención (horómetro + intervalo). No se edita a mano.
+        </div>
       </div>
       <div class="form-group">
         <label>Última mantención (en)</label>
@@ -773,7 +778,9 @@
       </div>
       <div class="form-group" id="evento-proxima-group" style="display:none">
         <label>Próxima mantención (h/km)</label>
-        <input type="number" id="evento-proxima" placeholder="Ej: 13000">
+        <input type="number" id="evento-proxima" placeholder="Se calcula sola" disabled
+          style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
+        <div style="font-size:11.5px;color:#94a3b8;margin-top:5px">Horómetro/odómetro de este evento + intervalo del equipo. Si el equipo no tiene un intervalo cargado ("Cada"), corrígelo desde Editar vehículo.</div>
       </div>
       <div class="form-group">
         <label>Descripción</label>

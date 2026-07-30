@@ -2873,7 +2873,8 @@ async function saveEquipo() {
   const horometro = document.getElementById('edit-horometro').value;
   const unidadUso = document.getElementById('edit-unidad-uso').value;
   const mantCada  = document.getElementById('edit-mantcada').value;
-  const proxima   = document.getElementById('edit-proxima').value;
+  // edit-proxima ya no se lee/escribe desde acá: queda disabled y solo se
+  // recalcula al registrar una mantención (igual que el horómetro, columna L).
   const ultima    = document.getElementById('edit-ultima').value;
   const soap      = document.getElementById('edit-soap').value;
   const permiso   = document.getElementById('edit-permiso').value;
@@ -2968,8 +2969,8 @@ async function saveEquipo() {
     await Promise.all([
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
-      // Columna L (km/horómetro) nunca se toca desde la app — se actualiza solo en el Sheets
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!M${row}`, [[proxima]]),
+      // Columna L (km/horómetro) y M (próxima mantención) nunca se tocan
+      // desde este panel — se actualizan solas al registrar una mantención.
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[ultima]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[soap]]),
       writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
