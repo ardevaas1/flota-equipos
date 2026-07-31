@@ -1532,6 +1532,13 @@ function _pgTransition(saliente, entrante, direccion) {
 }
 
 function irAModulo(modulo) {
+  // El visor de fotos (foto-modal-overlay) es una ventana aparte del resto
+  // de la app (vive pegada a document.body, no dentro de ningún módulo) —
+  // si quedaba abierta al cambiar de módulo, se quedaba tapando todo con
+  // la foto de lo último que se había abierto, sin importar a dónde
+  // navegaras después. Se cierra sola acá, en cualquier navegación.
+  if (typeof invCerrarFotoModal === 'function') invCerrarFotoModal();
+
   const homeEl = document.getElementById('modulos-home');
   document.getElementById('mod-flota').classList.add('hidden');
 
@@ -1680,6 +1687,8 @@ function contSyncSearch() {
 }
 
 function volverAInicio() {
+  if (typeof invCerrarFotoModal === 'function') invCerrarFotoModal();
+
   const homeEl = document.getElementById('modulos-home');
   const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'main']
     .map(id => document.getElementById(id));
