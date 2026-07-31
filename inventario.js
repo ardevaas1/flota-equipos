@@ -747,8 +747,13 @@ function _nombreCarpetaInv(item) {
 async function _findOrCreateFolderInv(item, parentId) {
   const nombreNuevo = _nombreCarpetaInv(item);
   const codigo = item.codigo || item.numIdent || item.num || item.rowIndex || '';
+  // Busca por "codigo" (código real, N° de identificación, o N° normal —
+  // el que corresponda) Y también por el N° normal aparte, por si la
+  // carpeta quedó nombrada con ese en vez del que se está usando ahora.
+  const terminos = [codigo, item.num].filter(Boolean).map(t => String(t));
+  const condiciones = [...new Set(terminos)].map(t => `name contains '${t}'`).join(' or ');
 
-  const q = encodeURIComponent(`'${parentId}' in parents and name contains '${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const q = encodeURIComponent(`'${parentId}' in parents and (${condiciones}) and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
   if (res.ok) {
     const data = await res.json();
@@ -2217,7 +2222,11 @@ async function invMigrarCarpetas(modulo) {
     for (const item of conNumIdent) {
       try {
         const nombreNuevo = _nombreCarpetaInv(item);
-        const q = encodeURIComponent(`'${sheetFolder}' in parents and name contains '${String(item.num)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        // Busca por N° normal O por N° de identificación — la carpeta puede
+        // estar nombrada con cualquiera de los dos, según si ya se había
+        // renombrado antes (con el ajuste de "cambiar de carpeta al cambiar
+        // el N° de identificación" que ya tenía la app) o no.
+        const q = encodeURIComponent(`'${sheetFolder}' in parents and (name contains '${String(item.num)}' or name contains '${item.numIdent}') and mimeType='application/vnd.google-apps.folder' and trashed=false`);
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
         if (!res.ok) throw new Error('Drive ' + res.status);
         const data = await res.json();
