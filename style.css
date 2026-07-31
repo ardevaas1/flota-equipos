@@ -579,19 +579,24 @@ body.is-offline #app { padding-top: 30px; }
 .evento-desc { font-size: 12px; color: #555; margin-top: 4px; white-space: normal; word-break: break-word; }
 
 .checklist-1000h-item {
-  display: flex !important;
-  align-items: flex-start !important;
+  display: block !important;
+  position: relative !important;
   text-align: left !important;
-  gap: 8px !important;
+  padding: 7px 4px 7px 28px !important;
   font-size: 13px;
+  line-height: 1.4;
   cursor: pointer;
-  width: 100%;
+  border-radius: 8px;
+  border-bottom: 1px solid var(--line);
 }
+.checklist-1000h-item:last-child { border-bottom: none; }
+.checklist-1000h-item:active { background: #eef0f3; }
 .checklist-1000h-item input[type="checkbox"] {
-  flex: 0 0 auto;
-  margin-top: 2px;
+  position: absolute !important;
+  left: 4px !important;
+  top: 9px !important;
+  margin: 0 !important;
 }
-.checklist-1000h-item span { text-align: left; flex: 1; }
 
 /* ── Forms ── */
 .form-sec { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.6px; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
