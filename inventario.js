@@ -725,6 +725,51 @@ function invCerrarFotoModal() {
 }
 
 // Abre la carpeta Drive del ítem actual (HOJA/CODIGO/)
+// Nombre de la carpeta de Drive de un ítem: código/N° de identificación +
+// una descripción legible entre paréntesis, para poder reconocer de qué
+// equipo se trata sin tener que abrir la app (ej: "DM-001 (DEMOLEDOR 5
+// KILOS)" en vez de solo "DM-001"). Para Generadores, como el "equipo"
+// siempre dice literalmente "GENERADOR" (no distingue uno de otro), se usa
+// marca+modelo en su lugar cuando están cargados.
+function _nombreCarpetaInv(item) {
+  const codigo = item.codigo || item.numIdent || item.num || item.rowIndex || '';
+  const esGenerico = !item.equipo || item.equipo.toUpperCase() === 'GENERADOR';
+  const desc = esGenerico
+    ? ([item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo || '')
+    : item.equipo;
+  return desc ? `${codigo} (${desc})` : String(codigo);
+}
+
+// Busca/crea la carpeta de un ítem de inventario con el nombre "código
+// (descripción)". Si ya existe una carpeta VIEJA (de antes de este cambio,
+// nombrada solo con el código) la renombra en vez de crear una nueva al
+// lado — así no quedan las fotos viejas separadas de las nuevas.
+async function _findOrCreateFolderInv(item, parentId) {
+  const nombreNuevo = _nombreCarpetaInv(item);
+  const codigo = item.codigo || item.numIdent || item.num || item.rowIndex || '';
+
+  const q = encodeURIComponent(`'${parentId}' in parents and name contains '${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+  if (res.ok) {
+    const data = await res.json();
+    const encontrada = data.files && data.files.find(f => f.name === nombreNuevo);
+    if (encontrada) return encontrada.id; // ya está con el nombre nuevo, nada que hacer
+    const vieja = data.files && data.files[0];
+    if (vieja) {
+      // Existe pero con otro nombre (formato viejo, o quedó con una
+      // descripción desactualizada) — se renombra en vez de duplicar.
+      await fetch(`https://www.googleapis.com/drive/v3/files/${vieja.id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nombreNuevo }),
+      });
+      return vieja.id;
+    }
+  }
+  // No existe ninguna todavía → crear directo con el nombre nuevo
+  return findOrCreateFolder(nombreNuevo, parentId);
+}
+
 async function invAbrirCarpetaDrive() {
   if (!invItem) return;
   toast('Buscando carpeta en Drive...', 'loading');
@@ -747,8 +792,11 @@ async function invAbrirCarpetaDrive() {
     }
     const sheetFolderId = d1.files[0].id;
 
-    // Buscar subcarpeta del código dentro de la carpeta de la hoja
-    const q2 = encodeURIComponent(`'${sheetFolderId}' in parents and name='${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    // Buscar subcarpeta del código dentro de la carpeta de la hoja — por
+    // "contiene" en vez de nombre exacto, así encuentra tanto las carpetas
+    // viejas (nombradas solo "DM-001") como las nuevas, que ahora llevan
+    // también la descripción del equipo (ej: "DM-001 (DEMOLEDOR 5 KILOS)").
+    const q2 = encodeURIComponent(`'${sheetFolderId}' in parents and name contains '${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const r2  = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q2}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + accessToken } });
     const d2  = await r2.json();
     if (d2.files && d2.files.length) {
@@ -928,8 +976,12 @@ async function invGuardar() {
     if (!invItem.codigo && numIdentNuevo && numIdentNuevo !== numIdentAntes) {
       try {
         const nombreCarpetaVieja = numIdentAntes || String(invItem.num || row);
+        const nombreCarpetaNueva = _nombreCarpetaInv({ ...invItem, numIdent: numIdentNuevo });
         const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
-        const qFolder = encodeURIComponent(`'${sheetFolder}' in parents and name = '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        // "contains" en vez de nombre exacto: encuentra la carpeta vieja
+        // tanto si estaba nombrada solo con el N° anterior como si ya
+        // tenía una descripción entre paréntesis de antes.
+        const qFolder = encodeURIComponent(`'${sheetFolder}' in parents and name contains '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
         const rFolder = await fetch(`https://www.googleapis.com/drive/v3/files?q=${qFolder}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
         if (rFolder.ok) {
           const dFolder = await rFolder.json();
@@ -937,12 +989,12 @@ async function invGuardar() {
             await fetch(`https://www.googleapis.com/drive/v3/files/${dFolder.files[0].id}`, {
               method: 'PATCH',
               headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: numIdentNuevo }),
+              body: JSON.stringify({ name: nombreCarpetaNueva }),
             });
           }
           // Si no había carpeta vieja (nunca subió foto), no hay nada que
           // renombrar — la próxima foto que suba ya va a crear la carpeta
-          // directo con el N° de identificación nuevo.
+          // directo con el nombre nuevo (código + descripción).
         }
       } catch(fe) {
         console.warn('[INV CARPETA] No se pudo renombrar la carpeta:', fe.message);
@@ -960,12 +1012,13 @@ async function invGuardar() {
       if (btn) btn.textContent = 'Subiendo foto...';
       toast('Subiendo foto de referencia...', 'loading');
       try {
+        // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO (descripción)] /
+        const itemParaCarpeta = { ...invItem, numIdent: numIdentNuevo };
         const codigo = invItem.codigo || numIdentNuevo || invItem.num || row;
-        // Estructura: DRIVE_INV_FOLDER / [HOJA] / [CODIGO] /
         let folderId = DRIVE_INV_FOLDER;
         try {
           const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
-          folderId = await findOrCreateFolder(codigo, sheetFolder);
+          folderId = await _findOrCreateFolderInv(itemParaCarpeta, sheetFolder);
         } catch(fe) { console.warn('[INV FOTO] Carpeta fallback:', fe.message); }
 
         const ext      = _invFotoRef.name.split('.').pop() || 'jpg';
@@ -1913,10 +1966,11 @@ async function invGuardarNuevo() {
         const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
         const numIdentNuevo = (mod === 'herramientas' || mod === 'maqmenor') ? document.getElementById('nuevo-numident')?.value.trim() : '';
         const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : (numIdentNuevo || numFinal);
+        const itemParaCarpeta = { codigo: mod === 'generadores' ? codigoFoto : '', numIdent: numIdentNuevo, num: numFinal, equipo, marca, modelo };
         let folderId = DRIVE_INV_FOLDER;
         try {
           const sf = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
-          folderId = await findOrCreateFolder(String(codigoFoto), sf);
+          folderId = await _findOrCreateFolderInv(itemParaCarpeta, sf);
         } catch(fe) { console.warn('[NUEVO FOTO] carpeta fallback'); }
         const ext = _nuevoInvFoto.name.split('.').pop() || 'jpg';
         const fileName = `REF_${codigoFoto}_${sheetName.replace(/ /g,'_')}.${ext}`;
@@ -2152,7 +2206,7 @@ async function invMigrarCarpetas(modulo) {
   const conNumIdent = datos.filter(i => i.numIdent);
   if (!conNumIdent.length) { toast('Ningún ítem tiene N° de identificación cargado todavía', 'error'); return; }
   const etiqueta = modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramientas';
-  if (!confirm(`Esto va a renombrar la carpeta de Drive de ${conNumIdent.length} ítem(s) de ${etiqueta} para que usen su N° de identificación en vez del N° normal. ¿Continuar?`)) return;
+  if (!confirm(`Esto va a renombrar la carpeta de Drive de ${conNumIdent.length} ítem(s) de ${etiqueta} para que usen "N° de identificación (descripción)" en vez del N° normal solo. ¿Continuar?`)) return;
 
   try {
     await ensureToken();
@@ -2162,16 +2216,18 @@ async function invMigrarCarpetas(modulo) {
     let ok = 0, saltados = 0, fallidos = 0;
     for (const item of conNumIdent) {
       try {
-        const q = encodeURIComponent(`'${sheetFolder}' in parents and name = '${String(item.num)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
+        const nombreNuevo = _nombreCarpetaInv(item);
+        const q = encodeURIComponent(`'${sheetFolder}' in parents and name contains '${String(item.num)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
         if (!res.ok) throw new Error('Drive ' + res.status);
         const data = await res.json();
         if (!data.files || !data.files.length) { saltados++; continue; } // no tenía carpeta previa (nunca subió foto)
         const folderId = data.files[0].id;
+        if (data.files[0].name === nombreNuevo) { ok++; continue; } // ya estaba con el nombre correcto
         const up = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, {
           method: 'PATCH',
           headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: item.numIdent }),
+          body: JSON.stringify({ name: nombreNuevo }),
         });
         if (!up.ok) throw new Error('Drive ' + up.status);
         ok++;
