@@ -596,6 +596,15 @@ body.is-offline #app { padding-top: 30px; }
   left: 4px !important;
   top: 9px !important;
   margin: 0 !important;
+  /* .form-group input le pone width:100%, padding y fondo pensados para
+     campos de texto — sin este reset, el checkbox queda como una caja
+     invisible del ancho de toda la fila en vez de un cuadradito chico. */
+  width: 16px !important;
+  height: 16px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  flex: none !important;
 }
 
 /* ── Forms ── */
