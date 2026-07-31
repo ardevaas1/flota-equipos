@@ -1996,6 +1996,41 @@ async function migrarTodasLasFichasTecnicas() {
 }
 
 // ── Panel evento ───────────────────────────────────────────────
+// ── Mantención especial de 1000 horas (solo retroexcavadoras) ──────────
+// Checklist fijo, tomado de la placa de mantención del fabricante — son
+// siempre los mismos ítems, no cambian por vehículo.
+const CHECKLIST_MANT_1000H = [
+  'Sustituir el filtro hidráulico',
+  'Sustituir el aceite en la instalación hidráulica y limpiar el depósito',
+  'Sustituir el aceite de transmisión',
+  'Sustituir el filtro de aceite de transmisión',
+  'Limpiar la lanzadera del filtro de aceite de transmisión',
+  'Limpiar la lanzadera de la válvula de descarga de la transmisión',
+  'Sustituir el aceite del cubo de rueda (2WD) / eje delantero (4WD)',
+  'Sustituir el aceite del eje trasero (colector)',
+  'Controlar el ajuste de las válvulas del motor',
+  'Controlar las condiciones generales de la máquina',
+  'Controlar el nivel del fluido de batería',
+];
+const INTERVALO_MANT_1000H = 1000;
+
+function _esRetroexcavadora(equipo) {
+  return (equipo || '').toLowerCase().includes('retroexcavadora');
+}
+
+// allEventos ya viene ordenado por fecha descendente (ver loadEventos), así
+// que el primer evento de este tipo que aparezca para la patente es el
+// último registrado — no hace falta ordenar de nuevo acá.
+function _estadoMant1000h(eq) {
+  if (!eq) return null;
+  const ultimo = allEventos.find(ev => ev.patente === eq.patente && ev.tipo === 'Mantención 1000 horas');
+  const horometroUltimo = ultimo ? (_parseNumeroSheet(ultimo.horometro) || 0) : 0;
+  const proxima = horometroUltimo + INTERVALO_MANT_1000H;
+  const actual = _parseNumeroSheet(eq.horometro) || 0;
+  const diff = proxima - actual;
+  return { ultimo, proxima, actual, diff, nuncaHecha: !ultimo };
+}
+
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
   if (sel) {
@@ -2018,30 +2053,78 @@ function openEventoPanel(patente) {
   // Calcular sola la "Próxima mantención" (horómetro actual + intervalo del
   // vehículo) en vez de que alguien tenga que sumarlo a mano — así no puede
   // volver a pasar que quede un número viejo/equivocado ahí, desincronizado
-  // del intervalo real ("Cada"). Sigue siendo editable por si hace falta
-  // ajustarla a mano en algún caso puntual.
+  // del intervalo real ("Cada"). Bloqueada, no se puede pisar a mano.
+  //
+  // Para "Mantención 1000 horas" el intervalo es SIEMPRE 1000 (fijo, viene
+  // de la placa del fabricante), sin importar el "Cada" general cargado
+  // para ese vehículo — son dos mantenciones distintas con dos reglas
+  // distintas.
   const equipoSel = document.getElementById('evento-equipo');
   const horometroInput = document.getElementById('evento-horometro');
   const proximaInput = document.getElementById('evento-proxima');
+  const tipoSel = document.getElementById('evento-tipo');
+  const opt1000h = document.getElementById('opt-mant-1000h');
+
   const recalcularProxima = () => {
     const eq = allEquipos.find(x => x.patente === equipoSel.value);
-    const cada = _parseNumeroSheet(eq && eq.mantCada) || 0;
     const actual = _parseNumeroSheet(horometroInput.value) || 0;
+    const esMant1000h = tipoSel.value === 'Mantención 1000 horas';
+    const cada = esMant1000h ? INTERVALO_MANT_1000H : (_parseNumeroSheet(eq && eq.mantCada) || 0);
     if (cada > 0 && actual > 0) proximaInput.value = actual + cada;
+    else proximaInput.value = '';
   };
-  equipoSel.onchange = recalcularProxima;
+
+  const renderChecklist1000h = () => {
+    const cont = document.getElementById('evento-checklist-1000h');
+    if (!cont) return;
+    cont.innerHTML = CHECKLIST_MANT_1000H.map((item, i) => `
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" class="chk-1000h" value="${i}" onchange="_sincronizarDescripcion1000h()" style="margin-top:2px">
+        <span>${item}</span>
+      </label>
+    `).join('');
+    _sincronizarDescripcion1000h();
+  };
+
+  const actualizarDisponibilidad1000h = () => {
+    const eq = allEquipos.find(x => x.patente === equipoSel.value);
+    const esRetro = eq && _esRetroexcavadora(eq.equipo);
+    if (opt1000h) opt1000h.style.display = esRetro ? '' : 'none';
+    // Si estaba elegida "Mantención 1000 horas" y el equipo cambió a uno
+    // que no es retroexcavadora, volver al tipo por defecto para no dejar
+    // seleccionada una opción que ya no corresponde.
+    if (!esRetro && tipoSel.value === 'Mantención 1000 horas') {
+      tipoSel.value = 'Mantención preventiva';
+    }
+  };
+
+  equipoSel.onchange = () => { actualizarDisponibilidad1000h(); recalcularProxima(); toggleProxima(); };
   horometroInput.oninput = recalcularProxima;
 
-  // Mostrar/ocultar campo próxima según tipo
-  const tipoSel = document.getElementById('evento-tipo');
-  const toggleProxima = () => {
-    document.getElementById('evento-proxima-group').style.display =
-      tipoSel.value === 'Mantención preventiva' ? 'block' : 'none';
-  };
+  // Mostrar/ocultar campo próxima y checklist según tipo
+  function toggleProxima() {
+    const esPreventiva = tipoSel.value === 'Mantención preventiva';
+    const es1000h = tipoSel.value === 'Mantención 1000 horas';
+    document.getElementById('evento-proxima-group').style.display = (esPreventiva || es1000h) ? 'block' : 'none';
+    document.getElementById('evento-checklist-1000h-group').style.display = es1000h ? 'block' : 'none';
+    if (es1000h) renderChecklist1000h();
+    recalcularProxima();
+  }
   tipoSel.onchange = toggleProxima;
   tipoSel.value = 'Mantención preventiva';
+  actualizarDisponibilidad1000h();
   toggleProxima();
   openPanel('panel-evento');
+}
+
+// Arma la descripción del evento a partir de los ítems marcados del
+// checklist de 1000 horas — así queda guardada como texto legible en el
+// historial (igual que cualquier otro evento), sin perder la comodidad de
+// tildar en vez de tipear.
+function _sincronizarDescripcion1000h() {
+  const marcados = Array.from(document.querySelectorAll('.chk-1000h:checked'))
+    .map(chk => CHECKLIST_MANT_1000H[parseInt(chk.value, 10)]);
+  document.getElementById('evento-obs').value = marcados.map(t => '- ' + t).join('\n');
 }
 
 // Alias para compatibilidad con botones existentes
@@ -2530,6 +2613,24 @@ function openFicha(patente, soloLectura) {
       ${e.obs ? `<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
     </div>
+
+    ${_esRetroexcavadora(e.equipo) ? (() => {
+      const est = _estadoMant1000h(e);
+      const badge = est.diff < 0
+        ? `<span style="background:#fee2e2;color:#b91c1c;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700">ATRASADA hace ${formatNum(Math.abs(est.diff))}</span>`
+        : `<span style="background:${est.diff < 150 ? '#fef3c7' : '#dcfce7'};color:${est.diff < 150 ? '#b45309' : '#15803d'};border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700">Faltan ${formatNum(est.diff)}</span>`;
+      return `
+      <div class="ficha-section">
+        <div class="ficha-sec-title">Mantención de 1000 horas</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          ${badge}
+          ${est.nuncaHecha ? '<span style="font-size:11px;color:var(--ink-soft)">Todavía no se registró ninguna</span>' : ''}
+        </div>
+        ${field('Última mantención de 1000h', est.ultimo ? formatNum(est.ultimo.horometro) + ' · ' + (est.ultimo.fechaEvento || '') : '—')}
+        ${field('Próxima mantención de 1000h', formatNum(est.proxima))}
+        <button class="action-btn" onclick="openEventoPanel('${e.patente}'); setTimeout(() => { document.getElementById('evento-tipo').value = 'Mantención 1000 horas'; document.getElementById('evento-tipo').onchange(); }, 50)">+ Registrar mantención de 1000h</button>
+      </div>`;
+    })() : ''}
 
     <div class="ficha-section">
       <div class="ficha-sec-title">Historial de eventos</div>

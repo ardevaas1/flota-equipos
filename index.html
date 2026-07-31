@@ -760,6 +760,7 @@
         <label>Tipo de evento</label>
         <select id="evento-tipo">
           <option value="Mantención preventiva">Mantención preventiva</option>
+          <option value="Mantención 1000 horas" id="opt-mant-1000h" style="display:none">Mantención de 1000 horas</option>
           <option value="Reparación">Reparación</option>
           <option value="Falla">Falla</option>
           <option value="Choque / Accidente">Choque / Accidente</option>
@@ -781,6 +782,11 @@
         <input type="number" id="evento-proxima" placeholder="Se calcula sola" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
         <div style="font-size:11.5px;color:#94a3b8;margin-top:5px">Horómetro/odómetro de este evento + intervalo del equipo. Si el equipo no tiene un intervalo cargado ("Cada"), corrígelo desde Editar vehículo.</div>
+      </div>
+      <div class="form-group" id="evento-checklist-1000h-group" style="display:none">
+        <label>Checklist — Mantención de 1000 horas</label>
+        <div id="evento-checklist-1000h" style="display:flex;flex-direction:column;gap:9px;background:var(--neutral-soft);border-radius:10px;padding:12px"></div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">Los ítems que marques se agregan solos a la descripción de abajo.</div>
       </div>
       <div class="form-group">
         <label>Descripción</label>
