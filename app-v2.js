@@ -2092,12 +2092,7 @@ function openEventoPanel(patente) {
   const renderChecklist1000h = () => {
     const cont = document.getElementById('evento-checklist-1000h');
     if (!cont) return;
-    cont.innerHTML = CHECKLIST_MANT_1000H.map((item, i) => `
-      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" class="chk-1000h" value="${i}" onchange="_sincronizarDescripcion1000h()" style="margin-top:2px">
-        <span>${item}</span>
-      </label>
-    `).join('');
+    cont.innerHTML = CHECKLIST_MANT_1000H.map((item, i) => `<label class="checklist-1000h-item"><input type="checkbox" class="chk-1000h" value="${i}" onchange="_sincronizarDescripcion1000h()"><span>${item}</span></label>`).join('');
     _sincronizarDescripcion1000h();
   };
 
