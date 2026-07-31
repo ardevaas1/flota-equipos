@@ -2021,12 +2021,19 @@ function _esRetroexcavadora(equipo) {
 // allEventos ya viene ordenado por fecha descendente (ver loadEventos), así
 // que el primer evento de este tipo que aparezca para la patente es el
 // último registrado — no hace falta ordenar de nuevo acá.
+//
+// La próxima mantención siempre cae en un múltiplo redondo de 1000 (1000,
+// 2000, 3000, 4000...), no en "horómetro del último + 1000" — así no se va
+// corriendo a números sueltos si alguna vez la mantención se registró un
+// poco antes o después del horómetro exacto. Ejemplo: una retro nueva que
+// nunca tuvo esta mantención y ya lleva 3570 horas → le toca a las 4000,
+// no a las 4570.
 function _estadoMant1000h(eq) {
   if (!eq) return null;
   const ultimo = allEventos.find(ev => ev.patente === eq.patente && ev.tipo === 'Mantención 1000 horas');
-  const horometroUltimo = ultimo ? (_parseNumeroSheet(ultimo.horometro) || 0) : 0;
-  const proxima = horometroUltimo + INTERVALO_MANT_1000H;
   const actual = _parseNumeroSheet(eq.horometro) || 0;
+  const referencia = ultimo ? (_parseNumeroSheet(ultimo.horometro) || 0) : actual;
+  const proxima = (Math.floor(referencia / INTERVALO_MANT_1000H) + 1) * INTERVALO_MANT_1000H;
   const diff = proxima - actual;
   return { ultimo, proxima, actual, diff, nuncaHecha: !ultimo };
 }
@@ -2069,7 +2076,15 @@ function openEventoPanel(patente) {
     const eq = allEquipos.find(x => x.patente === equipoSel.value);
     const actual = _parseNumeroSheet(horometroInput.value) || 0;
     const esMant1000h = tipoSel.value === 'Mantención 1000 horas';
-    const cada = esMant1000h ? INTERVALO_MANT_1000H : (_parseNumeroSheet(eq && eq.mantCada) || 0);
+    if (esMant1000h) {
+      // Redondea al próximo múltiplo de 1000 (ver _estadoMant1000h) — no
+      // es "horómetro + 1000" a secas, así la mantención siempre cae en
+      // un número redondo (1000, 2000, 3000...) sin importar el horómetro
+      // exacto en el que se termine registrando.
+      proximaInput.value = actual > 0 ? (Math.floor(actual / INTERVALO_MANT_1000H) + 1) * INTERVALO_MANT_1000H : '';
+      return;
+    }
+    const cada = _parseNumeroSheet(eq && eq.mantCada) || 0;
     if (cada > 0 && actual > 0) proximaInput.value = actual + cada;
     else proximaInput.value = '';
   };
