@@ -2066,6 +2066,92 @@ function _estadoMant1000h(eq) {
   return { ultimo, proxima, actual, diff, nuncaHecha: !ultimo };
 }
 
+// ── Ajuste de valor real contra el GPS (hoja DATOS) ─────────────────────
+// La empresa de GPS actualiza sola la columna F (HORÓMETRO/ODÓMETRO) de la
+// hoja DATOS. La columna G (REAJUSTE) es la que de verdad mueve la aguja
+// (TOTAL = F+G, y ese TOTAL alimenta la columna L de MAQUINARIA) — antes
+// había que calcular G a mano con calculadora cada vez que se revisaba una
+// máquina en persona. Este panel lo hace por vos: escribís el valor real
+// que ves en la máquina, y calcula y guarda solo el reajuste que
+// corresponde (valor real − lo último que dijo el GPS).
+async function abrirAjusteGPS(patente) {
+  if (typeof userRole !== 'undefined' && userRole !== 'admin') {
+    toast('Solo un administrador puede hacer esto', 'error');
+    return;
+  }
+  toast('Buscando datos del GPS...', 'loading');
+  try {
+    await ensureToken();
+    const rows = await fetchSheet(`'${CONFIG.SHEET_DATOS}'!A2:L200`);
+    // Columnas (0-index): A=0 N° · B=1 EQUIPO · C=2 MARCA · D=3 MODELO ·
+    // E=4 PATENTE · F=5 HORÓMETRO/ODÓMETRO · G=6 REAJUSTE · H=7 TOTAL ·
+    // I=8 ÚLTIMA ACTUALIZACIÓN · J=9 TIPO · K=10 VALOR REAL · L=11 REAJUSTE
+    const idx = (rows || []).findIndex(r => (r[4] || '').toString().trim().toUpperCase() === patente.toUpperCase());
+    if (idx === -1) {
+      toast('Este vehículo no está en la hoja DATOS', 'error');
+      return;
+    }
+    const row = idx + 2; // A2 es la primera fila de datos
+    const r = rows[idx];
+    const gpsValor = _parseNumeroSheet(r[5]) || 0;
+    const tipo = r[9] || '';
+    const ultimaAct = r[8] || '';
+    const nombre = [r[1], r[2], r[3]].filter(Boolean).join(' ');
+
+    document.getElementById('ajuste-gps-row').value = row;
+    document.getElementById('ajuste-gps-f').value = gpsValor;
+    document.getElementById('ajuste-gps-vehiculo').textContent = `${nombre} — ${patente}`;
+    document.getElementById('ajuste-gps-gps').textContent =
+      `GPS (${tipo || 'último dato'}): ${gpsValor.toLocaleString('es-CL')}` + (ultimaAct ? ` · actualizado ${ultimaAct}` : '');
+    document.getElementById('ajuste-gps-valor').value = '';
+    document.getElementById('ajuste-gps-preview').textContent = '—';
+
+    openPanel('panel-ajuste-gps');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+function _recalcularAjusteGPS() {
+  const f = _parseNumeroSheet(document.getElementById('ajuste-gps-f').value) || 0;
+  const valorInput = document.getElementById('ajuste-gps-valor').value;
+  const preview = document.getElementById('ajuste-gps-preview');
+  if (valorInput === '') { preview.textContent = '—'; preview.style.color = 'var(--ink)'; return; }
+  const valor = _parseNumeroSheet(valorInput) || 0;
+  const reajuste = valor - f;
+  preview.textContent = (reajuste > 0 ? '+' : '') + reajuste.toLocaleString('es-CL');
+  preview.style.color = reajuste === 0 ? 'var(--ink)' : (reajuste > 0 ? '#15803d' : '#b91c1c');
+}
+
+async function guardarAjusteGPS() {
+  const row = document.getElementById('ajuste-gps-row').value;
+  const f = _parseNumeroSheet(document.getElementById('ajuste-gps-f').value) || 0;
+  const valorInput = document.getElementById('ajuste-gps-valor').value;
+  if (valorInput === '') { toast('Escribe el valor real que ves en la máquina', 'error'); return; }
+  const valor = _parseNumeroSheet(valorInput) || 0;
+  const reajuste = valor - f;
+
+  const btn = document.querySelector('#panel-ajuste-gps .pnl-action');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  try {
+    // K = valor real (queda como registro, coincide con la fórmula de L),
+    // G = el reajuste de verdad, que es el que mueve TOTAL (columna H) y
+    // de ahí MAQUINARIA (columna L).
+    await Promise.all([
+      writeSheet(`'${CONFIG.SHEET_DATOS}'!K${row}`, [[valor]]),
+      writeSheet(`'${CONFIG.SHEET_DATOS}'!G${row}`, [[reajuste]]),
+    ]);
+    toast('✓ Reajuste guardado');
+    _origClosePanel('panel-ajuste-gps');
+    const idx = _panelStack.lastIndexOf('panel-ajuste-gps');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}
+
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
   if (sel) {
@@ -2650,6 +2736,7 @@ function openFicha(patente, soloLectura) {
       ${field('Última mantención', formatNum(e.ultMant))}
       ${e.obs ? `<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
+      ${userRole === 'admin' ? `<button class="admin-only-btn" onclick="abrirAjusteGPS('${e.patente}')" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1.5px solid #0891b2;color:#0891b2;font-size:13px;font-weight:600;background:none">Ajustar valor real (GPS) — solo admin</button>` : ''}
     </div>
 
     ${_esRetroexcavadora(e.equipo) ? (() => {

@@ -9,6 +9,7 @@ const CONFIG = {
   SHEET_MANTENCIONES: 'MANTENCIONES',
   SHEET_BITACORA:     'BITACORA',
   SHEET_COMBUSTIBLE:  'COMBUSTIBLE',
+  SHEET_DATOS:        'DATOS',
   // Carpeta Registro Fotográfico — contiene subcarpetas por patente
   DRIVE_ROOT_FOLDER: '1IyfEVZPqGfCrji5lAySeH-cUJFZlM7N_',
   // Scopes necesarios

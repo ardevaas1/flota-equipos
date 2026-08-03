@@ -745,6 +745,30 @@
   </div>
 
   <!-- Panel: Evento -->
+  <!-- ── Panel: Ajustar valor real (hoja DATOS, corrección de GPS) ── -->
+  <div id="panel-ajuste-gps" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-ajuste-gps')">‹ Cancelar</button>
+      <span class="pnl-title">Ajustar valor real</span>
+      <button class="pnl-action" onclick="guardarAjusteGPS()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="ajuste-gps-row">
+      <input type="hidden" id="ajuste-gps-f">
+      <div id="ajuste-gps-vehiculo" style="font-weight:700;font-size:15px;margin-bottom:4px"></div>
+      <div id="ajuste-gps-gps" style="font-size:12px;color:var(--ink-soft);margin-bottom:14px"></div>
+      <div class="form-group">
+        <label>Valor real (lo que ves en la máquina)</label>
+        <input type="number" id="ajuste-gps-valor" step="0.01" placeholder="Ej: 246422" oninput="_recalcularAjusteGPS()">
+      </div>
+      <div class="ficha-section" style="text-align:center">
+        <div class="ficha-sec-title">Reajuste que se va a guardar</div>
+        <div id="ajuste-gps-preview" style="font-size:26px;font-weight:800;color:var(--ink)">—</div>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">Esto reemplaza el valor de "Reajuste" en la hoja DATOS por la diferencia entre lo que escribas acá y el último dato del GPS — se calcula solo, sin calculadora.</div>
+    </div>
+  </div>
+
   <div id="panel-evento" class="panel hidden">
     <div class="panel-bar">
       <button class="pnl-back" onclick="closePanel('panel-evento')">‹ Cancelar</button>
