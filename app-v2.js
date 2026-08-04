@@ -2714,7 +2714,7 @@ function openFicha(patente, soloLectura) {
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
-      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>
@@ -2724,6 +2724,7 @@ function openFicha(patente, soloLectura) {
         </span>
         ${e.estadoDoc ? `<span class="badge gray" style="margin-top:4px;display:inline-block">${e.estadoDoc}</span>` : ''}
       </div>
+      ${logoMarca(e.marca) ? `<img class="ficha-hero-logo-grande" src="${logoMarca(e.marca)}" alt="${e.marca}">` : ''}
     </div>
 
     <div class="ficha-section">
