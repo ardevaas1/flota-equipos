@@ -13,4 +13,6 @@ Usa el trazo "backhoe" de **Tabler Icons** (https://tabler.io/icons),
 licenciado bajo **MIT License**. Tampoco requiere atribución visible.
 
 El resto de los íconos (minicargador, manipulador, rodillo, mixer,
-generador) son dibujos originales hechos para este proyecto.
+generador) son dibujos originales hechos para este proyecto, siguiendo
+las mismas reglas de estilo que Tabler (trazo de 2px, puntas y uniones
+redondeadas, formas geométricas simples) para que combinen visualmente.
