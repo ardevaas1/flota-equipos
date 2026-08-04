@@ -537,16 +537,27 @@ function aplicarRestriccionModulosHome() {
 }
 
 // ── Aviso "Más módulos" en la pantalla de inicio (solo móvil) ──
-// Se muestra cuando la lista de módulos tiene contenido sin ver más abajo
-// del scroll, y se oculta solo apenas se llega (o se está cerca) del
-// final — así avisa que hay más tarjetas sin que quede pegado ahí para
-// siempre estorbando la vista.
+// Se muestra cuando queda alguna tarjeta sin asomar todavía en el
+// scroll, y se oculta apenas empieza a verse la ÚLTIMA tarjeta (no hace
+// falta llegar hasta el fondo del todo) — así avisa que hay más sin
+// quedar pegado ahí más tiempo del necesario.
 function _actualizarScrollHintModulos() {
   const home = document.getElementById('modulos-home');
   const hint = document.getElementById('modulos-scroll-hint');
   if (!home || !hint) return;
-  const faltaPorVer = home.scrollHeight - home.scrollTop - home.clientHeight > 24;
-  hint.classList.toggle('hidden', !faltaPorVer);
+
+  const cards = Array.from(document.querySelectorAll('#modulos-home .modulo-card'))
+    .filter(c => c.offsetParent !== null); // solo las visibles (respeta restricción por rol)
+  const ultima = cards[cards.length - 1];
+
+  let faltaPorVer = home.scrollHeight - home.scrollTop - home.clientHeight > 24;
+  if (ultima) {
+    const r = ultima.getBoundingClientRect();
+    const limiteInferior = home.getBoundingClientRect().bottom;
+    // Apenas asoma el borde de arriba de la última tarjeta, se considera "ya se ve"
+    if (r.top < limiteInferior) faltaPorVer = false;
+  }
+  hint.classList.toggle('mostrar', faltaPorVer);
 }
 
 function authHeader() {
