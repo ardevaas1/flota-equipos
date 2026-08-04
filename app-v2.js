@@ -635,6 +635,21 @@ function logoMarca(marca) {
   return LOGOS_MARCA[(marca || '').toUpperCase().trim()] || null;
 }
 
+// Versión con más detalle (aro+centro en las ruedas, ventana marcada en la
+// cabina) — SOLO para usar donde el ícono se ve grande (la ficha, 32px).
+// A 18-20px (tarjetas de lista) este nivel de detalle se ve borroso, por
+// eso ahí se sigue usando iconoEquipo() (trazos gruesos, más simple).
+// Por ahora solo tiene versión detallada la retroexcavadora; el resto cae
+// al ícono simple de iconoEquipo() hasta que se agreguen las demás.
+function iconoEquipoDetallado(tipo) {
+  const t = (tipo || '').toLowerCase();
+  const svgsDetalle = {
+    retroexcavadora: `<svg viewBox="0 0 28 22" fill="none" class="equipo-svg"><circle cx="19.3" cy="17.3" r="3.9" stroke="white" stroke-width="1.4"/><circle cx="19.3" cy="17.3" r="1.7" stroke="white" stroke-width="1.2"/><circle cx="10.8" cy="17.8" r="2.9" stroke="white" stroke-width="1.4"/><circle cx="10.8" cy="17.8" r="1.2" stroke="white" stroke-width="1.1"/><path d="M9.3 13.2V6.1q0-1.5 1.5-1.5h5.5q1.6 0 1.6 1.6v6.7" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.3 4.7v8.5" stroke="white" stroke-width="1.1"/><path d="M17.9 6.2 18.3 3q.2-1.3 1.5-1" stroke="white" stroke-width="1.2" stroke-linecap="round"/><path d="M9.3 11.6 3.6 14.3" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M3.6 14.3q-2.3.3-2.5 2.4 1.5 1.4 3.5.2l1.8-1.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M16.9 6.4 21.4 3.9l2.6 2.5-1 5.4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M22.9 11.7q1.9.6 1.5 2.6-1.8.9-2.9-.7l-.4-2.4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  };
+  if (t.includes('retroexcavadora')) return svgsDetalle.retroexcavadora;
+  return iconoEquipo(tipo); // fallback al set simple para lo que aún no tiene versión detallada
+}
+
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
   // Iconos de línea simples (mismo lenguaje visual que el menú principal):
@@ -2721,7 +2736,7 @@ function openFicha(patente, soloLectura) {
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
-      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipoDetallado(e.equipo)}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>
