@@ -519,7 +519,7 @@ body.is-offline #app { padding-top: 30px; }
 }
 .ficha-hero-info { flex: 1; min-width: 0; }
 .ficha-hero-type { font-size: 12px; color: var(--ink-soft); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-.ficha-hero-name { font-size: 18px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ficha-hero-name { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.25; }
 .ficha-hero-plate { font-size: 13px; color: #888; margin-top: 2px; }
 .ficha-hero-logo-grande {
   height: 48px; max-width: 120px; width: auto; object-fit: contain;
