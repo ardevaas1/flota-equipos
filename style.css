@@ -841,27 +841,31 @@ body.is-offline #app { padding-top: 30px; }
     padding: 44px 20px 36px;
   }
   #modulos-home .modulos-lista {
-    max-width: 1020px;
+    max-width: 1280px;
     margin: 0 auto;
     width: 100%;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
-    gap: 20px;
+    gap: 14px;
     padding: 40px 24px;
   }
   #modulos-home .modulo-card {
-    flex: 0 0 225px;
-    width: 225px;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    height: 172px;
     align-items: center;
     text-align: center;
-    justify-content: flex-start;
-    padding: 24px 16px;
+    justify-content: center;
+    padding: 20px 10px;
   }
   #modulos-home .modulo-icon {
-    width: 56px; height: 56px; border-radius: 15px;
+    width: 50px; height: 50px; border-radius: 14px;
   }
-  #modulos-home .modulo-icon svg { width: 28px; height: 28px; }
+  #modulos-home .modulo-icon svg { width: 25px; height: 25px; }
+  #modulos-home .modulo-nombre { font-size: 13px; }
+  #modulos-home .modulo-desc { font-size: 10.5px; }
   #modulos-home .modulo-info { flex: none; }
 
   /* ── Shell: ocultar todo lo móvil ── */
