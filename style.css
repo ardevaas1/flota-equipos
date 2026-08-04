@@ -760,6 +760,7 @@ body.is-offline #app { padding-top: 30px; }
 }
 .doc-file-label:active { background: var(--accent-soft); }
 .doc-file-label.selected { border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; border-style: solid; }
+.doc-file-hint { font-size: 11px; color: var(--ink-soft); margin-top: 4px; text-align: center; }
 
 /* ── Login screen ── */
 .login-screen {

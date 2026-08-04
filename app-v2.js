@@ -3155,7 +3155,9 @@ async function saveEquipo() {
   // ── PASO 0: Leer archivos desde _capturedFiles (guardados al seleccionar) ──
   // Los input[type=file] se vacían solos en móvil durante navegación async.
   // Por eso onDocFileSelected ya convirtió cada archivo a base64 en memoria.
-  const fileQueue = Object.values(_capturedFiles);
+  // _capturedFiles[prefix] es un ARRAY (Revisión Técnica puede tener varios
+  // archivos), por eso se aplana con .flat() antes de subir.
+  const fileQueue = Object.values(_capturedFiles).flat().filter(Boolean);
   console.log('[SAVE] Archivos en memoria:', fileQueue.length, fileQueue.map(f => f.prefix));
   // Limpiar para el próximo uso
   Object.keys(_capturedFiles).forEach(k => delete _capturedFiles[k]);
@@ -3264,7 +3266,10 @@ async function saveEquipo() {
 
         try {
           const ext      = doc.name.split('.').pop();
-          const fileName = `${doc.prefix}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
+          // Si hay más de un archivo con el mismo prefix (ej: 2 fotos de
+          // Revisión Técnica), se numera para no pisarse en Drive.
+          const numSufijo = doc.multiIdx ? `_${doc.multiIdx}` : '';
+          const fileName = `${doc.prefix}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}${numSufijo}.${ext}`;
           const boundary = 'lst_boundary_' + Date.now();
           const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
           const body = [
@@ -3658,39 +3663,56 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Helpers para upload de documentos en formulario edición ──
-// Almacén en memoria — se llena al seleccionar, se lee al guardar
+// Almacén en memoria — se llena al seleccionar, se lee al guardar.
+// Cada prefix guarda un ARRAY de archivos (normalmente 1, pero Revisión
+// Técnica permite varios — ej: la revisión y el certificado de gases).
 const _capturedFiles = {};
 
 function onDocFileSelected(input, labelId) {
   const label = document.getElementById(labelId);
-  const file = input.files[0];
-  if (file) {
+  const files = Array.from(input.files || []);
+  const prefix = { 'soap-file':'SOAP', 'permiso-file':'PERMISO', 'revision-file':'REVISION' }[input.id];
+
+  if (files.length > 0) {
     // IMPORTANTE: NO usar label.textContent (destruye el <input> hijo del label)
     // Actualizar solo el nodo de texto, manteniendo el input intacto
     const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    const texto = files.length === 1
+      ? '\u2705 ' + files[0].name + ' '
+      : `\u2705 ${files.length} archivos seleccionados `;
     if (textNode) {
-      textNode.textContent = '\u2705 ' + file.name + ' ';
+      textNode.textContent = texto;
     } else {
-      label.insertBefore(document.createTextNode('\u2705 ' + file.name + ' '), label.firstChild);
+      label.insertBefore(document.createTextNode(texto), label.firstChild);
     }
     label.classList.add('selected');
-    // Leer a base64 AHORA, antes de cualquier await o navegación
-    const prefix = { 'soap-file':'SOAP', 'permiso-file':'PERMISO', 'revision-file':'REVISION' }[input.id];
-    const reader = new FileReader();
-    reader.onload = () => {
-      _capturedFiles[prefix] = {
-        b64:      reader.result.split(',')[1],
-        name:     file.name,
-        size:     file.size,
-        mimeType: file.type || 'application/octet-stream',
-        prefix,
+
+    // Leer cada archivo a base64 AHORA, antes de cualquier await o navegación
+    _capturedFiles[prefix] = [];
+    let leidos = 0;
+    files.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        _capturedFiles[prefix][idx] = {
+          b64:      reader.result.split(',')[1],
+          name:     file.name,
+          size:     file.size,
+          mimeType: file.type || 'application/octet-stream',
+          prefix,
+          // Si hay más de un archivo con el mismo prefix, se numera en el
+          // nombre del archivo en Drive para no pisarse entre sí (ver
+          // saveEquipo). Con uno solo no lleva número, como antes.
+          multiIdx: files.length > 1 ? (idx + 1) : null,
+        };
+        leidos++;
+        console.log('[CAPTURE] Guardado en memoria:', prefix, file.name, file.size, `(${leidos}/${files.length})`);
       };
-      console.log('[CAPTURE] Guardado en memoria:', prefix, file.name, file.size);
-    };
-    reader.onerror = (e) => console.error('[CAPTURE] Error leyendo archivo:', e);
-    reader.readAsDataURL(file);
+      reader.onerror = (e) => console.error('[CAPTURE] Error leyendo archivo:', e);
+      reader.readAsDataURL(file);
+    });
   } else {
     label.classList.remove('selected');
+    delete _capturedFiles[prefix];
   }
 }
 
@@ -3739,9 +3761,9 @@ function resetDocInputs() {
 
   const ic = '<svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const configs = [
-    { labelId: 'soap-file-label',     inputId: 'soap-file',     text: ic + ' Subir archivo SOAP'         },
-    { labelId: 'permiso-file-label',  inputId: 'permiso-file',  text: ic + ' Subir archivo Permiso'      },
-    { labelId: 'revision-file-label', inputId: 'revision-file', text: ic + ' Subir archivo Rev. Técnica' },
+    { labelId: 'soap-file-label',     inputId: 'soap-file',     text: ic + ' Subir archivo SOAP',         multiple: false },
+    { labelId: 'permiso-file-label',  inputId: 'permiso-file',  text: ic + ' Subir archivo Permiso',      multiple: false },
+    { labelId: 'revision-file-label', inputId: 'revision-file', text: ic + ' Subir archivo(s) Rev. Técnica', multiple: true },
   ];
 
   configs.forEach(function(cfg) {
@@ -3753,7 +3775,7 @@ function resetDocInputs() {
     label.classList.remove('selected');
     label.innerHTML =
       cfg.text + ' ' +
-      '<input type="file" id="' + cfg.inputId + '" accept="image/*,.pdf" ' +
+      '<input type="file" id="' + cfg.inputId + '" accept="image/*,.pdf" ' + (cfg.multiple ? 'multiple ' : '') +
       'onchange="onDocFileSelected(this,\'' + cfg.labelId + '\')" style="display:none">';
   });
 }

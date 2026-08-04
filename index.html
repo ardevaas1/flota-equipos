@@ -696,9 +696,10 @@
         </div>
         <div class="doc-upload-row">
           <label id="revision-file-label" class="doc-file-label">
-            <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Subir archivo Rev. Técnica
-            <input type="file" id="revision-file" accept="image/*,.pdf" onchange="onDocFileSelected(this,'revision-file-label')" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Subir archivo(s) Rev. Técnica
+            <input type="file" id="revision-file" accept="image/*,.pdf" multiple onchange="onDocFileSelected(this,'revision-file-label')" style="display:none">
           </label>
+          <div class="doc-file-hint">Podés seleccionar más de una foto (ej: revisión + gases)</div>
         </div>
       </div>
 
