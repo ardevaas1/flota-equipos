@@ -520,7 +520,7 @@ function aplicarRestriccionModulosHome() {
   if (resumenWrap) resumenWrap.style.display = '';
   listas.forEach(l => l.classList.remove('modulos-lista--restringido'));
 
-  if (irrestricto) return;
+  if (irrestricto) { _actualizarScrollHintModulos(); return; }
 
   const clasesPermitidas = userRoles.map(r => MODO_TARJETA_CLASE[r]).filter(Boolean);
   cards.forEach(c => {
@@ -533,6 +533,20 @@ function aplicarRestriccionModulosHome() {
   // .modulos-lista--restringido en style.css) — así ninguna se ve más
   // angosta o más ancha que las demás según lo largo de su texto.
   listas.forEach(l => l.classList.add('modulos-lista--restringido'));
+  _actualizarScrollHintModulos();
+}
+
+// ── Aviso "Más módulos" en la pantalla de inicio (solo móvil) ──
+// Se muestra cuando la lista de módulos tiene contenido sin ver más abajo
+// del scroll, y se oculta solo apenas se llega (o se está cerca) del
+// final — así avisa que hay más tarjetas sin que quede pegado ahí para
+// siempre estorbando la vista.
+function _actualizarScrollHintModulos() {
+  const home = document.getElementById('modulos-home');
+  const hint = document.getElementById('modulos-scroll-hint');
+  if (!home || !hint) return;
+  const faltaPorVer = home.scrollHeight - home.scrollTop - home.clientHeight > 24;
+  hint.classList.toggle('hidden', !faltaPorVer);
 }
 
 function authHeader() {
@@ -3663,6 +3677,12 @@ function enterApp() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initPin();
+  const home = document.getElementById('modulos-home');
+  if (home) home.addEventListener('scroll', _actualizarScrollHintModulos, { passive: true });
+  window.addEventListener('resize', () => _actualizarScrollHintModulos());
+  // Primer chequeo — por si la pantalla de módulos arranca visible
+  // (ej. modo offline) sin pasar por aplicarRestriccionModulosHome antes.
+  setTimeout(_actualizarScrollHintModulos, 300);
 });
 
 // ── Helpers para upload de documentos en formulario edición ──

@@ -841,28 +841,28 @@ body.is-offline #app { padding-top: 30px; }
     padding: 44px 20px 36px;
   }
   #modulos-home .modulos-lista {
-    max-width: 1320px;
+    max-width: 1220px;
     margin: 0 auto;
     width: 100%;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 18px;
-    padding: 40px 24px;
+    gap: 24px;
+    padding: 44px 24px;
   }
   #modulos-home .modulo-card {
-    flex: 0 0 197px;
-    width: 197px;
+    flex: 0 0 270px;
+    width: 270px;
     align-items: center;
     text-align: center;
     aspect-ratio: 1 / 1;
     justify-content: flex-start;
-    padding: 26px 16px 20px;
+    padding: 30px 20px 24px;
   }
   #modulos-home .modulo-icon {
-    width: 60px; height: 60px; border-radius: 16px;
+    width: 68px; height: 68px; border-radius: 18px;
   }
-  #modulos-home .modulo-icon svg { width: 30px; height: 30px; }
+  #modulos-home .modulo-icon svg { width: 34px; height: 34px; }
   #modulos-home .modulo-info { flex: none; }
 
   /* ── Shell: ocultar todo lo móvil ── */
@@ -1527,6 +1527,45 @@ body.is-offline #app { padding-top: 30px; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+/* ── Aviso "Más módulos" (solo móvil) ──────────────────────────
+   Franja fija abajo, con degradé hacia el fondo, que indica que hay
+   más tarjetas por debajo del scroll. Se oculta con la clase .hidden
+   (agregada/quitada por JS según la posición del scroll — ver
+   _actualizarScrollHintModulos en app-v2.js) y también queda oculta
+   directamente en escritorio, donde todos los módulos entran sin
+   necesidad de scrollear. */
+.modulos-scroll-hint {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-bottom: 10px;
+  background: linear-gradient(to bottom, rgba(244,245,247,0) 0%, var(--bg) 65%);
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.25s ease;
+  animation: modulos-hint-bounce 1.6s ease-in-out infinite;
+}
+.modulos-scroll-hint span {
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.modulos-scroll-hint svg {
+  width: 18px; height: 18px; color: var(--accent);
+}
+@keyframes modulos-hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(4px); }
+}
+@media (min-width: 900px) {
+  .modulos-scroll-hint { display: none !important; }
+}
+
 /* Se agrega por JS (aplicarRestriccionModulosHome) cuando la persona tiene
    menos de 6 módulos permitidos: sin esto, al pasar de grid a flex para
    poder centrar, cada tarjeta terminaba con el ancho de su propio texto
