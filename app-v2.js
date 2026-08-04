@@ -215,6 +215,13 @@ function initOAuth() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.CLIENT_ID,
     scope: CONFIG.SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
+    // Evita que las renovaciones "silenciosas" (prompt:'') abran una
+    // ventanita real que se abre y se cierra sola de golpe — con esto,
+    // en navegadores compatibles (Chrome/Edge/Android) Google usa un
+    // mecanismo del propio navegador (FedCM) en vez de un popup visible.
+    // En Safari/iOS no aplica (Apple no soporta FedCM todavía), por eso
+    // ahí puede seguir viéndose el flash puntualmente.
+    use_fedcm_for_prompt: true,
     callback: async (response) => {
       if (response.error) {
         document.getElementById('login-hint').textContent = 'Error: ' + response.error;
