@@ -527,15 +527,26 @@ body.is-offline #app { padding-top: 30px; }
 }
 @media (max-width: 640px) {
   /* En pantallas chicas no entran ícono + nombre + logo en la misma fila
-     sin apretarse — el logo pasa a su propia fila abajo, alineado a la
-     derecha, en vez de solaparse con el nombre del vehículo. */
-  .ficha-hero { flex-wrap: wrap; }
+     sin apretarse. Antes usábamos flex-wrap, pero como .ficha-hero-info
+     tiene min-width:0, el flexbox nunca llegaba a desbordar — en cambio
+     comprimía el nombre hasta truncarlo con "..." y el logo se quedaba
+     pegado al lado. Con un grid explícito de 2 filas el logo siempre
+     baja a su propia fila, sin importar cuánto ocupe el nombre. */
+  .ficha-hero {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    grid-template-areas: "icon info" "logo logo";
+    column-gap: 14px;
+    row-gap: 6px;
+  }
+  .ficha-hero-icon { grid-area: icon; }
+  .ficha-hero-info { grid-area: info; min-width: 0; }
   .ficha-hero-logo-grande {
-    flex-basis: 100%;
+    grid-area: logo;
+    justify-self: end;
     height: 34px;
     max-width: 96px;
-    margin-left: auto;
-    margin-top: 4px;
+    margin: 0;
   }
 }
 .ficha-section { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 14px; margin-bottom: 10px; overflow: hidden; }
