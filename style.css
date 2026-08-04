@@ -525,8 +525,18 @@ body.is-offline #app { padding-top: 30px; }
   height: 48px; max-width: 120px; width: auto; object-fit: contain;
   flex-shrink: 0; margin-left: auto;
 }
-@media (max-width: 380px) {
-  .ficha-hero-logo-grande { display: none; }
+@media (max-width: 640px) {
+  /* En pantallas chicas no entran ícono + nombre + logo en la misma fila
+     sin apretarse — el logo pasa a su propia fila abajo, alineado a la
+     derecha, en vez de solaparse con el nombre del vehículo. */
+  .ficha-hero { flex-wrap: wrap; }
+  .ficha-hero-logo-grande {
+    flex-basis: 100%;
+    height: 34px;
+    max-width: 96px;
+    margin-left: auto;
+    margin-top: 4px;
+  }
 }
 .ficha-section { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 14px; margin-bottom: 10px; overflow: hidden; }
 .ficha-sec-title { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
