@@ -601,6 +601,33 @@ function emptyState(titulo, subtitulo, iconPath) {
   </div>`;
 }
 
+// Logos de marcas (recortados y con fondo transparente) — se muestran como
+// una insignia chica sobre el ícono del equipo en la ficha. Si la marca no
+// está en esta lista, simplemente no se muestra ninguna insignia (no hace
+// falta tener el logo de todas las marcas para que esto funcione).
+const LOGOS_MARCA = {
+  'CHEVROLET':     'logos-marcas/chevrolet.png',
+  'DONGFENG':      'logos-marcas/dongfeng.png',
+  'HYUNDAI':       'logos-marcas/hyundai.png',
+  'INTERNATIONAL': 'logos-marcas/international.png',
+  'NISSAN':        'logos-marcas/nissan.png',
+  'ZOOMLION':      'logos-marcas/zoomlion.png',
+  'KOMATSU':       'logos-marcas/komatsu.png',
+  'JCB':           'logos-marcas/jcb.png',
+  'NEW HOLLAND':   'logos-marcas/new_holland.png',
+  'CAT':           'logos-marcas/cat.png',
+  'CATERPILLAR':   'logos-marcas/cat.png',
+  'CASE':          'logos-marcas/case.png',
+  'BOMAG':         'logos-marcas/bomag.png',
+  'EUROPARD':      'logos-marcas/europard.png',
+  'FIORI':         'logos-marcas/fiori.png',
+  'MANITOU':       'logos-marcas/manitou.png',
+  'DIECI':         'logos-marcas/dieci.png',
+};
+function logoMarca(marca) {
+  return LOGOS_MARCA[(marca || '').toUpperCase().trim()] || null;
+}
+
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
   // Iconos de línea simples (mismo lenguaje visual que el menú principal):
@@ -2582,7 +2609,7 @@ function renderDashboard() {
     const cls = d < 0 ? 'red' : d < 30 ? 'amber' : 'blue';
     const txt = d < 0 ? `Vencido ${Math.abs(d)}d` : `Vence en ${d}d`;
     return `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge marca-logo-badge--sm"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente} · ${e.ubicacion}</div>
@@ -2608,7 +2635,7 @@ function renderDashboard() {
   document.getElementById('dash-mant').innerHTML = conHoro.slice(0,5).map(e => {
     const cls = e.diff < 0 ? 'red' : e.diff < 500 ? 'amber' : 'green';
     return `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge marca-logo-badge--sm"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">Actual: ${formatNum(e.actual)} · Próxima: ${formatNum(e.prox)}</div>
@@ -2648,7 +2675,7 @@ function renderEquipos() {
 
   document.getElementById('equipos-list').innerHTML = filtered.map(e => `
     <div class="card ${ESTADO_CARD[e.estado] || 'card--default'}" onclick="openFicha('${e.patente}')">
-      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge marca-logo-badge--sm"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente}</div>
@@ -2687,7 +2714,7 @@ function openFicha(patente, soloLectura) {
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
-      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>
@@ -2909,7 +2936,7 @@ function renderAlertas() {
     }).join('');
 
     const card = `<div class="card" onclick="openFicha('${e.patente}')">
-      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}</div>
+      <div class="card-icon card-icon--flota">${iconoEquipo(e.equipo)}${logoMarca(e.marca) ? `<div class="marca-logo-badge marca-logo-badge--sm"><img src="${logoMarca(e.marca)}" alt="${e.marca}"></div>` : ''}</div>
       <div class="card-body">
         <div class="card-title">${e.marca} ${e.modelo}</div>
         <div class="card-sub">${e.equipo} · ${e.patente} · ${e.ubicacion}</div>
