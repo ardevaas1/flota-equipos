@@ -40,6 +40,9 @@
 #mod-bitacora {
   --accent: #6d28d9; --accent-dark: #4c1d95; --accent-soft: #ede9fe; --accent-rgb: 109,40,217;
 }
+#mod-arriendos {
+  --accent: #0891b2; --accent-dark: #0e7490; --accent-soft: #d7f2f6; --accent-rgb: 8,145,178;
+}
 /* Mismo tema, pero aplicado en <body> para que alcance también a los
    paneles de editar/agregar que viven fuera del contenedor del módulo */
 body.tema-inv {
@@ -56,6 +59,9 @@ body.tema-and {
 }
 body.tema-bit {
   --accent: #6d28d9; --accent-dark: #4c1d95; --accent-soft: #ede9fe; --accent-rgb: 109,40,217;
+}
+body.tema-arr {
+  --accent: #0891b2; --accent-dark: #0e7490; --accent-soft: #d7f2f6; --accent-rgb: 8,145,178;
 }
 
 html, body { height: 100%; background: var(--bg); font-family: var(--font-body); color: var(--ink); -webkit-tap-highlight-color: transparent; }
@@ -228,6 +234,7 @@ body.is-offline #app { padding-top: 30px; }
 .header--mov  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #1f6b39 0%, #2f8a4d 55%, #6fcf8b 100%); box-shadow: 0 2px 10px rgba(47,138,77,0.25); }
 .header--and  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #9c2f2f 0%, #d64545 55%, #e79494 100%); box-shadow: 0 2px 10px rgba(214,69,69,0.25); }
 .header--bit  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #c4b5fd 100%); box-shadow: 0 2px 10px rgba(109,40,217,0.25); }
+.header--arr  { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.16), transparent 60%), linear-gradient(135deg, #0e7490 0%, #0891b2 55%, #7dd3e0 100%); box-shadow: 0 2px 10px rgba(8,145,178,0.25); }
 .header-logo { height: 36px; width: auto; object-fit: contain; }
 .header-center { flex: 1; }
 .header-title { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2; }
@@ -1307,6 +1314,11 @@ body.is-offline #app { padding-top: 30px; }
       radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
       linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #c4b5fd 100%);
   }
+  .inv-desktop-sidebar-top--arr {
+    background:
+      radial-gradient(ellipse 220px 100px at 30% -30%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, #0e7490 0%, #0891b2 55%, #7dd3e0 100%);
+  }
   .inv-desktop-sidebar-top img {
     width: 36px; height: 36px; object-fit: contain;
   }
@@ -1410,7 +1422,8 @@ body.is-offline #app { padding-top: 30px; }
   /* FAB en desktop: esquina inferior derecha del área central */
   #mod-inventario .fab-btn,
   #mod-containers .fab-btn,
-  #mod-andamios .fab-btn {
+  #mod-andamios .fab-btn,
+  #mod-arriendos .fab-btn {
     position: fixed;
     bottom: 28px;
     right: 28px;
@@ -1433,7 +1446,10 @@ body.is-offline #app { padding-top: 30px; }
   #mod-movimientos > .header,
   #mod-andamios .and-total-bar,
   #mod-andamios .and-mobile-actions,
-  #mod-andamios > .header {
+  #mod-andamios > .header,
+  #mod-arriendos .arr-mobile-stats,
+  #mod-arriendos .pages,
+  #mod-arriendos > .header {
     display: none !important;
   }
 
@@ -1451,7 +1467,8 @@ body.is-offline #app { padding-top: 30px; }
   /* El header móvil se oculta; los módulos usan sidebar propio */
   #mod-inventario > header,
   #mod-containers > header,
-  #mod-movimientos > header { display: none !important; }
+  #mod-movimientos > header,
+  #mod-arriendos > header { display: none !important; }
 
   /* Barra de selección de Movimientos: en desktop se ancla al área central, no a todo el viewport */
   #movh-selbar-desktop.show { display: flex !important; }
@@ -1552,6 +1569,7 @@ body.is-offline #app { padding-top: 30px; }
 .modulo-card--mov::before   { background: #2f8a4d; }
 .modulo-card--and::before   { background: #9c2f2f; }
 .modulo-card--bit::before   { background: #6d28d9; }
+.modulo-card--arr::before   { background: #0891b2; }
 
 .modulo-card:active { transform: scale(0.97); box-shadow: 0 4px 14px rgba(0,0,0,0.1); border-color: var(--accent); }
 .modulo-icon {
@@ -1566,6 +1584,7 @@ body.is-offline #app { padding-top: 30px; }
 .modulo-icon--mov   { background: linear-gradient(145deg, #5fb878, #2f8a4d); }
 .modulo-icon--and   { background: linear-gradient(145deg, #d64545, #9c2f2f); }
 .modulo-icon--bit   { background: linear-gradient(145deg, #a78bfa, #6d28d9); }
+.modulo-icon--arr   { background: linear-gradient(145deg, #22c3e6, #0891b2); }
 .modulo-info { flex: 1; }
 .modulo-nombre { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.2; }
 .modulo-desc { font-size: 11.5px; color: #888; margin-top: 4px; line-height: 1.4; }

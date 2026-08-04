@@ -196,6 +196,27 @@
     body.chofer-mode #panel-bit-combustible .action-btn {
       display: inline-flex !important;
     }
+    /* ── Rol 'arriendos': acceso total dentro del módulo Arriendos.
+       #panel-arr-detalle y #panel-arr-form son paneles HERMANOS de
+       #mod-arriendos, van con su propio selector aparte. */
+    body.arriendos-mode #mod-arriendos .action-btn,
+    body.arriendos-mode #mod-arriendos .pnl-action,
+    body.arriendos-mode #mod-arriendos .viewer-hidden,
+    body.arriendos-mode #mod-arriendos .fab-btn,
+    body.arriendos-mode #panel-arr-detalle .pnl-action,
+    body.arriendos-mode #panel-arr-detalle .action-btn,
+    body.arriendos-mode #panel-arr-detalle .viewer-hidden,
+    body.arriendos-mode #panel-arr-form .pnl-action,
+    body.arriendos-mode #panel-arr-form .action-btn {
+      display: inline-flex !important;
+    }
+    body.arriendos-mode #mod-arriendos .fab-btn.viewer-hidden { display: flex !important; }
+    body.arriendos-mode #mod-arriendos .header-sub::after,
+    body.arriendos-mode #mod-arriendos .inv-desktop-sidebar-sub::after {
+      content: ' · Solo lectura (puede modificar Arriendos)';
+      font-size: 10px;
+    }
+
     body.chofer-mode .header-sub::after {
       content: '';
     }
@@ -918,6 +939,16 @@
         </div>
         <span class="modulo-arrow">›</span>
       </div>
+      <div class="modulo-card modulo-card--arr" onclick="irAModulo('arriendos')">
+        <div class="modulo-icon modulo-icon--arr">
+          <svg viewBox="0 0 24 24" fill="white"><path d="M11 6H14L17.29 2.7A1 1 0 0 1 18.71 2.7L21.29 5.29A1 1 0 0 1 21.29 6.7L19 9H11V11A1 1 0 0 1 10 12A1 1 0 0 1 9 11V8A2 2 0 0 1 11 6M5 11V15L2.71 17.29A1 1 0 0 0 2.71 18.7L5.29 21.29A1 1 0 0 0 6.71 21.29L11 17H15A1 1 0 0 0 16 16V15H17A1 1 0 0 0 18 14V13H19A1 1 0 0 0 20 12V11H13V12A2 2 0 0 1 11 14H9A2 2 0 0 1 7 12V9Z"/></svg>
+        </div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Arriendos</div>
+          <div class="modulo-desc">Equipos arrendados a terceros</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
     </div>
 
     <div class="modulos-resumen-wrap modulo-otro">
@@ -1471,6 +1502,183 @@
       <div class="form-group">
         <label>Chofer</label>
         <input type="text" id="bit-comb-chofer" placeholder="Nombre de quien maneja">
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ══ MÓDULO ARRIENDOS (equipos de terceros arrendados para una obra) ══ -->
+  <div id="mod-arriendos" class="main hidden">
+
+    <!-- SIDEBAR DESKTOP -->
+    <div class="inv-desktop-sidebar" id="arr-desktop-sidebar" style="display:none">
+      <div class="inv-desktop-sidebar-top inv-desktop-sidebar-top--arr">
+        <img src="logo-white.png" alt="LST">
+        <div>
+          <div class="inv-desktop-sidebar-title">Arriendos</div>
+          <div class="inv-desktop-sidebar-sub">Constructora LST</div>
+        </div>
+      </div>
+      <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
+        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Filtrar</div>
+        <button class="inv-desktop-tab active" id="arr-dt-filtro-todos"      onclick="arrSetFiltro('todos')">Todos</button>
+        <button class="inv-desktop-tab"        id="arr-dt-filtro-activos"    onclick="arrSetFiltro('activos')">Activos</button>
+        <button class="inv-desktop-tab"        id="arr-dt-filtro-porvencer"  onclick="arrSetFiltro('porvencer')">Por vencer</button>
+        <button class="inv-desktop-tab"        id="arr-dt-filtro-vencidos"   onclick="arrSetFiltro('vencidos')">Vencidos</button>
+        <button class="inv-desktop-tab"        id="arr-dt-filtro-devueltos"  onclick="arrSetFiltro('devueltos')">Devueltos</button>
+      </div>
+      <div class="inv-desktop-sidebar-footer">
+        <button class="desktop-refresh-btn viewer-hidden" onclick="arrAbrirNuevo()">+ Nuevo arriendo</button>
+        <button class="desktop-refresh-btn" onclick="loadArriendos(true)" style="margin-top:6px">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL DESKTOP -->
+    <div class="inv-desktop-content" id="arr-desktop-content" style="display:none">
+      <div class="inv-desktop-content-header">
+        <div class="inv-desktop-content-title">Arriendos</div>
+        <div class="inv-desktop-search">
+          <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <input type="text" id="arr-dt-search" placeholder="Buscar equipo, proveedor, obra..." oninput="arrSyncSearch()">
+        </div>
+      </div>
+      <div class="inv-desktop-list">
+        <div id="arr-dt-lista"></div>
+      </div>
+    </div>
+
+    <!-- LAYOUT MÓVIL -->
+    <header class="header header--arr" id="arr-mobile-header">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
+      <div class="header-center">
+        <div class="header-title">Arriendos</div>
+        <div class="header-sub">Constructora LST</div>
+      </div>
+      <button class="header-btn" onclick="loadArriendos(true)">↻</button>
+    </header>
+
+    <div class="inv-stats arr-mobile-stats" id="arr-mobile-stats">
+      <div class="inv-stat blue"><div class="inv-stat-n" id="arr-stat-activos">0</div><div class="inv-stat-l">Activos</div></div>
+      <div class="inv-stat amber"><div class="inv-stat-n" id="arr-stat-porvencer">0</div><div class="inv-stat-l">Por vencer</div></div>
+      <div class="inv-stat red"><div class="inv-stat-n" id="arr-stat-vencidos">0</div><div class="inv-stat-l">Vencidos</div></div>
+    </div>
+
+    <div style="padding:0 14px" id="arr-mobile-search">
+      <div class="searchbox">
+        <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
+      </div>
+      <div class="chips-wrap" style="margin:10px 0" id="arr-mobile-chips">
+        <button class="chip active" id="arr-filtro-todos"     onclick="arrSetFiltro('todos')">Todos</button>
+        <button class="chip"        id="arr-filtro-activos"   onclick="arrSetFiltro('activos')">Activos</button>
+        <button class="chip"        id="arr-filtro-porvencer" onclick="arrSetFiltro('porvencer')">Por vencer</button>
+        <button class="chip"        id="arr-filtro-vencidos"  onclick="arrSetFiltro('vencidos')">Vencidos</button>
+        <button class="chip"        id="arr-filtro-devueltos" onclick="arrSetFiltro('devueltos')">Devueltos</button>
+      </div>
+    </div>
+
+    <div class="pages" style="padding:0 14px 80px" id="arr-mobile-list">
+      <div id="arr-lista"></div>
+    </div>
+
+    <button class="fab-btn viewer-hidden" onclick="arrAbrirNuevo()">+</button>
+  </div>
+
+  <!-- ── Panel: Ficha de un arriendo ── -->
+  <div id="panel-arr-detalle" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-arr-detalle')">‹ Volver</button>
+      <span class="pnl-title">Arriendo</span>
+      <button class="pnl-action viewer-hidden" onclick="arrAbrirEditar(_arrDetalleRow)">Editar</button>
+    </div>
+    <div class="panel-body">
+      <div id="arr-detalle-body"></div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Nuevo / Editar arriendo ── -->
+  <div id="panel-arr-form" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-arr-form')">‹ Cancelar</button>
+      <span class="pnl-title" id="arr-form-titulo">Nuevo arriendo</span>
+      <button class="pnl-action" onclick="arrGuardar()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="arr-form-row">
+
+      <div class="form-sec">Equipo arrendado</div>
+      <div class="form-group">
+        <label>Equipo / descripción</label>
+        <input type="text" id="arr-equipo" placeholder="Ej: Grúa telescópica 30 ton">
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="arr-categoria">
+          <option value="">Sin categoría</option>
+          <option value="MAQUINARIA">Maquinaria</option>
+          <option value="VEHICULO">Vehículo</option>
+          <option value="HERRAMIENTA">Herramienta</option>
+          <option value="GENERADOR">Generador</option>
+          <option value="ANDAMIO">Andamio</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+
+      <div class="form-sec">Proveedor (empresa arrendadora)</div>
+      <div class="form-group">
+        <label>Proveedor</label>
+        <input type="text" id="arr-proveedor" placeholder="Nombre de la empresa">
+      </div>
+      <div class="form-group">
+        <label>Contacto</label>
+        <input type="text" id="arr-contacto" placeholder="Nombre de la persona de contacto">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="tel" id="arr-telefono" placeholder="Ej: +56 9 1234 5678">
+      </div>
+
+      <div class="form-sec">Plazo</div>
+      <div class="form-group">
+        <label>Fecha de inicio</label>
+        <input type="date" id="arr-fecha-inicio">
+      </div>
+      <div class="form-group">
+        <label>Fecha de término pactada</label>
+        <input type="date" id="arr-fecha-termino">
+      </div>
+
+      <div class="form-sec">Destino</div>
+      <div class="form-group">
+        <label>Obra / faena</label>
+        <input type="text" id="arr-obra" placeholder="Ej: Faena Pircunche">
+      </div>
+      <div class="form-group">
+        <label>Trabajo que suple</label>
+        <textarea id="arr-trabajo" rows="2" placeholder="Ej: Izaje de estructuras mientras la grúa propia está en mantención"></textarea>
+      </div>
+
+      <div class="form-sec">Costo (opcional)</div>
+      <div class="form-group">
+        <label>Valor</label>
+        <input type="number" id="arr-costo" min="0" placeholder="Ej: 350000">
+      </div>
+      <div class="form-group">
+        <label>Periodo</label>
+        <select id="arr-periodo-costo">
+          <option value="DIA">Por día</option>
+          <option value="SEMANA">Por semana</option>
+          <option value="MES">Por mes</option>
+          <option value="TOTAL">Total del arriendo</option>
+        </select>
+      </div>
+
+      <div class="form-sec">Observaciones</div>
+      <div class="form-group">
+        <textarea id="arr-obs" rows="3" placeholder="Notas adicionales, condición del equipo, etc."></textarea>
       </div>
     </div>
   </div>
@@ -2276,6 +2484,7 @@
 <script src="app-v2.js"></script>
 <script src="inventario.js"></script>
 <script src="bitacora.js"></script>
+<script src="arriendos.js"></script>
 <script>
 // ══ DESKTOP LAYOUT JS ════════════════════════════════════════════
 
