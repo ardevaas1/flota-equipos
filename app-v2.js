@@ -635,21 +635,6 @@ function logoMarca(marca) {
   return LOGOS_MARCA[(marca || '').toUpperCase().trim()] || null;
 }
 
-// Versión con más detalle (aro+centro en las ruedas, ventana marcada en la
-// cabina) — SOLO para usar donde el ícono se ve grande (la ficha, 32px).
-// A 18-20px (tarjetas de lista) este nivel de detalle se ve borroso, por
-// eso ahí se sigue usando iconoEquipo() (trazos gruesos, más simple).
-// Por ahora solo tiene versión detallada la retroexcavadora; el resto cae
-// al ícono simple de iconoEquipo() hasta que se agreguen las demás.
-function iconoEquipoDetallado(tipo) {
-  const t = (tipo || '').toLowerCase();
-  const svgsDetalle = {
-    retroexcavadora: `<svg viewBox="0 0 28 22" fill="none" class="equipo-svg"><circle cx="19.3" cy="17.3" r="3.9" stroke="white" stroke-width="1.4"/><circle cx="19.3" cy="17.3" r="1.7" stroke="white" stroke-width="1.2"/><circle cx="10.8" cy="17.8" r="2.9" stroke="white" stroke-width="1.4"/><circle cx="10.8" cy="17.8" r="1.2" stroke="white" stroke-width="1.1"/><path d="M9.3 13.2V6.1q0-1.5 1.5-1.5h5.5q1.6 0 1.6 1.6v6.7" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.3 4.7v8.5" stroke="white" stroke-width="1.1"/><path d="M17.9 6.2 18.3 3q.2-1.3 1.5-1" stroke="white" stroke-width="1.2" stroke-linecap="round"/><path d="M9.3 11.6 3.6 14.3" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M3.6 14.3q-2.3.3-2.5 2.4 1.5 1.4 3.5.2l1.8-1.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M16.9 6.4 21.4 3.9l2.6 2.5-1 5.4" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M22.9 11.7q1.9.6 1.5 2.6-1.8.9-2.9-.7l-.4-2.4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
-  };
-  if (t.includes('retroexcavadora')) return svgsDetalle.retroexcavadora;
-  return iconoEquipo(tipo); // fallback al set simple para lo que aún no tiene versión detallada
-}
-
 function iconoEquipo(tipo) {
   const t = (tipo || '').toLowerCase();
   // Iconos de línea simples (mismo lenguaje visual que el menú principal):
@@ -658,7 +643,7 @@ function iconoEquipo(tipo) {
     camioneta: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M16,6H10.5V10H1V15H3A3,3 0 0,0 6,18A3,3 0 0,0 9,15H15A3,3 0 0,0 18,18A3,3 0 0,0 21,15H23V12C23,10.89 22.11,10 21,10H19L16,6M12,7.5H15.5L17.46,10H12V7.5M6,13.5A1.5,1.5 0 0,1 7.5,15A1.5,1.5 0 0,1 6,16.5A1.5,1.5 0 0,1 4.5,15A1.5,1.5 0 0,1 6,13.5M18,13.5A1.5,1.5 0 0,1 19.5,15A1.5,1.5 0 0,1 18,16.5A1.5,1.5 0 0,1 16.5,15A1.5,1.5 0 0,1 18,13.5Z" fill="white"/></svg>`,
     camion: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M18,18.5A1.5,1.5 0 0,1 16.5,17A1.5,1.5 0 0,1 18,15.5A1.5,1.5 0 0,1 19.5,17A1.5,1.5 0 0,1 18,18.5M19.5,9.5L21.46,12H17V9.5M6,18.5A1.5,1.5 0 0,1 4.5,17A1.5,1.5 0 0,1 6,15.5A1.5,1.5 0 0,1 7.5,17A1.5,1.5 0 0,1 6,18.5M20,8H17V4H3C1.89,4 1,4.89 1,6V17H3A3,3 0 0,0 6,20A3,3 0 0,0 9,17H15A3,3 0 0,0 18,20A3,3 0 0,0 21,17H23V12L20,8Z" fill="white"/></svg>`,
     furgon: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3,7C1.89,7 1,7.89 1,9V17H3A3,3 0 0,0 6,20A3,3 0 0,0 9,17H15A3,3 0 0,0 18,20A3,3 0 0,0 21,17H23V13C23,11.89 22.11,11 21,11L18,7H3M15,8.5H17.5L19.46,11H15V8.5M6,15.5A1.5,1.5 0 0,1 7.5,17A1.5,1.5 0 0,1 6,18.5A1.5,1.5 0 0,1 4.5,17A1.5,1.5 0 0,1 6,15.5M18,15.5A1.5,1.5 0 0,1 19.5,17A1.5,1.5 0 0,1 18,18.5A1.5,1.5 0 0,1 16.5,17A1.5,1.5 0 0,1 18,15.5Z" fill="white"/></svg>`,
-    retroexcavadora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="15.3" cy="18.3" r="2.9" fill="white"/><circle cx="8.7" cy="18.7" r="2.1" fill="white"/><rect x="7.5" y="9.5" width="7" height="5.5" rx="1.2" stroke="white" stroke-width="2.1"/><path d="M7.5 13 3.5 15.3" stroke="white" stroke-width="2.1" stroke-linecap="round"/><path d="M3.5 15.3 1 17 3 19.3 5.8 17.3Z" fill="white"/><path d="M14 10.3 18.7 8" stroke="white" stroke-width="2.1" stroke-linecap="round"/><path d="M18.7 8 21.5 12" stroke="white" stroke-width="2.1" stroke-linecap="round"/><path d="M21.5 12 19 13.8 17 11 19.5 9.2Z" fill="white"/></svg>`,
+    retroexcavadora: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="equipo-svg"><path d="M2 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M11 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M13 19l-9 0"/><path d="M4 15l9 0"/><path d="M8 12v-5h2a3 3 0 0 1 3 3v5"/><path d="M5 15v-2a1 1 0 0 1 1 -1h7"/><path d="M21.12 9.88l-3.12 -4.88l-5 5"/><path d="M21.12 9.88a3 3 0 0 1 -2.12 5.12a3 3 0 0 1 -2.12 -.88l4.24 -4.24"/></svg>`,
     excavadora: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M18.5 18.5C19.04 18.5 19.5 18.96 19.5 19.5S19.04 20.5 18.5 20.5H6.5C5.96 20.5 5.5 20.04 5.5 19.5S5.96 18.5 6.5 18.5H18.5M18.5 17H6.5C5.13 17 4 18.13 4 19.5S5.13 22 6.5 22H18.5C19.88 22 21 20.88 21 19.5S19.88 17 18.5 17M21 11H18V7H13L10 11V16H22L21 11M11.54 11L13.5 8.5H16V11H11.54M9.76 3.41L4.76 2L2 11.83C1.66 13.11 2.41 14.44 3.7 14.8L4.86 15.12L8.15 12.29L4.27 11.21L6.15 4.46L8.94 5.24C9.5 5.53 10.71 6.34 11.47 7.37L12.5 6H12.94C11.68 4.41 9.85 3.46 9.76 3.41Z" fill="white"/></svg>`,
     minicargador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="6.7" cy="18.7" r="2.5" fill="white"/><circle cx="12.3" cy="18.7" r="2.5" fill="white"/><rect x="4.5" y="10.2" width="8" height="6.3" rx="1.3" stroke="white" stroke-width="2.1"/><path d="M12.5 10.5 17.3 9.2v6.3" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M17.3 12 21.3 12.5 20.7 16.5 16.7 17Z" fill="white"/></svg>`,
     manipulador: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="6" cy="19.3" r="2.3" fill="white"/><circle cx="11.3" cy="19.3" r="2.3" fill="white"/><rect x="3" y="14" width="9.3" height="5.6" rx="1.3" stroke="white" stroke-width="2.1"/><path d="M9.3 15 20.5 3.7" stroke="white" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.7v3.5M17.3 5l3.2 2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>`,
@@ -2736,7 +2721,7 @@ function openFicha(patente, soloLectura) {
 
   document.getElementById('ficha-body').innerHTML = `
     <div class="ficha-hero">
-      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipoDetallado(e.equipo)}</div>
+      <div class="ficha-hero-icon ficha-hero-icon--flota">${iconoEquipo(e.equipo)}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${e.equipo}</div>
         <div class="ficha-hero-name">${e.marca} ${e.modelo}</div>

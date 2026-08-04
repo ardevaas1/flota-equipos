@@ -7,5 +7,10 @@ Estos íconos usan trazos de **Material Design Icons (MDI)** por Pictogrammers
 License 2.0** (https://www.apache.org/licenses/LICENSE-2.0). No requiere
 atribución visible en la app, pero se deja constancia acá por transparencia.
 
-El resto de los íconos (retroexcavadora, minicargador, manipulador, grúa*,
-rodillo, mixer, generador) son dibujos originales hechos para este proyecto.
+## Ícono de retroexcavadora
+
+Usa el trazo "backhoe" de **Tabler Icons** (https://tabler.io/icons),
+licenciado bajo **MIT License**. Tampoco requiere atribución visible.
+
+El resto de los íconos (minicargador, manipulador, rodillo, mixer,
+generador) son dibujos originales hechos para este proyecto.
