@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const SHEET_GENERADORES  = 'GENERADORES';
 const SHEET_MAQ_MENOR    = 'MAQUINARIA MENOR';
 const SHEET_HERRAMIENTAS = 'HERRAMIENTAS';
+const SHEET_TOPOGRAFICO  = 'EQUIPOS TOPOGRAFICOS';
 const SHEET_CONTAINERS   = 'CONTENEDORES';
 const SHEET_GEN_EVENTOS  = 'MANT-GEN'; // hoja de eventos generadores (nombre real de la pestaña en el Sheet)
 const SHEET_MOVIMIENTOS  = 'MOVIMIENTOS'; // hoja de movimientos entre obras/bodega
@@ -60,12 +61,23 @@ const SHEET_MOVIMIENTOS  = 'MOVIMIENTOS'; // hoja de movimientos entre obras/bod
 let allGeneradores  = [];
 let allMaqMenor     = [];
 let allHerramientas = [];
+let allTopografico  = [];
 let allContainers   = [];
 let allGenEventos   = [];
 
 // ── Estado actual de módulo ───────────────────────────────────
-let invModulo = 'generadores'; // 'generadores' | 'maqmenor' | 'herramientas'
+let invModulo = 'generadores'; // 'generadores' | 'maqmenor' | 'herramientas' | 'topografico'
 let invItem   = null;          // ítem seleccionado para edición/detalle
+
+// Devuelve el array en memoria correspondiente a un módulo de inventario —
+// usado en todos lados en vez de repetir el ternario "generadores ?
+// allGeneradores : maqmenor ? allMaqMenor : ..." una y otra vez.
+function _invDatos(modulo) {
+  if (modulo === 'generadores')  return allGeneradores;
+  if (modulo === 'maqmenor')     return allMaqMenor;
+  if (modulo === 'topografico')  return allTopografico;
+  return allHerramientas; // 'herramientas' y cualquier otro caso caen acá
+}
 
 // ── Selección múltiple (mover en grupo) ────────────────────────
 let _invModoSeleccion = false;
@@ -175,6 +187,12 @@ const INV_ICONOS = {
   'pistola impacto': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 13h9l3-4h5v5h-5l-3 4H3Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 18l-2 3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   'pulidora hormigón': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M9 3l9 5" stroke="white" stroke-width="1.7" stroke-linecap="round"/><path d="M9 3 4 13" stroke="white" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="17" r="4" stroke="white" stroke-width="1.7"/><circle cx="8" cy="17" r="1.4" stroke="white" stroke-width="1.4"/></svg>`,
   teodolito: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="9" r="4" stroke="white" stroke-width="1.7"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  'estacion total': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="8" y="4" width="8" height="6" rx="1.3" stroke="white" stroke-width="1.6"/><circle cx="12" cy="7" r="1.3" stroke="white" stroke-width="1.3"/><path d="M12 10v6M6 21l6-5 6 5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 10H1M23 10h-3" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  nivel: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="12" cy="7" r="3.4" stroke="white" stroke-width="1.6"/><path d="M9 9.5 5 21M15 9.5l4 11.5M8 21h8" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  'gps topografico': `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 2C8 2 5 5 5 9c0 5.5 7 13 7 13s7-7.5 7-13c0-4-3-7-7-7Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.3" stroke="white" stroke-width="1.5"/></svg>`,
+  tripode: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 4v8M12 12l-7 8M12 12l7 8M8 6l8 0" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="4" r="1.6" stroke="white" stroke-width="1.4"/></svg>`,
+  mira: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="9" y="2" width="6" height="19" rx="1" stroke="white" stroke-width="1.6"/><path d="M9 6h6M9 10h6M9 14h6M9 18h6" stroke="white" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  prisma: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 3 21 20H3Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 3v17" stroke="white" stroke-width="1.3"/></svg>`,
   esmeril: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><circle cx="9" cy="9" r="6" stroke="white" stroke-width="1.7"/><path d="M9 5v8M5 9h8" stroke="white" stroke-width="1.5"/><path d="M13 13l8 8" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   taladro: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><path d="M21 11v3" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   container: `<svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M3 11h18M8 7v4M16 7v4" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>`,
@@ -266,6 +284,33 @@ function parseHerramientas(rows) {
     }));
 }
 
+// Equipos Topográficos: encabezado simple en la fila 1, datos desde la
+// fila 2 (a diferencia de Generadores/Maq.Menor/Herramientas, que vienen
+// de hojas viejas con encabezado en 2 filas y datos desde la fila 3).
+// Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=SERIE G=COLOR H=ESTADO
+// I=UBICACION J=PROX_CALIBRACION K=ULT_CALIBRACION L=OBS M=NUM_IDENT
+function parseTopografico(rows) {
+  return rows
+    .map((r, i) => ({ r, rowIndex: i + 2 }))
+    .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
+    .map(({ r, rowIndex }) => ({
+      rowIndex,
+      num:       r[0]  || '',
+      equipo:    r[1]  || '',
+      registro:  r[2]  || '',
+      marca:     r[3]  || '',
+      modelo:    r[4]  || '',
+      motor:     r[5]  || '',
+      color:     r[6]  || '',
+      estado:    r[7]  || '',
+      ubicacion: r[8]  || '',
+      proxCal:   r[9]  || '',
+      ultCal:    r[10] || '',
+      obs:       r[11] || '',
+      numIdent:  r[12] || '',
+    }));
+}
+
 // Containers: Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
 function parseContainers(rows) {
   return rows
@@ -288,8 +333,8 @@ function parseContainers(rows) {
 
 // ── Cargar todos los módulos ──────────────────────────────────
 async function loadInventario() {
-  // Las 5 hojas se piden todas a la vez (arrancan al mismo tiempo), pero
-  // con manejo de error SEPARADO entre "las 4 de inventario" y "eventos de
+  // Las 6 hojas se piden todas a la vez (arrancan al mismo tiempo), pero
+  // con manejo de error SEPARADO entre "las 5 de inventario" y "eventos de
   // generadores" — si un día la pestaña MANT-GEN no existe con ese nombre
   // exacto (pasó antes, ver el comentario más abajo), que falle sola y no
   // se lleve puesto el resto del inventario que sí cargó bien.
@@ -297,6 +342,7 @@ async function loadInventario() {
     fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
     fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
     fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:N200`),
+    fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:M200`),
     fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
   ]);
   const pGenEventos = fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
@@ -307,12 +353,13 @@ async function loadInventario() {
   ]);
 
   if (invResult.ok) {
-    const [rowsGen, rowsMM, rowsH, rowsCont] = invResult.r;
+    const [rowsGen, rowsMM, rowsH, rowsTopo, rowsCont] = invResult.r;
     allGeneradores  = parseGeneradores(rowsGen);
     allMaqMenor     = parseMaqMenor(rowsMM);
     allHerramientas = parseHerramientas(rowsH);
+    allTopografico  = parseTopografico(rowsTopo);
     allContainers   = parseContainers(rowsCont);
-    console.log('[INV] Cargado:', allGeneradores.length, 'gen,', allMaqMenor.length, 'mm,', allHerramientas.length, 'h,', allContainers.length, 'cont');
+    console.log('[INV] Cargado:', allGeneradores.length, 'gen,', allMaqMenor.length, 'mm,', allHerramientas.length, 'h,', allTopografico.length, 'topo,', allContainers.length, 'cont');
   } else {
     console.error('[INV] Error cargando inventario:', invResult.e.message);
     toast('Error cargando inventario: ' + invResult.e.message, 'error');
@@ -351,9 +398,7 @@ async function loadInventario() {
 
 // ── Render lista inventario ────────────────────────────────────
 function renderInvLista() {
-  const datos = invModulo === 'generadores'  ? allGeneradores
-              : invModulo === 'maqmenor'     ? allMaqMenor
-              : allHerramientas;
+  const datos = _invDatos(invModulo);
 
   const searchEl = document.getElementById('inv-search');
   const txt = searchEl ? searchEl.value.toLowerCase() : '';
@@ -377,6 +422,9 @@ function renderInvLista() {
     const onclickAttr = _invModoSeleccion
       ? `invToggleItemSeleccion('${invModulo}',${item.rowIndex})`
       : `invAbrirDetalle('${invModulo}',${item.rowIndex})`;
+    // Aviso de calibración vencida/por vencer — solo Equipos Topográficos
+    const calBadge = (invModulo === 'topografico' && item.proxCal)
+      ? docBadge(diasRestantes(item.proxCal)) : '';
     return `<div class="card ${invEstadoBorder(item.estado)}" onclick="${onclickAttr}">
       ${_invModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size:22px">${icon}</div>
@@ -386,6 +434,7 @@ function renderInvLista() {
       </div>
       <div class="card-right">
         <span class="badge ${cls}">${item.estado||'Sin estado'}</span>
+        ${calBadge}
         <span style="font-size:11px;color:#aaa">${item.ubicacion||'—'}</span>
         ${_invModoSeleccion ? '' : ''}
       </div>
@@ -409,9 +458,7 @@ function renderInvLista() {
 
 // ── Detalle ítem inventario ───────────────────────────────────
 function invAbrirDetalle(modulo, rowIndex, soloLectura) {
-  const datos = modulo === 'generadores'  ? allGeneradores
-              : modulo === 'maqmenor'     ? allMaqMenor
-              : allHerramientas;
+  const datos = _invDatos(modulo);
 
   const item = datos.find(i => i.rowIndex === rowIndex);
   if (!item) return;
@@ -435,6 +482,14 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
     extraFields = `
       ${item.numIdent ? `<div class="field-row"><span class="fl">N° de identificación</span><span class="fv">${item.numIdent}</span></div>` : ''}
       ${item.motor ? `<div class="field-row"><span class="fl">Motor</span><span class="fv">${item.motor}</span></div>` : ''}
+    `;
+  } else if (modulo === 'topografico') {
+    const calBadge = item.proxCal ? docBadge(diasRestantes(item.proxCal)) : '';
+    extraFields = `
+      ${item.numIdent ? `<div class="field-row"><span class="fl">N° de identificación</span><span class="fv">${item.numIdent}</span></div>` : ''}
+      ${item.motor    ? `<div class="field-row"><span class="fl">N° de serie</span><span class="fv">${item.motor}</span></div>` : ''}
+      ${item.proxCal  ? `<div class="field-row"><span class="fl">Próx. calibración</span><span class="fv">${item.proxCal} ${calBadge}</span></div>` : ''}
+      ${item.ultCal   ? `<div class="field-row"><span class="fl">Última calibración</span><span class="fv">${item.ultCal}</span></div>` : ''}
     `;
   } else {
     extraFields = `
@@ -505,7 +560,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
 
     ${secEventos}
 
-    ${_renderHistorialMovimientos(item.codigo || item.numIdent || String(item.num || item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
+    ${modulo === 'topografico' ? '' : _renderHistorialMovimientos(item.codigo || item.numIdent || String(item.num || item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
@@ -783,6 +838,7 @@ async function invAbrirCarpetaDrive() {
     const codigo = invItem.codigo || invItem.numIdent || invItem.num || '';
     const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
                     : invItem._modulo === 'maqmenor'    ? SHEET_MAQ_MENOR
+                    : invItem._modulo === 'topografico'  ? SHEET_TOPOGRAFICO
                     : SHEET_HERRAMIENTAS;
 
     // Buscar carpeta de la hoja dentro de DRIVE_INV_FOLDER
@@ -838,16 +894,29 @@ function invAbrirEditar() {
   _precargarColor('inv-edit-color', item.color || '');
   document.getElementById('inv-edit-obs').value        = item.obs || '';
 
-  // N° de identificación: aplica a Herramientas y Maq. Menor
+  // N° de identificación: aplica a Herramientas, Maq. Menor y Topográfico
   const numidentSec = document.getElementById('inv-edit-numident-sec');
   const numidentRow = document.getElementById('inv-edit-numident-row');
-  if (modulo === 'herramientas' || modulo === 'maqmenor') {
+  if (modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico') {
     if (numidentSec) numidentSec.style.display = '';
     if (numidentRow) numidentRow.style.display = '';
     document.getElementById('inv-edit-numident').value = item.numIdent || '';
   } else {
     if (numidentSec) numidentSec.style.display = 'none';
     if (numidentRow) numidentRow.style.display = 'none';
+  }
+
+  // Calibración: solo Equipos Topográficos
+  const calSec = document.getElementById('inv-edit-calibracion-sec');
+  const calRow = document.getElementById('inv-edit-calibracion-row');
+  if (modulo === 'topografico') {
+    if (calSec) calSec.style.display = '';
+    if (calRow) calRow.style.display = '';
+    document.getElementById('inv-edit-proxcal').value = _invFechaAInput(item.proxCal || '');
+    document.getElementById('inv-edit-ultcal').value  = _invFechaAInput(item.ultCal  || '');
+  } else {
+    if (calSec) calSec.style.display = 'none';
+    if (calRow) calRow.style.display = 'none';
   }
 
   // Limpiar foto nueva pendiente
@@ -922,6 +991,22 @@ function onInvFotoSelected(input) {
   input.value = '';
 }
 
+// Convierte dd/mm/aaaa (como está guardado en el Sheet) a aaaa-mm-dd
+// (formato de <input type=date>) y viceversa — usado por Equipos
+// Topográficos para las fechas de calibración.
+function _invFechaAInput(s) {
+  if (!s) return '';
+  const p = s.split('/');
+  if (p.length === 3) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+  return '';
+}
+function _invFechaDeInput(s) {
+  if (!s) return '';
+  const p = s.split('-');
+  if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+  return '';
+}
+
 async function invGuardar() {
   const row    = parseInt(document.getElementById('inv-edit-row').value);
   const modulo = document.getElementById('inv-edit-modulo').value;
@@ -940,14 +1025,17 @@ async function invGuardar() {
   // formulario. Si cambia, más abajo renombramos la carpeta sola para que
   // no quede una carpeta vieja huérfana y otra nueva con el mismo ítem.
   const numIdentAntes = invItem ? (invItem.numIdent || '') : '';
-  const numIdentNuevo = (modulo === 'herramientas' || modulo === 'maqmenor')
+  const numIdentNuevo = (modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico')
     ? document.getElementById('inv-edit-numident').value.trim() : '';
+  const proxCalNuevo = modulo === 'topografico' ? _invFechaDeInput(document.getElementById('inv-edit-proxcal').value) : '';
+  const ultCalNuevo  = modulo === 'topografico' ? _invFechaDeInput(document.getElementById('inv-edit-ultcal').value)  : '';
 
   try {
     // Mapeo de columnas por módulo
     // Generadores:  I=estado(9) J=ubicacion(10) G=color(7) N=obs(14) O=imagen(15)
     // Maq. Menor:   H=estado(8) I=ubicacion(9)  G=color(7) J=obs(10) C=foto(3)
     // Herramientas: H=estado(8) I=ubicacion(9)  G=color(7) L=obs(12) C=registro(3)
+    // Topográfico:  H=estado(8) I=ubicacion(9)  G=color(7) L=obs(12) C=registro(3) J=prox_cal K=ult_cal
     let colEstado, colUbic, colColor, colObs, colFoto, sheetName;
 
     if (modulo === 'generadores') {
@@ -956,6 +1044,9 @@ async function invGuardar() {
     } else if (modulo === 'maqmenor') {
       colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'J'; colFoto = 'C';
       sheetName = SHEET_MAQ_MENOR;
+    } else if (modulo === 'topografico') {
+      colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'L'; colFoto = 'C';
+      sheetName = SHEET_TOPOGRAFICO;
     } else {
       colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'L'; colFoto = 'C';
       sheetName = SHEET_HERRAMIENTAS;
@@ -967,8 +1058,11 @@ async function invGuardar() {
       writeSheet(`'${sheetName}'!${colUbic}${row}`,   [[ubic]]),
       writeSheet(`'${sheetName}'!${colColor}${row}`,  [[color]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
-      ...(modulo === 'herramientas' || modulo === 'maqmenor'
-        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : 'K'}${row}`, [[numIdentNuevo]])]
+      ...(modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico'
+        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : modulo === 'topografico' ? 'M' : 'K'}${row}`, [[numIdentNuevo]])]
+        : []),
+      ...(modulo === 'topografico'
+        ? [writeSheet(`'${sheetName}'!J${row}:K${row}`, [[proxCalNuevo, ultCalNuevo]])]
         : []),
     ]);
 
@@ -1077,9 +1171,7 @@ async function invGuardar() {
     await loadInventario();
 
     // Actualizar el ítem en memoria y volver a mostrar el detalle
-    const datosNew = modulo === 'generadores' ? allGeneradores
-                   : modulo === 'maqmenor'    ? allMaqMenor
-                   : allHerramientas;
+    const datosNew = _invDatos(modulo);
     const updated = datosNew.find(i => i.rowIndex === row);
     if (updated) {
       invItem = { ...updated, _modulo: modulo };
@@ -1659,7 +1751,7 @@ function irAModulo(modulo) {
     _pgTransition(homeEl, document.getElementById('mod-inventario'), 'forward');
     requestAnimationFrame(() => {
       _invActivarDesktop('inventario');
-      invSetModulo(modulo === 'generadores' ? 'generadores' : modulo === 'maqmenor' ? 'maqmenor' : 'herramientas');
+      invSetModulo(modulo === 'generadores' ? 'generadores' : modulo === 'maqmenor' ? 'maqmenor' : modulo === 'topografico' ? 'topografico' : 'herramientas');
     });
   }
 
@@ -1725,7 +1817,7 @@ function invSetModulo(mod) {
   const dtTab = document.getElementById('inv-dt-tab-' + mod);
   if (dtTab) dtTab.classList.add('active');
 
-  const nombre = mod === 'generadores' ? 'Generadores' : mod === 'maqmenor' ? 'Maq. Menor' : 'Herramientas';
+  const nombre = mod === 'generadores' ? 'Generadores' : mod === 'maqmenor' ? 'Maq. Menor' : mod === 'topografico' ? 'Equipos Topográficos' : 'Herramientas';
   const tituloMob = document.getElementById('inv-titulo');
   const tituloDt  = document.getElementById('inv-dt-titulo');
   if (tituloMob) tituloMob.textContent = nombre;
@@ -1777,6 +1869,7 @@ function volverAInicio() {
 const TIPOS_MAQ_MENOR = ['SOPLADOR','VIBROAPISONADOR','ASPIRADORA','TURBOCALEFACTOR','COMPRESOR','HIDROLAVADORA','CORTADORA DE ASFALTO','MOTOBOMBA','BOMBA SUMERGIBLE','PLACA COMPACTADORA','BETONERA','UNIDAD MOTRIZ','RODILLO','OTRO'];
 const TIPOS_HERRAMIENTA = ['DEMOLEDOR 5 KILOS','DEMOLEDOR 10 KILOS','DEMOLEDOR 9 KILOS','ESMERIL 5"','ESMERIL 7"','TALADRO PERCUTOR','PISTOLA IMPACTO','PULIDORA HORMIGÓN','TEODOLITO','OTRO'];
 const TIPOS_GENERADOR = ['GENERADOR'];
+const TIPOS_TOPOGRAFICO = ['ESTACION TOTAL','NIVEL TOPOGRAFICO','TEODOLITO','GPS TOPOGRAFICO','TRIPODE','MIRA','PRISMA','OTRO'];
 const TIPOS_CONTAINER = ['OFICINA','BODEGA','BAÑO','OTRO'];
 
 // Prefijos de código por tipo de equipo (se pueden extender)
@@ -1793,6 +1886,9 @@ const PREFIJOS_TIPO = {
   'DEMOLEDOR 5 KILOS': 'DM5', 'DEMOLEDOR 10 KILOS': 'D10', 'DEMOLEDOR 9 KILOS': 'DM9',
   'ESMERIL 5"': 'ES5', 'ESMERIL 7"': 'ES7', 'TALADRO PERCUTOR': 'TAL',
   'PISTOLA IMPACTO': 'PST', 'PULIDORA HORMIGÓN': 'PUL', 'TEODOLITO': 'TEO',
+  // Equipos Topográficos
+  'ESTACION TOTAL': 'EST', 'NIVEL TOPOGRAFICO': 'NIV', 'GPS TOPOGRAFICO': 'GPS',
+  'TRIPODE': 'TRI', 'MIRA': 'MIR', 'PRISMA': 'PRI',
   'OTRO': 'OTR',
 };
 
@@ -1815,7 +1911,7 @@ function _nextCodigo(tipo, _datosIgnorado) {
 
   // Buscar en TODOS los ítems del sistema (generadores + maqmenor + herramientas + containers)
   const todosCodigos = [
-    ...allGeneradores, ...allMaqMenor, ...allHerramientas, ...allContainers
+    ...allGeneradores, ...allMaqMenor, ...allHerramientas, ...allTopografico, ...allContainers
   ].map(i => (i.codigo || '').toString().trim().toUpperCase());
 
   const re   = new RegExp(`^${prefijo}-(\\d+)$`, 'i');
@@ -1865,6 +1961,7 @@ function invAbrirNuevo() {
   const mod = invModulo;
   const tipos = mod === 'generadores' ? TIPOS_GENERADOR
               : mod === 'maqmenor'    ? TIPOS_MAQ_MENOR
+              : mod === 'topografico' ? TIPOS_TOPOGRAFICO
               : TIPOS_HERRAMIENTA;
 
   // Poblar select de tipo
@@ -1874,11 +1971,14 @@ function invAbrirNuevo() {
   // Código solo para generadores; maq. menor y herramientas no lo tienen en el sheet
   document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
   document.getElementById('nuevo-potencia-row').style.display = mod === 'generadores' ? '' : 'none';
-  // N° de identificación aplica a Herramientas y Maq. Menor
-  document.getElementById('nuevo-numident-row').style.display = (mod === 'herramientas' || mod === 'maqmenor') ? '' : 'none';
+  // N° de identificación aplica a Herramientas, Maq. Menor y Topográfico
+  document.getElementById('nuevo-numident-row').style.display = (mod === 'herramientas' || mod === 'maqmenor' || mod === 'topografico') ? '' : 'none';
+  // Calibración: solo Equipos Topográficos
+  const calRow = document.getElementById('nuevo-calibracion-row');
+  if (calRow) calRow.style.display = mod === 'topografico' ? '' : 'none';
 
   // Limpiar campos
-  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color','nuevo-numident'].forEach(id => {
+  ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color','nuevo-numident','nuevo-proxcal','nuevo-ultcal'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   _precargarColor('nuevo-color', '');
@@ -1890,7 +1990,7 @@ function invAbrirNuevo() {
   document.getElementById('nuevo-modulo').value = mod;
 
   // Calcular número correlativo siguiente
-  const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const datos = _invDatos(mod);
   const nextNum = datos.length > 0 ? Math.max(...datos.map(i => parseInt(i.num)||0)) + 1 : 1;
   document.getElementById('nuevo-num').value = nextNum;
 
@@ -1904,7 +2004,7 @@ function invAbrirNuevo() {
 function _actualizarCodigoAuto() {
   const mod   = document.getElementById('nuevo-modulo').value;
   const tipo  = document.getElementById('nuevo-equipo').value;
-  const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const datos = _invDatos(mod);
   const codigoEl = document.getElementById('nuevo-codigo');
   if (codigoEl) codigoEl.value = _nextCodigo(tipo, datos);
 }
@@ -1922,7 +2022,9 @@ async function invGuardarNuevo() {
   const color    = _valorColor('nuevo-color');
   const codigo   = mod === 'generadores' ? document.getElementById('nuevo-codigo').value.trim().toUpperCase() : '';
   const potencia = mod === 'generadores' ? document.getElementById('nuevo-potencia').value.trim().toUpperCase() : '';
-  const numIdent = (mod === 'herramientas' || mod === 'maqmenor') ? document.getElementById('nuevo-numident').value.trim().toUpperCase() : '';
+  const numIdent = (mod === 'herramientas' || mod === 'maqmenor' || mod === 'topografico') ? document.getElementById('nuevo-numident').value.trim().toUpperCase() : '';
+  const proxCal  = mod === 'topografico' ? _invFechaDeInput(document.getElementById('nuevo-proxcal').value) : '';
+  const ultCal   = mod === 'topografico' ? _invFechaDeInput(document.getElementById('nuevo-ultcal').value)  : '';
 
   _limpiarErrores('panel-nuevo-inv');
   let valido = true;
@@ -1937,7 +2039,7 @@ async function invGuardarNuevo() {
 
   // Re-chequear N° correlativo por si se agregó otro ítem desde que se abrió el formulario
   // (evita duplicados si dos personas registran al mismo tiempo)
-  const datosActuales = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+  const datosActuales = _invDatos(mod);
   const numFresco = datosActuales.length > 0 ? Math.max(...datosActuales.map(i => parseInt(i.num)||0)) + 1 : 1;
   let numFinal = num;
   if (parseInt(num) !== numFresco) {
@@ -1959,6 +2061,10 @@ async function invGuardarNuevo() {
       // Cols: A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
       sheetName = SHEET_MAQ_MENOR;
       fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', numIdent];
+    } else if (mod === 'topografico') {
+      // Cols: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=SERIE G=COLOR H=ESTADO I=UBICACION J=PROX_CAL K=ULT_CAL L=OBS M=NUM_IDENT
+      sheetName = SHEET_TOPOGRAFICO;
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, proxCal, ultCal, '', numIdent];
     } else {
       // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_SERIE
       sheetName = SHEET_HERRAMIENTAS;
@@ -1973,9 +2079,9 @@ async function invGuardarNuevo() {
       toast('Subiendo foto de referencia...', 'loading');
       try {
         // Obtener rowIndex del nuevo ítem (última fila del sheet)
-        const datos = mod === 'generadores' ? allGeneradores : mod === 'maqmenor' ? allMaqMenor : allHerramientas;
+        const datos = _invDatos(mod);
         const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
-        const numIdentNuevo = (mod === 'herramientas' || mod === 'maqmenor') ? document.getElementById('nuevo-numident')?.value.trim() : '';
+        const numIdentNuevo = (mod === 'herramientas' || mod === 'maqmenor' || mod === 'topografico') ? document.getElementById('nuevo-numident')?.value.trim() : '';
         const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : (numIdentNuevo || numFinal);
         const itemParaCarpeta = { codigo: mod === 'generadores' ? codigoFoto : '', numIdent: numIdentNuevo, num: numFinal, equipo, marca, modelo };
         let folderId = DRIVE_INV_FOLDER;
@@ -2208,15 +2314,15 @@ async function invMigrarCarpetas(modulo) {
     toast('Solo un administrador puede ejecutar esto', 'error');
     return;
   }
-  if (modulo !== 'maqmenor' && modulo !== 'herramientas') {
-    toast('Usa invMigrarCarpetas(\'maqmenor\') o invMigrarCarpetas(\'herramientas\')', 'error');
+  if (modulo !== 'maqmenor' && modulo !== 'herramientas' && modulo !== 'topografico') {
+    toast('Usa invMigrarCarpetas(\'maqmenor\'), invMigrarCarpetas(\'herramientas\') o invMigrarCarpetas(\'topografico\')', 'error');
     return;
   }
-  const datos = modulo === 'maqmenor' ? allMaqMenor : allHerramientas;
-  const sheetName = modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+  const datos = _invDatos(modulo);
+  const sheetName = modulo === 'maqmenor' ? SHEET_MAQ_MENOR : modulo === 'topografico' ? SHEET_TOPOGRAFICO : SHEET_HERRAMIENTAS;
   const conNumIdent = datos.filter(i => i.numIdent);
   if (!conNumIdent.length) { toast('Ningún ítem tiene N° de identificación cargado todavía', 'error'); return; }
-  const etiqueta = modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramientas';
+  const etiqueta = modulo === 'maqmenor' ? 'Maq. Menor' : modulo === 'topografico' ? 'Equipos Topográficos' : 'Herramientas';
   if (!confirm(`Esto va a renombrar la carpeta de Drive de ${conNumIdent.length} ítem(s) de ${etiqueta} para que usen "N° de identificación (descripción)" en vez del N° normal solo. ¿Continuar?`)) return;
 
   try {
@@ -2395,7 +2501,7 @@ function abrirMoverInv() {
   const nombre = [invItem.marca, invItem.modelo].filter(Boolean).join(' ') || invItem.equipo;
   _abrirPanelMover({
     tipoEquipo: invItem._modulo === 'generadores' ? 'Generador'
-              : invItem._modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
+              : invItem._modulo === 'maqmenor' ? 'Maq. Menor' : invItem._modulo === 'topografico' ? 'Equipo Topográfico' : 'Herramienta',
     codigoEquipo: invItem.codigo || invItem.numIdent || String(invItem.num || invItem.rowIndex),
     nombreEquipo: nombre,
     ubicacionActual: invItem.ubicacion || '',
@@ -2536,8 +2642,10 @@ async function invGuardarMovimiento() {
       if (invItem._modulo === 'generadores') col = 'J';
       else if (invItem._modulo === 'maqmenor') col = 'I';
       else if (invItem._modulo === 'herramientas') col = 'I';
+      else if (invItem._modulo === 'topografico') col = 'I';
       const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
-                       : invItem._modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+                       : invItem._modulo === 'maqmenor' ? SHEET_MAQ_MENOR
+                       : invItem._modulo === 'topografico' ? SHEET_TOPOGRAFICO : SHEET_HERRAMIENTAS;
       if (col) await writeSheet(`'${sheetName}'!${col}${rowIndex}`, [[destino]]);
     } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'cont') {
       await writeSheet(`'${SHEET_CONTAINERS}'!G${rowIndex}`, [[destino]]);
@@ -2668,14 +2776,13 @@ function abrirMoverSeleccionInv() {
   _invSeleccion.forEach(key => {
     const [modulo, rowIndexStr] = key.split(':');
     const rowIndex = parseInt(rowIndexStr);
-    const datos = modulo === 'generadores' ? allGeneradores
-                : modulo === 'maqmenor'    ? allMaqMenor : allHerramientas;
+    const datos = _invDatos(modulo);
     const item = datos.find(d => d.rowIndex === rowIndex);
     if (!item) return;
     const nombre = [item.marca, item.modelo].filter(Boolean).join(' ') || item.equipo;
     _movMultiItems.push({
       key, modulo, rowIndex,
-      tipoEquipo: modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta',
+      tipoEquipo: modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : modulo === 'topografico' ? 'Equipo Topográfico' : 'Herramienta',
       codigoEquipo: item.codigo || item.numIdent || String(item.num || item.rowIndex),
       nombreEquipo: nombre,
       ubicacionActual: item.ubicacion || '',
@@ -2920,7 +3027,8 @@ async function guardarMovimientoMulti() {
       } else {
         let col = item.modulo === 'generadores' ? 'J' : 'I';
         const sheetName = item.modulo === 'generadores' ? SHEET_GENERADORES
-                         : item.modulo === 'maqmenor' ? SHEET_MAQ_MENOR : SHEET_HERRAMIENTAS;
+                         : item.modulo === 'maqmenor' ? SHEET_MAQ_MENOR
+                         : item.modulo === 'topografico' ? SHEET_TOPOGRAFICO : SHEET_HERRAMIENTAS;
         writes.push(writeSheet(`'${sheetName}'!${col}${item.rowIndex}`, [[destino]]));
       }
     }
@@ -3079,6 +3187,17 @@ function _movhTodosLosItems() {
       tipoEquipo: 'Herramienta',
       codigoEquipo: e.codigo || e.numIdent || String(e.num || e.rowIndex),
       nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Herramienta',
+      ubicacionActual: e.ubicacion || '',
+      icon: invIcono(e.equipo),
+    });
+  });
+  (typeof allTopografico !== 'undefined' ? allTopografico : []).forEach(e => {
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
+    items.push({
+      key: `topografico:${e.rowIndex}`, modulo: 'topografico', rowIndex: e.rowIndex,
+      tipoEquipo: 'Equipo Topográfico',
+      codigoEquipo: e.codigo || e.numIdent || String(e.num || e.rowIndex),
+      nombreEquipo: [e.equipo, marcaModelo].filter(Boolean).join(' — ') || 'Equipo Topográfico',
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.equipo),
     });
