@@ -260,7 +260,9 @@ function parseMaqMenor(rows) {
     }));
 }
 
-// Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_IDENT
+// Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
+// (antes tenía además PROX_MANT/ULT_MANT/MANT_CADA entre I y J — se sacaron
+// porque nunca se usaron, quedaban vacías en todas las filas)
 function parseHerramientas(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 3 }))
@@ -276,11 +278,8 @@ function parseHerramientas(rows) {
       color:     r[6]  || '',
       estado:    r[7]  || '',
       ubicacion: r[8]  || '',
-      proxMant:  r[9]  || '',
-      ultMant:   r[10] || '',
-      obs:       r[11] || '',
-      mantCada:  r[12] || '',
-      numIdent:  r[13] || '',
+      obs:       r[9]  || '',
+      numIdent:  r[10] || '',
     }));
 }
 
@@ -341,7 +340,7 @@ async function loadInventario() {
   const pInv = Promise.all([
     fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
     fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
-    fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:N200`),
+    fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:K200`),
     fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:M200`),
     fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
   ]);
@@ -495,7 +494,6 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
     extraFields = `
       ${item.numIdent ? `<div class="field-row"><span class="fl">N° de identificación</span><span class="fv">${item.numIdent}</span></div>` : ''}
       ${item.motor    ? `<div class="field-row"><span class="fl">Motor / Potencia</span><span class="fv">${item.motor}</span></div>` : ''}
-      ${item.mantCada ? `<div class="field-row"><span class="fl">Mantención cada</span><span class="fv">${item.mantCada}</span></div>` : ''}
     `;
   }
 
@@ -1034,7 +1032,7 @@ async function invGuardar() {
     // Mapeo de columnas por módulo
     // Generadores:  I=estado(9) J=ubicacion(10) G=color(7) N=obs(14) O=imagen(15)
     // Maq. Menor:   H=estado(8) I=ubicacion(9)  G=color(7) J=obs(10) C=foto(3)
-    // Herramientas: H=estado(8) I=ubicacion(9)  G=color(7) L=obs(12) C=registro(3)
+    // Herramientas: H=estado(8) I=ubicacion(9)  G=color(7) J=obs(10) C=registro(3)
     // Topográfico:  H=estado(8) I=ubicacion(9)  G=color(7) L=obs(12) C=registro(3) J=prox_cal K=ult_cal
     let colEstado, colUbic, colColor, colObs, colFoto, sheetName;
 
@@ -1048,7 +1046,7 @@ async function invGuardar() {
       colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'L'; colFoto = 'C';
       sheetName = SHEET_TOPOGRAFICO;
     } else {
-      colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'L'; colFoto = 'C';
+      colEstado = 'H'; colUbic = 'I'; colColor = 'G'; colObs = 'J'; colFoto = 'C';
       sheetName = SHEET_HERRAMIENTAS;
     }
 
@@ -1059,7 +1057,7 @@ async function invGuardar() {
       writeSheet(`'${sheetName}'!${colColor}${row}`,  [[color]]),
       writeSheet(`'${sheetName}'!${colObs}${row}`,    [[obs]]),
       ...(modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico'
-        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'N' : modulo === 'topografico' ? 'M' : 'K'}${row}`, [[numIdentNuevo]])]
+        ? [writeSheet(`'${sheetName}'!${modulo === 'herramientas' ? 'K' : modulo === 'topografico' ? 'M' : 'K'}${row}`, [[numIdentNuevo]])]
         : []),
       ...(modulo === 'topografico'
         ? [writeSheet(`'${sheetName}'!J${row}:K${row}`, [[proxCalNuevo, ultCalNuevo]])]
@@ -2066,9 +2064,9 @@ async function invGuardarNuevo() {
       sheetName = SHEET_TOPOGRAFICO;
       fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, proxCal, ultCal, '', numIdent];
     } else {
-      // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=PROX_MANT K=ULT_MANT L=OBS M=MANT_CADA N=NUM_SERIE
+      // Herramientas: A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_SERIE
       sheetName = SHEET_HERRAMIENTAS;
-      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', '', '', '', numIdent];
+      fila = [numFinal, equipo, '', marca, modelo, '', color, estado, ubicacion, '', numIdent];
     }
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
@@ -4119,6 +4117,52 @@ async function andLimpiarDuplicadosUbicacionesConfirmar() {
   }
 }
 
+// Recorre TODAS las piezas y corrige cualquiera que tenga la columna de
+// cantidad (C, en ANDAMIOS) desactualizada respecto de lo que realmente
+// suma en AND-UBICACIONES — sin importar si tiene una sola ubicación
+// (COLIMA) o varias. Este es justo el caso que "andDiagnosticarTotales"
+// NO alcanzaba a detectar antes: una pieza CON ubicaciones cargadas,
+// pero donde la columna C quedó con un número viejo de antes de que
+// existiera bien el sistema de ubicaciones. Muestra vista previa
+// primero, no escribe nada hasta que confirmás.
+// Llamar desde la consola: andRecalcularTodosTotales()
+async function andRecalcularTodosTotales() {
+  try {
+    console.log('[RECALCULAR TOTALES] Revisando todas las piezas (vista previa, todavía no se toca nada)...');
+    const preview = await _andEscrituraRemota('and_recalcular_todos', { dryRun: 'true' });
+
+    if (!preview.piezas_corregidas) {
+      console.log('[RECALCULAR TOTALES] ✓ Todas las piezas ya tienen la columna de cantidad al día. No hay nada que corregir.');
+      toast('Todo está al día, nada que corregir');
+      return;
+    }
+
+    console.log(`[RECALCULAR TOTALES] ${preview.piezas_corregidas} pieza(s) tienen la columna de cantidad desactualizada:`);
+    console.table(preview.cambios.map(c => ({
+      Fila: c.fila,
+      Tipo: c.tipo,
+      'Columna C (actual)': c.cantidad_columna_c,
+      'Suma real de ubicaciones': c.cantidad_real_ubicaciones,
+    })));
+    console.log('Ojo: esto asume que AND-UBICACIONES es la correcta y la columna C está atrasada — no siempre es así (puede ser al revés). Antes de confirmar, fijate que cada número tenga sentido según lo que sabés del stock real.');
+    console.log('Si esos valores se ven correctos, corré: andRecalcularTodosTotalesConfirmar()  ← para aplicar el cambio de verdad.');
+  } catch (e) {
+    console.error('[RECALCULAR TOTALES] Error:', e.message);
+  }
+}
+async function andRecalcularTodosTotalesConfirmar() {
+  try {
+    toast('Recalculando totales...', 'loading');
+    const data = await _andEscrituraRemota('and_recalcular_todos', { dryRun: 'false' });
+    console.log(`[RECALCULAR TOTALES] ✓ Se corrigieron ${data.piezas_corregidas} pieza(s).`);
+    toast(`✓ Se corrigieron ${data.piezas_corregidas} pieza(s)`);
+    await andCargar();
+  } catch (e) {
+    console.error('[RECALCULAR TOTALES] Error:', e.message);
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 // Explica por qué "Total de piezas contadas" (arriba en Andamios) y el
 // total de "Resumen general por ubicación" pueden no coincidir. Los dos
 // SUMAN AND-UBICACIONES, pero de forma distinta:
@@ -4169,6 +4213,7 @@ async function andDiagnosticarTotales() {
 
     let totalArriba = 0, totalResumen = 0;
     const piezasSinUbicaciones = [];
+    const piezasColumnaDesactualizada = []; // caso nuevo: SÍ tiene ubicaciones, pero la columna C no coincide con lo que suman
 
     piezas.forEach(p => {
       const cantArriba = tieneUbicaciones[p.rowIndex] ? (sumaPorFila[p.rowIndex] || 0) : p.colimaColC;
@@ -4176,6 +4221,9 @@ async function andDiagnosticarTotales() {
       totalResumen += sumaValida[p.rowIndex] || 0;
       if (!tieneUbicaciones[p.rowIndex] && p.colimaColC > 0) {
         piezasSinUbicaciones.push({ fila: p.rowIndex, tipo: p.tipo, cantidad_columna_c: p.colimaColC });
+      }
+      if (tieneUbicaciones[p.rowIndex] && (sumaPorFila[p.rowIndex] || 0) !== p.colimaColC) {
+        piezasColumnaDesactualizada.push({ fila: p.rowIndex, tipo: p.tipo, cantidad_columna_c: p.colimaColC, suma_real_ubicaciones: sumaPorFila[p.rowIndex] || 0 });
       }
     });
 
@@ -4193,8 +4241,13 @@ async function andDiagnosticarTotales() {
       console.table(filasIgnoradasPorResumen);
       console.log('→ Estas hay que corregirlas a mano en el Sheet, poniéndoles una ubicación (ej: COLIMA).');
     }
-    if (!piezasSinUbicaciones.length && !filasIgnoradasPorResumen.length) {
-      console.log('[DIAGNÓSTICO] No se encontró ninguna causa de las dos más comunes — si igual hay diferencia, avisame el número exacto para revisar más a fondo.');
+    if (piezasColumnaDesactualizada.length) {
+      console.log(`[DIAGNÓSTICO] ${piezasColumnaDesactualizada.length} pieza(s) CON ubicaciones cargadas, pero cuya columna C quedó con un número viejo (no coincide con lo que suman sus ubicaciones):`);
+      console.table(piezasColumnaDesactualizada);
+      console.log('→ Corré: andRecalcularTodosTotales() para corregirlas.');
+    }
+    if (!piezasSinUbicaciones.length && !filasIgnoradasPorResumen.length && !piezasColumnaDesactualizada.length) {
+      console.log('[DIAGNÓSTICO] No se encontró ninguna causa conocida — si igual hay diferencia, avisame el número exacto para revisar más a fondo.');
     }
   } catch (e) {
     console.error('[DIAGNÓSTICO] Error:', e.message);
