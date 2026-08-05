@@ -4072,6 +4072,53 @@ async function andRenombrarUbicacion(desde, hacia) {
   }
 }
 
+// Limpia filas duplicadas en AND-UBICACIONES (la misma pieza+ubicación
+// cargada varias veces, algo que puede pasar por bugs viejos ya
+// corregidos) — se queda con el ÚLTIMO valor cargado para cada
+// combinación y borra las filas viejas. SIEMPRE muestra primero una
+// vista previa (sin tocar nada) y pide confirmación antes de aplicar el
+// cambio de verdad. Llamar desde la consola: andLimpiarDuplicadosUbicaciones()
+async function andLimpiarDuplicadosUbicaciones() {
+  try {
+    console.log('[LIMPIAR DUPLICADOS] Revisando AND-UBICACIONES (vista previa, todavía no se toca nada)...');
+    const preview = await _andEscrituraRemota('and_limpiar_duplicados_ubicaciones', { dryRun: 'true' });
+
+    if (!preview.piezas_con_duplicados) {
+      console.log('[LIMPIAR DUPLICADOS] ✓ No se encontraron filas duplicadas. No hay nada que limpiar.');
+      toast('No hay duplicados para limpiar');
+      return;
+    }
+
+    console.log(`[LIMPIAR DUPLICADOS] Se encontraron ${preview.piezas_con_duplicados} pieza(s) con filas duplicadas (${preview.filas_borradas} fila(s) de sobra en total). Detalle:`);
+    console.table(preview.reporte.map(r => ({
+      Fila: r.fila,
+      Tipo: r.tipo,
+      Ubicación: r.ubicacion,
+      'Valores encontrados': r.valores_encontrados.join(' → '),
+      'Se va a quedar con': r.valor_que_queda,
+    })));
+    console.log('Si esos valores finales se ven correctos, corré: andLimpiarDuplicadosUbicacionesConfirmar()  ← para aplicar el cambio de verdad.');
+
+    // Sin confirmar=true, se queda en modo vista previa nomás (no escribe nada)
+  } catch (e) {
+    console.error('[LIMPIAR DUPLICADOS] Error:', e.message);
+  }
+}
+// Segunda función separada para el paso de confirmación, así no hay que
+// creerle a un solo parámetro booleano perdido en medio de la llamada.
+async function andLimpiarDuplicadosUbicacionesConfirmar() {
+  try {
+    toast('Limpiando duplicados...', 'loading');
+    const data = await _andEscrituraRemota('and_limpiar_duplicados_ubicaciones', { dryRun: 'false' });
+    console.log(`[LIMPIAR DUPLICADOS] ✓ Se borraron ${data.filas_borradas} fila(s) duplicada(s) de ${data.piezas_con_duplicados} pieza(s). Los totales de ANDAMIOS se recalcularon solos.`);
+    toast(`✓ Se limpiaron ${data.filas_borradas} fila(s) duplicada(s)`);
+    await andCargar();
+  } catch (e) {
+    console.error('[LIMPIAR DUPLICADOS] Error:', e.message);
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 // ── Resumen general por ubicación (todas las piezas, agrupadas) ──────────
 // Vista inversa a "Ubicaciones por pieza": acá se agrupa por ubicación y
 // se lista qué piezas (y cuánto de cada una) hay en cada obra/bodega.

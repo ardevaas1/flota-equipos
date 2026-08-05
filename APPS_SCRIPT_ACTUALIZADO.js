@@ -196,16 +196,6 @@ function _hojaUbicacionesAnd() {
   return sh;
 }
 
-// Fuerza el total de una pieza a un número EXACTO desde el panel "Editar" —
-// a diferencia de _fijarCantidadUbicacionAnd (que solo toca UNA ubicación
-// puntual y deja que el total salga de sumar todas), esta función además
-// pone en 0 cualquier otra fila de ubicación que haya quedado suelta para
-// esa misma pieza con un nombre distinto a "COLIMA" (por ejemplo un resto
-// de la antigua "Bodega", de antes de renombrarla) — así el total nunca
-// puede terminar sumando algo que la persona no ve ni puede editar desde
-// acá. Pensada para cuando todavía no hay ubicaciones reales aparte de
-// COLIMA; si en el futuro se usan obras de verdad, esta función ya no
-// debería usarse desde "Editar" (se dejaría de tocar solo COLIMA).
 // Recalcula el total de una pieza (suma de todas sus ubicaciones) y lo
 // deja escrito en la columna C de ANDAMIOS — así el resto de la app puede
 // seguir leyendo un solo número sin tener que sumar nada del lado del
@@ -472,6 +462,66 @@ function manejarAccionAndamios(p) {
         filasABorrar.sort((a, b) => b - a).forEach(f => shUbic.deleteRow(f));
 
         return _jsonOut({ success: true, renombradas });
+      }
+
+      // Limpia filas DUPLICADAS en AND-UBICACIONES (misma pieza + misma
+      // ubicación repetida varias veces) — se quedan con el ÚLTIMO valor
+      // cargado para cada combinación (el más reciente, más abajo en la
+      // hoja) y borran las filas viejas. Con p.dryRun='true' NO escribe
+      // nada — solo devuelve el reporte de qué encontraría, para poder
+      // revisarlo antes de aplicar el cambio de verdad.
+      case 'and_limpiar_duplicados_ubicaciones': {
+        const dryRun = String(p.dryRun) === 'true';
+        const shUbic = _hojaUbicacionesAnd();
+        const datos = shUbic.getDataRange().getValues();
+
+        // Agrupa por "fila|ubicación" (normalizado) manteniendo el orden de aparición
+        const grupos = {}; // clave -> [{ fila, tipo, ubicacion, cantidad, filaSheet }]
+        for (let i = 1; i < datos.length; i++) {
+          const fila = parseInt(datos[i][0], 10);
+          if (!fila) continue;
+          const tipo = datos[i][1] || '';
+          const ubicacion = (datos[i][2] || '').toString().trim();
+          const cantidad = parseInt(datos[i][3], 10) || 0;
+          const clave = fila + '|' + ubicacion.toLowerCase();
+          if (!grupos[clave]) grupos[clave] = [];
+          grupos[clave].push({ fila, tipo, ubicacion, cantidad, filaSheet: i + 1 });
+        }
+
+        const reporte = [];
+        const filasABorrar = [];
+        const filasAActualizar = []; // por si el valor a conservar no es el que ya está en esa fila (no debería pasar, pero por las dudas)
+        const filasAndamiosARecalcular = new Set();
+
+        Object.values(grupos).forEach(grupo => {
+          if (grupo.length < 2) return; // sin duplicados, no hay nada que hacer
+          const conservar = grupo[grupo.length - 1]; // el último (más reciente) de la hoja
+          const descartar = grupo.slice(0, -1);
+          reporte.push({
+            fila: conservar.fila,
+            tipo: conservar.tipo,
+            ubicacion: conservar.ubicacion,
+            valores_encontrados: grupo.map(g => g.cantidad),
+            valor_que_queda: conservar.cantidad,
+          });
+          descartar.forEach(d => filasABorrar.push(d.filaSheet));
+          filasAndamiosARecalcular.add(conservar.fila);
+        });
+
+        if (!dryRun && filasABorrar.length) {
+          // Borrar de abajo hacia arriba para no correr los índices de las que faltan
+          filasABorrar.sort((a, b) => b - a).forEach(f => shUbic.deleteRow(f));
+          const shAndamios = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_ANDAMIOS);
+          filasAndamiosARecalcular.forEach(fila => _recalcularTotalAnd(shAndamios, fila));
+        }
+
+        return _jsonOut({
+          success: true,
+          dryRun,
+          piezas_con_duplicados: reporte.length,
+          filas_borradas: filasABorrar.length,
+          reporte,
+        });
       }
 
       default:
