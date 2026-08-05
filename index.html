@@ -1009,6 +1009,7 @@
         <button class="inv-desktop-tab active" id="inv-dt-tab-generadores" onclick="invSetModulo('generadores')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Generadores</button>
         <button class="inv-desktop-tab" id="inv-dt-tab-maqmenor"    onclick="invSetModulo('maqmenor')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Maq. Menor</button>
         <button class="inv-desktop-tab" id="inv-dt-tab-herramientas" onclick="invSetModulo('herramientas')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Herramientas</button>
+        <button class="inv-desktop-tab" id="inv-dt-tab-topografico"  onclick="invSetModulo('topografico')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Topográfico</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
@@ -1044,6 +1045,7 @@
       <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Generadores</button>
       <button class="inv-tab" id="inv-tab-maqmenor" onclick="invSetModulo('maqmenor')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Maq. Menor</button>
       <button class="inv-tab" id="inv-tab-herramientas" onclick="invSetModulo('herramientas')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Herramientas</button>
+      <button class="inv-tab" id="inv-tab-topografico" onclick="invSetModulo('topografico')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Topográfico</button>
     </div>
     <div class="inv-stats" id="inv-mobile-stats">
       <div class="inv-stat green"><div class="inv-stat-n" id="inv-stat-op">—</div><div class="inv-stat-l">Operativos</div></div>
@@ -1580,13 +1582,13 @@
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
         <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
       </div>
-      <div class="chips-wrap" style="margin:10px 0" id="arr-mobile-chips">
+      <div class="chips-wrap" style="margin:10px 0" id="arr-mobile-chips"><div class="chips">
         <button class="chip active" id="arr-filtro-todos"     onclick="arrSetFiltro('todos')">Todos</button>
         <button class="chip"        id="arr-filtro-activos"   onclick="arrSetFiltro('activos')">Activos</button>
         <button class="chip"        id="arr-filtro-porvencer" onclick="arrSetFiltro('porvencer')">Por vencer</button>
         <button class="chip"        id="arr-filtro-vencidos"  onclick="arrSetFiltro('vencidos')">Vencidos</button>
         <button class="chip"        id="arr-filtro-devueltos" onclick="arrSetFiltro('devueltos')">Devueltos</button>
-      </div>
+      </div></div>
     </div>
 
     <div class="pages" style="padding:0 14px 80px" id="arr-mobile-list">
@@ -1764,9 +1766,9 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Cantidad (total)</label>
-        <input type="number" id="and-edit-cantidad" min="0">
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px">Si más adelante hay stock repartido en obras, revísalo en "Ver ubicaciones" — mientras todo esté en COLIMA, este número es el total real de la pieza.</div>
+        <label>Cantidad</label>
+        <button type="button" class="action-btn" style="margin:0" onclick="andVerUbicaciones(parseInt(document.getElementById('and-edit-row').value))">📍 Ver / editar por ubicación</button>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">El total ya no se edita acá directo — se calcula solo sumando lo que hay cargado en cada ubicación (obra, bodega, etc). Para cambiarlo, entrá a "Ver ubicaciones" y ajustá ahí.</div>
       </div>
       <div class="form-group">
         <label>Observaciones</label>
@@ -1920,6 +1922,14 @@
       <div class="form-group" id="inv-edit-numident-row" style="display:none">
         <label>N° de identificación</label>
         <input type="text" id="inv-edit-numident" placeholder="N° de serie, grabado, etiqueta u otra forma de identificarlo">
+      </div>
+
+      <div class="form-sec" id="inv-edit-calibracion-sec" style="display:none">Calibración</div>
+      <div class="form-group" id="inv-edit-calibracion-row" style="display:none">
+        <label>Próxima calibración</label>
+        <input type="date" id="inv-edit-proxcal">
+        <label style="margin-top:10px">Última calibración</label>
+        <input type="date" id="inv-edit-ultcal">
       </div>
 
       <div class="form-sec">Ubicación</div>
@@ -2359,6 +2369,12 @@
       <div id="nuevo-numident-row" class="form-group" style="display:none">
         <label>N° de identificación</label>
         <input type="text" id="nuevo-numident" placeholder="N° de serie, grabado, etiqueta u otra forma de identificarlo">
+      </div>
+      <div id="nuevo-calibracion-row" class="form-group" style="display:none">
+        <label>Próxima calibración</label>
+        <input type="date" id="nuevo-proxcal">
+        <label style="margin-top:10px">Última calibración</label>
+        <input type="date" id="nuevo-ultcal">
       </div>
       <div class="form-group">
         <label>Color</label>

@@ -3710,12 +3710,37 @@ async function andCargar() {
         rowIndex: i + 2, // fila real en la hoja (offset por header en fila 1)
         tipo: r[0] || '',
         foto: r[1] || '',
-        cantidad: parseInt(r[2]) || 0,
+        cantidad: parseInt(r[2]) || 0, // se pisa más abajo con la suma real de ubicaciones, si hay
         obs: r[3] || '',
         sistema: r[4] || 'Europeo', // filas antiguas sin columna E se asumen Europeo
         bajas: parseInt(r[5]) || 0, // filas antiguas sin columna F se asumen 0
       }))
       .filter(x => x.tipo); // ignora filas vacías
+
+    // El total de cada pieza pasa a ser SIEMPRE la suma de sus filas en
+    // AND-UBICACIONES — así "Total de piezas contadas" arriba y "Resumen
+    // general por ubicación" quedan matemáticamente obligados a coincidir,
+    // en vez de depender de que la columna C de ANDAMIOS esté bien
+    // sincronizada (que era justo lo que se podía desincronizar y mostraba
+    // números distintos en cada lado). Si una pieza todavía no tiene
+    // ninguna fila de ubicación cargada (nunca se migró), se deja el valor
+    // de la columna C como estaba, para no mostrarla de golpe en 0.
+    try {
+      const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+      const sumaPorFila = {};
+      const tieneUbicaciones = {};
+      (rowsUbic || []).forEach(r => {
+        const fila = parseInt(r[0], 10);
+        if (!fila) return;
+        tieneUbicaciones[fila] = true;
+        sumaPorFila[fila] = (sumaPorFila[fila] || 0) + (parseInt(r[3], 10) || 0);
+      });
+      allAndamios.forEach(it => {
+        if (tieneUbicaciones[it.rowIndex]) it.cantidad = sumaPorFila[it.rowIndex] || 0;
+      });
+    } catch (e) {
+      console.warn('[ANDAMIOS] No se pudo sumar AND-UBICACIONES, se usa la columna C tal cual:', e.message);
+    }
   } catch (e) {
     console.warn('[ANDAMIOS] Hoja no encontrada aún, se creará al guardar el primer tipo', e.message);
     allAndamios = [];
@@ -4744,7 +4769,6 @@ async function andAbrirEditar(rowIndex) {
 
   document.getElementById('and-edit-row').value = it.rowIndex;
   document.getElementById('and-edit-nombre').value = it.tipo;
-  document.getElementById('and-edit-cantidad').value = '...';
   document.getElementById('and-edit-obs').value = it.obs || '';
   document.getElementById('and-edit-sistema').value = it.sistema || 'Europeo';
   _andEditFoto = null;
@@ -4754,7 +4778,7 @@ async function andAbrirEditar(rowIndex) {
   // Sin vista separada de "solo ver" en este panel: para viewer/mover se
   // deshabilitan los campos en vez de dejarlos editables sin poder guardar.
   const soloLectura = _andSoloLectura();
-  ['and-edit-nombre', 'and-edit-cantidad', 'and-edit-obs', 'and-edit-sistema'].forEach(id => {
+  ['and-edit-nombre', 'and-edit-obs', 'and-edit-sistema'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = soloLectura;
   });
@@ -4762,30 +4786,6 @@ async function andAbrirEditar(rowIndex) {
   if (fotoRow) fotoRow.style.display = soloLectura ? 'none' : '';
 
   openPanel('panel-and-edit');
-
-  // El campo "Cantidad" de este panel ajusta específicamente el stock en
-  // COLIMA (bodega), no el total de la pieza — el total puede incluir
-  // stock repartido en obras (ver "Ubicaciones"). Antes se precargaba el
-  // TOTAL acá, pero al guardar solo se pisaba COLIMA sin tocar el resto:
-  // si la pieza tenía stock en alguna obra, el total quedaba inflado cada
-  // vez que se editaba (esto era el bug del "número muy grande").
-  try {
-    const rows = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
-    const filasPieza = (rows || []).filter(r => parseInt(r[0], 10) === rowIndex);
-    const filaColima = filasPieza.find(r => (r[2] || '').toString().trim().toUpperCase() === 'COLIMA');
-    const cantidadColima = filaColima
-      ? (parseInt(filaColima[3], 10) || 0)
-      : (filasPieza.length === 0 ? (it.cantidad || 0) : 0); // sin ubicaciones cargadas todavía = todo está en COLIMA implícito
-    const campoCant = document.getElementById('and-edit-cantidad');
-    // Si mientras cargaba se cerró el panel o se abrió otra pieza, no pisar nada
-    if (campoCant && document.getElementById('and-edit-row').value == rowIndex) {
-      campoCant.value = cantidadColima;
-    }
-  } catch(e) {
-    console.warn('[AND EDITAR] No se pudo cargar la cantidad en COLIMA:', e.message);
-    const campoCant = document.getElementById('and-edit-cantidad');
-    if (campoCant && document.getElementById('and-edit-row').value == rowIndex) campoCant.value = 0;
-  }
 }
 
 function onAndEditFotoSelected(input) {
@@ -4806,7 +4806,6 @@ async function andGuardarEdit() {
   if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const row = parseInt(document.getElementById('and-edit-row').value);
   const nombre = document.getElementById('and-edit-nombre').value.trim();
-  const cantidad = parseInt(document.getElementById('and-edit-cantidad').value) || 0;
   const obs = document.getElementById('and-edit-obs').value.trim();
   const sistema = document.getElementById('and-edit-sistema').value || 'Europeo';
   if (!row) return;
@@ -4817,7 +4816,7 @@ async function andGuardarEdit() {
 
   try {
     toast('Guardando...', 'loading');
-    await _andEscrituraRemota('and_editar', { row, tipo: nombre, cantidad, obs, sistema });
+    await _andEscrituraRemota('and_editar', { row, tipo: nombre, obs, sistema });
 
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';

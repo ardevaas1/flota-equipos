@@ -206,43 +206,6 @@ function _hojaUbicacionesAnd() {
 // acá. Pensada para cuando todavía no hay ubicaciones reales aparte de
 // COLIMA; si en el futuro se usan obras de verdad, esta función ya no
 // debería usarse desde "Editar" (se dejaría de tocar solo COLIMA).
-function _forzarTotalPiezaAnd(shAndamios, row, nueva, tipoNombre, email) {
-  const shUbic = _hojaUbicacionesAnd();
-  const datos = shUbic.getDataRange().getValues();
-  let anteriorTotal = 0;
-  let filaColima = -1;
-  const filasSueltas = [];
-
-  for (let i = 1; i < datos.length; i++) {
-    if (parseInt(datos[i][0], 10) === row) {
-      anteriorTotal += parseInt(datos[i][3], 10) || 0;
-      const esColima = (datos[i][2] || '').toString().trim().toUpperCase() === 'COLIMA';
-      if (esColima && filaColima === -1) {
-        filaColima = i + 1;
-      } else {
-        filasSueltas.push(i + 1);
-      }
-    }
-  }
-
-  // Las filas sueltas (con otro nombre de ubicación) se ponen en 0 en vez
-  // de borrarse — más simple y seguro que reindexar filas del Sheet, y el
-  // resultado es el mismo: no vuelven a sumar en el total.
-  filasSueltas.forEach(fila => shUbic.getRange(fila, 4).setValue(0));
-
-  if (filaColima === -1) {
-    shUbic.appendRow([row, tipoNombre || '', 'COLIMA', nueva]);
-  } else {
-    shUbic.getRange(filaColima, 4).setValue(nueva);
-  }
-
-  shAndamios.getRange(row, 3).setValue(nueva); // total = exactamente lo que se pidió, sin vueltas
-  if (anteriorTotal !== nueva) {
-    _registrarHistorialAnd(row, tipoNombre, anteriorTotal, nueva, email, 'Cantidad (editar)');
-  }
-  return nueva;
-}
-
 // Recalcula el total de una pieza (suma de todas sus ubicaciones) y lo
 // deja escrito en la columna C de ANDAMIOS — así el resto de la app puede
 // seguir leyendo un solo número sin tener que sumar nada del lado del
@@ -419,7 +382,17 @@ function manejarAccionAndamios(p) {
         return _jsonOut({ success: true });
       }
 
-      // Editar un tipo existente (nombre, cantidad, obs, sistema)
+      // Editar un tipo existente (nombre, obs, sistema, foto). La cantidad
+      // YA NO se toca desde acá — el total es exclusivamente la suma de
+      // AND-UBICACIONES (ver _recalcularTotalAnd), y se edita ubicación por
+      // ubicación ("Ver ubicaciones") o moviendo stock entre obras. Antes
+      // esto llamaba a _forzarTotalPiezaAnd, que ponía en 0 el stock de
+      // cualquier ubicación que no fuera "COLIMA" y pisaba el total con lo
+      // que hubiera en el campo Cantidad del panel de editar — si ese campo
+      // mostraba solo el stock de COLIMA (no el total) y alguien guardaba
+      // sin darse cuenta, el stock de las demás obras se borraba y el total
+      // quedaba mal. Ese era el origen exacto de que "el total" y "el total
+      // en ubicaciones" mostraran números distintos.
       case 'and_editar': {
         const row = parseInt(p.row, 10);
         if (!row || row < 2) return _jsonOut({ success: false, error: 'Fila inválida' });
@@ -427,11 +400,7 @@ function manejarAccionAndamios(p) {
         sh.getRange(row, 4).setValue(p.obs || '');
         sh.getRange(row, 5).setValue(p.sistema || 'Europeo');
         if (p.foto) sh.getRange(row, 2).setValue(p.foto);
-        // La "cantidad" del panel de editar es el TOTAL de la pieza — se
-        // fuerza exacto, sin dejar que sume filas de ubicación sueltas con
-        // otro nombre (ver _forzarTotalPiezaAnd).
-        const nueva = parseInt(p.cantidad, 10) || 0;
-        const total = _forzarTotalPiezaAnd(sh, row, nueva, p.tipo || '', email);
+        const total = _recalcularTotalAnd(sh, row);
         return _jsonOut({ success: true, total });
       }
 
