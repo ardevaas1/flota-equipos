@@ -4119,6 +4119,88 @@ async function andLimpiarDuplicadosUbicacionesConfirmar() {
   }
 }
 
+// Explica por qué "Total de piezas contadas" (arriba en Andamios) y el
+// total de "Resumen general por ubicación" pueden no coincidir. Los dos
+// SUMAN AND-UBICACIONES, pero de forma distinta:
+//   - El total de arriba (andCargar): por cada pieza, si tiene alguna fila
+//     en AND-UBICACIONES suma esas filas; si NO tiene ninguna, usa como
+//     respaldo la columna C de ANDAMIOS (para no mostrar 0 en piezas que
+//     todavía no se migraron a ubicaciones).
+//   - El resumen por ubicación: solo suma filas de AND-UBICACIONES que
+//     tengan tipo, ubicación Y cantidad>0 — una fila con la ubicación en
+//     blanco, o una pieza que nunca tuvo ninguna fila cargada, no aparece
+//     ahí (no hay dónde agruparla).
+// Esta función NO escribe nada — solo lee y compara, para encontrar
+// exactamente qué pieza(s) explican la diferencia. Llamar desde la
+// consola: andDiagnosticarTotales()
+async function andDiagnosticarTotales() {
+  try {
+    console.log('[DIAGNÓSTICO] Leyendo ANDAMIOS y AND-UBICACIONES...');
+    const [rowsAnd, rowsUbic] = await Promise.all([
+      fetchSheet(`'${SHEET_ANDAMIOS}'!A2:F500`),
+      fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`),
+    ]);
+
+    const piezas = (rowsAnd || [])
+      .map((r, i) => ({ rowIndex: i + 2, tipo: r[0] || '', colimaColC: parseInt(r[2], 10) || 0 }))
+      .filter(p => p.tipo);
+
+    const sumaPorFila = {};      // como en andCargar: suma TODO lo que tenga esa fila, sin filtrar por ubicación
+    const tieneUbicaciones = {};
+    const sumaValida = {};       // como en el resumen: solo filas con ubicación no vacía y cantidad>0
+    const filasIgnoradasPorResumen = []; // filas que SÍ suman en el total de arriba pero NO en el resumen
+
+    (rowsUbic || []).forEach((r, i) => {
+      const fila = parseInt(r[0], 10);
+      if (!fila) return;
+      const tipo = r[1] || '';
+      const ubicacion = (r[2] || '').toString().trim();
+      const cantidad = parseInt(r[3], 10) || 0;
+
+      tieneUbicaciones[fila] = true;
+      sumaPorFila[fila] = (sumaPorFila[fila] || 0) + cantidad;
+
+      if (ubicacion && cantidad > 0) {
+        sumaValida[fila] = (sumaValida[fila] || 0) + cantidad;
+      } else if (cantidad !== 0) {
+        filasIgnoradasPorResumen.push({ fila: 'AND-UBICACIONES fila ' + (i + 2), pieza: fila, tipo, ubicacion: ubicacion || '(vacío)', cantidad });
+      }
+    });
+
+    let totalArriba = 0, totalResumen = 0;
+    const piezasSinUbicaciones = [];
+
+    piezas.forEach(p => {
+      const cantArriba = tieneUbicaciones[p.rowIndex] ? (sumaPorFila[p.rowIndex] || 0) : p.colimaColC;
+      totalArriba += cantArriba;
+      totalResumen += sumaValida[p.rowIndex] || 0;
+      if (!tieneUbicaciones[p.rowIndex] && p.colimaColC > 0) {
+        piezasSinUbicaciones.push({ fila: p.rowIndex, tipo: p.tipo, cantidad_columna_c: p.colimaColC });
+      }
+    });
+
+    console.log(`[DIAGNÓSTICO] Total "arriba en Andamios": ${totalArriba}`);
+    console.log(`[DIAGNÓSTICO] Total "Resumen por ubicación": ${totalResumen}`);
+    console.log(`[DIAGNÓSTICO] Diferencia: ${totalArriba - totalResumen}`);
+
+    if (piezasSinUbicaciones.length) {
+      console.log(`[DIAGNÓSTICO] ${piezasSinUbicaciones.length} pieza(s) SIN ninguna fila en AND-UBICACIONES todavía (usan la columna C como respaldo, y por eso no aparecen en el resumen por ubicación):`);
+      console.table(piezasSinUbicaciones);
+      console.log('→ Para que estas queden incluidas en el resumen y ya no generen diferencia, corré: andMigrarUbicaciones()');
+    }
+    if (filasIgnoradasPorResumen.length) {
+      console.log(`[DIAGNÓSTICO] ${filasIgnoradasPorResumen.length} fila(s) en AND-UBICACIONES con ubicación en blanco (suman en el total de arriba, pero el resumen no sabe bajo qué obra agruparlas):`);
+      console.table(filasIgnoradasPorResumen);
+      console.log('→ Estas hay que corregirlas a mano en el Sheet, poniéndoles una ubicación (ej: COLIMA).');
+    }
+    if (!piezasSinUbicaciones.length && !filasIgnoradasPorResumen.length) {
+      console.log('[DIAGNÓSTICO] No se encontró ninguna causa de las dos más comunes — si igual hay diferencia, avisame el número exacto para revisar más a fondo.');
+    }
+  } catch (e) {
+    console.error('[DIAGNÓSTICO] Error:', e.message);
+  }
+}
+
 // ── Resumen general por ubicación (todas las piezas, agrupadas) ──────────
 // Vista inversa a "Ubicaciones por pieza": acá se agrupa por ubicación y
 // se lista qué piezas (y cuánto de cada una) hay en cada obra/bodega.
