@@ -4816,6 +4816,7 @@ async function andAbrirEditar(rowIndex) {
 
   document.getElementById('and-edit-row').value = it.rowIndex;
   document.getElementById('and-edit-nombre').value = it.tipo;
+  document.getElementById('and-edit-cantidad').value = it.cantidad || 0;
   document.getElementById('and-edit-obs').value = it.obs || '';
   document.getElementById('and-edit-sistema').value = it.sistema || 'Europeo';
   _andEditFoto = null;
@@ -4825,7 +4826,7 @@ async function andAbrirEditar(rowIndex) {
   // Sin vista separada de "solo ver" en este panel: para viewer/mover se
   // deshabilitan los campos en vez de dejarlos editables sin poder guardar.
   const soloLectura = _andSoloLectura();
-  ['and-edit-nombre', 'and-edit-obs', 'and-edit-sistema'].forEach(id => {
+  ['and-edit-nombre', 'and-edit-cantidad', 'and-edit-obs', 'and-edit-sistema'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = soloLectura;
   });
@@ -4853,6 +4854,7 @@ async function andGuardarEdit() {
   if (_andSoloLectura()) { toast('Sin permisos para modificar', 'error'); return; }
   const row = parseInt(document.getElementById('and-edit-row').value);
   const nombre = document.getElementById('and-edit-nombre').value.trim();
+  const cantidad = parseInt(document.getElementById('and-edit-cantidad').value) || 0;
   const obs = document.getElementById('and-edit-obs').value.trim();
   const sistema = document.getElementById('and-edit-sistema').value || 'Europeo';
   if (!row) return;
@@ -4864,6 +4866,12 @@ async function andGuardarEdit() {
   try {
     toast('Guardando...', 'loading');
     await _andEscrituraRemota('and_editar', { row, tipo: nombre, obs, sistema });
+    // La cantidad se guarda aparte, con la acción que SOLO toca COLIMA y
+    // recalcula el total sumando todas las ubicaciones (no pisa ni borra
+    // el resto si la pieza tiene stock repartido en otras obras).
+    if (cantidad !== (andItemActual ? andItemActual.cantidad : 0)) {
+      await _andEscrituraRemota('and_set_cantidad', { row, cantidad });
+    }
 
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';

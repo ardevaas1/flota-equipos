@@ -1767,8 +1767,8 @@
       </div>
       <div class="form-group">
         <label>Cantidad</label>
-        <button type="button" class="action-btn" style="margin:0" onclick="andVerUbicaciones(parseInt(document.getElementById('and-edit-row').value))">📍 Ver / editar por ubicación</button>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">El total ya no se edita acá directo — se calcula solo sumando lo que hay cargado en cada ubicación (obra, bodega, etc). Para cambiarlo, entrá a "Ver ubicaciones" y ajustá ahí.</div>
+        <input type="number" id="and-edit-cantidad" min="0">
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px">Si esta pieza tiene stock repartido en más de una obra, este número ajusta específicamente lo que hay en COLIMA — el total de arriba en la lista sigue siendo la suma de todas las ubicaciones. Para ver/editar el resto, usa <a href="javascript:void(0)" onclick="andVerUbicaciones(parseInt(document.getElementById('and-edit-row').value))" style="color:var(--accent)">Ver ubicaciones</a>.</div>
       </div>
       <div class="form-group">
         <label>Observaciones</label>
