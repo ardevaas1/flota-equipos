@@ -211,12 +211,12 @@ function invIcono(equipo) {
 }
 
 // ── Parser genérico de hoja inventario ───────────────────────
-// Generadores: fila header doble, datos desde fila 3
+// Generadores: encabezado simple en la fila 1, datos desde la fila 2
 // Col: A=N° B=EQUIPO C=CODIGO D=MARCA E=MODELO F=AÑO G=COLOR H=POTENCIA
 //      I=ESTADO J=UBICACION K=HOROMETRO L=PROX_MANT M=ULT_MANT N=OBS O=IMAGEN
 function parseGeneradores(rows) {
   return rows
-    .map((r, i) => ({ r, rowIndex: i + 3 }))   // rowIndex real ANTES de filtrar
+    .map((r, i) => ({ r, rowIndex: i + 2 }))   // rowIndex real ANTES de filtrar
     .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
     .map(({ r, rowIndex }) => ({
       rowIndex,
@@ -238,11 +238,11 @@ function parseGeneradores(rows) {
     }));
 }
 
-// Maq. Menor: Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS
-// Maq. Menor: Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
+// Maq. Menor: encabezado simple en la fila 1, datos desde la fila 2
+// Col A=N° B=EQUIPO C=FOTO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
 function parseMaqMenor(rows) {
   return rows
-    .map((r, i) => ({ r, rowIndex: i + 3 }))
+    .map((r, i) => ({ r, rowIndex: i + 2 }))
     .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
     .map(({ r, rowIndex }) => ({
       rowIndex,
@@ -260,12 +260,11 @@ function parseMaqMenor(rows) {
     }));
 }
 
-// Herramientas: Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
-// (antes tenía además PROX_MANT/ULT_MANT/MANT_CADA entre I y J — se sacaron
-// porque nunca se usaron, quedaban vacías en todas las filas)
+// Herramientas: encabezado simple en la fila 1, datos desde la fila 2
+// Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=MOTOR G=COLOR H=ESTADO I=UBICACION J=OBS K=NUM_IDENT
 function parseHerramientas(rows) {
   return rows
-    .map((r, i) => ({ r, rowIndex: i + 3 }))
+    .map((r, i) => ({ r, rowIndex: i + 2 }))
     .filter(({ r }) => r[0] && !isNaN(parseInt(r[0])))
     .map(({ r, rowIndex }) => ({
       rowIndex,
@@ -283,9 +282,7 @@ function parseHerramientas(rows) {
     }));
 }
 
-// Equipos Topográficos: encabezado simple en la fila 1, datos desde la
-// fila 2 (a diferencia de Generadores/Maq.Menor/Herramientas, que vienen
-// de hojas viejas con encabezado en 2 filas y datos desde la fila 3).
+// Equipos Topográficos: encabezado simple en la fila 1, datos desde la fila 2
 // Col A=N° B=EQUIPO C=REGISTRO D=MARCA E=MODELO F=SERIE G=COLOR H=ESTADO
 // I=UBICACION J=PROX_CALIBRACION K=ULT_CALIBRACION L=OBS M=NUM_IDENT
 function parseTopografico(rows) {
@@ -310,10 +307,11 @@ function parseTopografico(rows) {
     }));
 }
 
-// Containers: Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
+// Containers: encabezado simple en la fila 1, datos desde la fila 2
+// Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
 function parseContainers(rows) {
   return rows
-    .map((r, i) => ({ r, rowIndex: i + 3 }))
+    .map((r, i) => ({ r, rowIndex: i + 2 }))
     .filter(({ r }) => r[1] && r[1].toString().trim())
     .map(({ r, rowIndex }) => ({
       rowIndex,
@@ -338,11 +336,11 @@ async function loadInventario() {
   // exacto (pasó antes, ver el comentario más abajo), que falle sola y no
   // se lleve puesto el resto del inventario que sí cargó bien.
   const pInv = Promise.all([
-    fetchSheet(`'${SHEET_GENERADORES}'!A3:O200`),
-    fetchSheet(`'${SHEET_MAQ_MENOR}'!A3:K200`),
-    fetchSheet(`'${SHEET_HERRAMIENTAS}'!A3:K200`),
+    fetchSheet(`'${SHEET_GENERADORES}'!A2:O200`),
+    fetchSheet(`'${SHEET_MAQ_MENOR}'!A2:K200`),
+    fetchSheet(`'${SHEET_HERRAMIENTAS}'!A2:K200`),
     fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:M200`),
-    fetchSheet(`'${SHEET_CONTAINERS}'!A3:J100`),
+    fetchSheet(`'${SHEET_CONTAINERS}'!A2:J100`),
   ]);
   const pGenEventos = fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
 
