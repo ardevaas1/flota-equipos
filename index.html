@@ -2521,11 +2521,21 @@ let dtSelectedPatente = null;
 function dtInit() {
   if (!IS_DESKTOP()) return;
 
-  // El CSS maneja display vía @media; solo mostramos la página inicial
-  const firstPage = document.getElementById('dt-page-equipos');
-  if (firstPage && firstPage.style.display === 'none') {
-    firstPage.style.display = 'flex';
-    firstPage.style.flexDirection = 'column';
+  // Antes esto miraba SOLO si "Equipos" estaba oculta y la volvía a mostrar
+  // sin importar nada más — si la persona estaba en la pestaña "Alertas" (que
+  // la deja oculta a propósito al navegar ahí), cada actualización de datos
+  // (o hasta cada resize de ventana) volvía a mostrar "Equipos" ENCIMA de lo
+  // que ya estaba viendo, en vez de reemplazarlo — quedaban las dos pestañas
+  // superpuestas. Ahora solo fuerza "Equipos" si de verdad no hay NINGUNA
+  // pestaña visible todavía (o sea, la primera vez que carga la app).
+  const algunaVisible = Array.from(document.querySelectorAll('.dt-page'))
+    .some(p => p.style.display === 'flex');
+  if (!algunaVisible) {
+    const firstPage = document.getElementById('dt-page-equipos');
+    if (firstPage) {
+      firstPage.style.display = 'flex';
+      firstPage.style.flexDirection = 'column';
+    }
   }
 
   dtUpdateStats();
