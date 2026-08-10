@@ -448,9 +448,9 @@ function renderInvLista() {
   const rev = datos.filter(i => (i.estado||'').toLowerCase().includes('revis')).length;
   const mal = datos.filter(i => (i.estado||'').toLowerCase().includes('mal')).length;
   const el = id => document.getElementById(id);
-  ['inv-stat-op','inv-dt-stat-op'].forEach(id   => { if (el(id)) el(id).textContent = op; });
-  ['inv-stat-rev','inv-dt-stat-rev'].forEach(id  => { if (el(id)) el(id).textContent = rev; });
-  ['inv-stat-mal','inv-dt-stat-mal'].forEach(id  => { if (el(id)) el(id).textContent = mal; });
+  ['inv-stat-op','inv-dt-stat-op'].forEach(id   => { if (el(id)) animarContador(el(id), op); });
+  ['inv-stat-rev','inv-dt-stat-rev'].forEach(id  => { if (el(id)) animarContador(el(id), rev); });
+  ['inv-stat-mal','inv-dt-stat-mal'].forEach(id  => { if (el(id)) animarContador(el(id), mal); });
 }
 
 // ── Detalle ítem inventario ───────────────────────────────────
@@ -1014,7 +1014,7 @@ async function invGuardar() {
   if (!row) return;
 
   const btn = document.querySelector('#panel-inv-edit .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   // N° de identificación: valor anterior (el que ya está usando la carpeta
   // de Drive de este ítem) vs. el nuevo que se acaba de escribir en el
@@ -1159,6 +1159,7 @@ async function invGuardar() {
     }
 
     toast('Guardado ✓');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-inv-edit'); 
     const idx1 = _panelStack.lastIndexOf('panel-inv-edit');
     if (idx1 !== -1) _panelStack.splice(idx1, 1);
@@ -1180,7 +1181,7 @@ async function invGuardar() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -1247,7 +1248,7 @@ async function invGuardarEventoGen() {
   if (!codigo || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
 
   const btn = document.querySelector('#panel-gen-evento .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     // Subir fotos
@@ -1296,6 +1297,7 @@ async function invGuardarEventoGen() {
     }
 
     toast('Evento registrado ✓');
+    if (btn) btnEstado(btn, 'ok');
     _genEventoFotos = [];
     _origClosePanel('panel-gen-evento'); 
     const idx = _panelStack.lastIndexOf('panel-gen-evento');
@@ -1308,7 +1310,7 @@ async function invGuardarEventoGen() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -1378,9 +1380,9 @@ function renderContainers() {
   const bodegas  = allContainers.filter(c => c.tipo.toLowerCase().includes('bodega')).length;
   const oficinas = allContainers.filter(c => c.tipo.toLowerCase().includes('oficina')).length;
   const el = id => document.getElementById(id);
-  ['cont-stat-total','cont-dt-stat-total'].forEach(id     => { if (el(id)) el(id).textContent = total; });
-  ['cont-stat-bodega','cont-dt-stat-bodega'].forEach(id   => { if (el(id)) el(id).textContent = bodegas; });
-  ['cont-stat-oficina','cont-dt-stat-oficina'].forEach(id => { if (el(id)) el(id).textContent = oficinas; });
+  ['cont-stat-total','cont-dt-stat-total'].forEach(id     => { if (el(id)) animarContador(el(id), total); });
+  ['cont-stat-bodega','cont-dt-stat-bodega'].forEach(id   => { if (el(id)) animarContador(el(id), bodegas); });
+  ['cont-stat-oficina','cont-dt-stat-oficina'].forEach(id => { if (el(id)) animarContador(el(id), oficinas); });
 }
 
 function contAbrirDetalle(rowIndex) {
@@ -1491,7 +1493,7 @@ async function contGuardar() {
   if (!row) return;
 
   const btn = document.querySelector('#panel-cont-edit .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     // Containers: E=estado(5) F=color(6) G=ubicacion(7) I=equipamiento(9) J=obs(10) C=foto(3)
@@ -1533,6 +1535,7 @@ async function contGuardar() {
     }
 
     toast('Guardado ✓');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-cont-edit'); 
     const idx = _panelStack.lastIndexOf('panel-cont-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -1544,26 +1547,56 @@ async function contGuardar() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
 // ── Navegación módulos ────────────────────────────────────────
 // Muestra u oculta el sidebar de Flota (solo en desktop)
+// Muestra/oculta el sidebar nativo de escritorio de Flota (desktop-sidebar +
+// desktop-main + desktop-detail) — a diferencia de los demás módulos, Flota
+// usa 3 elementos propios en vez del contenedor genérico .inv-desktop-*, así
+// que quedaban afuera del crossfade de _pgTransition y aparecían/desaparecían
+// de golpe con display:none, sin transición (justo lo que se veía "cortado"
+// al entrar a Flota en escritorio). Acá se les agrega el mismo fundido suave
+// que ya tiene el resto de la navegación, en vez de tocar _pgTransition
+// (que asume un solo elemento "entrante" a la vez).
 function _setDesktopSidebarFlota(visible) {
   const esDesktop = window.innerWidth >= 900;
   if (!esDesktop) return;
-  const s = document.getElementById('desktop-sidebar');
-  const m = document.getElementById('desktop-main');
-  const d = document.getElementById('desktop-detail');
+  const els = ['desktop-sidebar', 'desktop-main', 'desktop-detail']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  if (!els.length) return;
+
   if (visible) {
-    if (s) s.classList.remove('dt-oculto');
-    if (m) m.classList.remove('dt-oculto');
-    if (d) d.classList.remove('dt-oculto');
+    els.forEach(el => {
+      el.classList.remove('dt-oculto');
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+    });
+    // Doble rAF: mismo truco que el resto de las transiciones — el browser
+    // necesita ver el estado inicial (opacity:0) en un frame antes de que
+    // la transición al estado final tenga algo desde dónde animar.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      els.forEach(el => {
+        el.style.transition = 'opacity 0.22s ease';
+        el.style.opacity = '1';
+      });
+      setTimeout(() => els.forEach(el => { el.style.transition = ''; el.style.opacity = ''; }), 240);
+    }));
   } else {
-    if (s) s.classList.add('dt-oculto');
-    if (m) m.classList.add('dt-oculto');
-    if (d) d.classList.add('dt-oculto');
+    els.forEach(el => {
+      el.style.transition = 'opacity 0.16s ease';
+      el.style.opacity = '0';
+    });
+    setTimeout(() => {
+      els.forEach(el => {
+        el.classList.add('dt-oculto');
+        el.style.transition = '';
+        el.style.opacity = '';
+      });
+    }, 170);
   }
 }
 
@@ -1848,13 +1881,9 @@ function volverAInicio() {
 
   candidatos.forEach(el => { if (el && el !== saliente) el.classList.add('hidden'); });
   document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit', 'tema-arr');
-  // Ocultar sidebar de Flota para que no quede sobre la home
-  const s = document.getElementById('desktop-sidebar');
-  const m = document.getElementById('desktop-main');
-  const d = document.getElementById('desktop-detail');
-  if (s) s.classList.add('dt-oculto');
-  if (m) m.classList.add('dt-oculto');
-  if (d) d.classList.add('dt-oculto');
+  // Ocultar sidebar de Flota (con el mismo fundido con el que aparece)
+  // para que no quede sobre la home
+  _setDesktopSidebarFlota(false);
 
   _pgTransition(saliente, homeEl, 'back');
 }
@@ -2045,7 +2074,7 @@ async function invGuardarNuevo() {
   }
 
   const btn = document.querySelector('#panel-nuevo-inv .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     let sheetName, fila;
@@ -2069,6 +2098,7 @@ async function invGuardarNuevo() {
 
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
     toast('✓ Ítem agregado');
+    if (btn) btnEstado(btn, 'ok');
 
     // Subir foto de referencia si se seleccionó
     if (_nuevoInvFoto) {
@@ -2114,7 +2144,7 @@ async function invGuardarNuevo() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -2166,13 +2196,14 @@ async function contGuardarNuevo() {
   }
 
   const btn = document.querySelector('#panel-nuevo-cont .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
     const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
     const appendRes = await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
     toast('✓ Container agregado');
+    if (btn) btnEstado(btn, 'ok');
 
     // Fila real donde Google Sheets confirma que quedó el container recién
     // creado (NO un cálculo adivinado en el cliente: si la lista local
@@ -2221,7 +2252,7 @@ async function contGuardarNuevo() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Agregar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -2611,7 +2642,7 @@ async function invGuardarMovimiento() {
   }
 
   const btn = document.querySelector('#panel-mover .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
@@ -2650,6 +2681,7 @@ async function invGuardarMovimiento() {
     }
 
     toast('✓ Movimiento registrado');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-mover');
     const idx = _panelStack.lastIndexOf('panel-mover');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -2664,7 +2696,7 @@ async function invGuardarMovimiento() {
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -2984,7 +3016,7 @@ async function guardarMovimientoMulti() {
   if (_movMultiItems.length === 0) { toast('No hay ítems seleccionados', 'error'); return; }
 
   const btn = document.querySelector('#panel-mover-multi .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
@@ -3033,6 +3065,7 @@ async function guardarMovimientoMulti() {
     await Promise.all(writes);
 
     toast(`✓ ${filas.length} movimientos registrados`);
+    if (btn) btnEstado(btn, 'ok');
 
     _origClosePanel('panel-mover-multi');
     const idx = _panelStack.lastIndexOf('panel-mover-multi');
@@ -3051,7 +3084,7 @@ async function guardarMovimientoMulti() {
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -3503,7 +3536,7 @@ async function movGuardarRecepcion() {
   if (!recibe) { toast('Indica quién recibe', 'error'); document.getElementById('recv-recibe').focus(); return; }
 
   const btn = document.querySelector('#panel-recepcionar .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
@@ -3565,6 +3598,7 @@ async function movGuardarRecepcion() {
     }
 
     toast(esLote ? `Recepción confirmada ✓ (${filasDestino.length} ítems)` : 'Recepción confirmada ✓');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-recepcionar');
     const idx = _panelStack.lastIndexOf('panel-recepcionar');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -3578,7 +3612,7 @@ async function movGuardarRecepcion() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -3860,9 +3894,9 @@ function andRenderLista() {
     ? allAndamios.reduce((sum, it) => sum + (it.bajas || 0), 0)
     : allAndamios.reduce((sum, it) => sum + (it.cantidad || 0), 0);
   const totalEl = document.getElementById('and-total');
-  if (totalEl) totalEl.textContent = total;
+  if (totalEl) animarContador(totalEl, total);
   const totalDtEl = document.getElementById('and-dt-total');
-  if (totalDtEl) totalDtEl.textContent = total;
+  if (totalDtEl) animarContador(totalDtEl, total);
   const totalLabelEls = document.querySelectorAll('.and-total-label');
   totalLabelEls.forEach(el => { el.textContent = modoBaja ? 'Total dadas de baja' : 'Total de piezas contadas'; });
 }
@@ -4793,14 +4827,14 @@ async function andCambiarBaja(rowIndex, delta) {
   it.bajas = nueva;
 
   const num = document.getElementById(`and-baja-${rowIndex}`);
-  if (num) num.textContent = nueva;
+  if (num) animarContador(num, nueva);
   const numDt = document.getElementById(`and-baja-dt-${rowIndex}`);
-  if (numDt) numDt.textContent = nueva;
+  if (numDt) animarContador(numDt, nueva);
   const total = allAndamios.reduce((sum, x) => sum + (x.bajas || 0), 0);
   const totalEl = document.getElementById('and-total');
-  if (totalEl) totalEl.textContent = total;
+  if (totalEl) animarContador(totalEl, total);
   const totalDtEl = document.getElementById('and-dt-total');
-  if (totalDtEl) totalDtEl.textContent = total;
+  if (totalDtEl) animarContador(totalDtEl, total);
 
   try {
     await _andEscrituraRemota('and_set_baja', { row: rowIndex, bajas: nueva });
@@ -4894,7 +4928,7 @@ async function andGuardarNuevo() {
   if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-nuevo-nombre').focus(); return; }
 
   const btn = document.querySelector('#panel-and-nuevo .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     toast('Guardando...', 'loading');
@@ -4931,13 +4965,14 @@ async function andGuardarNuevo() {
     }
 
     toast('✓ Tipo de pieza agregado');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-and-nuevo');
     const idx = _panelStack.lastIndexOf('panel-and-nuevo');
     if (idx !== -1) _panelStack.splice(idx, 1);
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -4994,7 +5029,7 @@ async function andGuardarEdit() {
   if (!nombre) { toast('El nombre de la pieza es obligatorio', 'error'); document.getElementById('and-edit-nombre').focus(); return; }
 
   const btn = document.querySelector('#panel-and-edit .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     toast('Guardando...', 'loading');
@@ -5029,6 +5064,7 @@ async function andGuardarEdit() {
     }
 
     toast('✓ Guardado');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-and-edit');
     const idx = _panelStack.lastIndexOf('panel-and-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -5036,7 +5072,7 @@ async function andGuardarEdit() {
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 

@@ -627,6 +627,79 @@ const ESTADO_COLOR = { op:'green', obs:'amber', det:'red', rep:'blue', otro:'gra
 const CHEVRON = `<span class="card-chevron"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
 
 // ── Empty state con ícono contextual ──
+// ══ EFECTOS COMPARTIDOS (números animados, esqueleto de carga, botón con confirmación) ══
+
+// Anima un número de un valor a otro contando — usado en todos los contadores
+// de la app (Flota, Inventario, Containers, Andamios, Arriendos). Si el
+// elemento no existe o el valor no cambió, no hace nada (evita animar de
+// nuevo un número que ya está mostrando lo mismo).
+function animarContador(el, valorFinal, duracionMs = 700) {
+  if (!el) return;
+  valorFinal = parseInt(valorFinal, 10) || 0;
+  const valorInicial = parseInt(el.textContent, 10) || 0;
+  if (valorInicial === valorFinal) { el.textContent = valorFinal; return; }
+  if (el._animContadorRAF) cancelAnimationFrame(el._animContadorRAF);
+  const t0 = performance.now();
+  function tick(t) {
+    const p = Math.min(1, (t - t0) / duracionMs);
+    const eased = 1 - Math.pow(1 - p, 3); // ease-out cúbico, mismo look en todos lados
+    el.textContent = Math.round(valorInicial + (valorFinal - valorInicial) * eased);
+    if (p < 1) { el._animContadorRAF = requestAnimationFrame(tick); }
+    else { el._animContadorRAF = null; }
+  }
+  el._animContadorRAF = requestAnimationFrame(tick);
+}
+
+// Devuelve el HTML de N tarjetas "esqueleto" (con shimmer) para mostrar
+// mientras se cargan los datos de un módulo, en vez de dejar la lista en
+// blanco. Usar en el contenedor de la lista JUSTO ANTES de pedir los datos
+// (fetchSheet), y se pisa solo cuando el render real corre después.
+function skeletonCards(n = 3) {
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += `<div class="skel-card">
+      <div class="skel-icon"></div>
+      <div class="skel-lines">
+        <div class="skel-bar" style="width:${60 + (i % 3) * 8}%"></div>
+        <div class="skel-bar skel-bar--sm" style="width:${35 + (i % 2) * 10}%"></div>
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+// Pone un botón de "Guardar" en estado cargando → check ✓ → estado normal.
+// Uso: en vez de `btn.disabled=true; btn.textContent='Guardando...'`, llamar
+// `btnEstado(btn, 'cargando')` antes del await, y `btnEstado(btn, 'ok')` en
+// vez del toast de éxito (el botón mismo hace de confirmación visual). Si
+// hay un error, `btnEstado(btn, 'reset')` lo deja como estaba.
+function btnEstado(btn, estado, textoNormal) {
+  if (!btn) return;
+  if (!btn._textoOriginal) btn._textoOriginal = textoNormal || btn.textContent;
+  const spinner = `<svg viewBox="0 0 24 24" width="14" height="14" style="animation:btn-spin .7s linear infinite;vertical-align:-2px;margin-right:5px"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="14 40" stroke-linecap="round"/></svg>`;
+  const check   = `<svg viewBox="0 0 24 24" width="14" height="14" style="vertical-align:-2px;margin-right:5px"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="24" stroke-dashoffset="24" style="animation:btn-check .35s ease forwards"/></svg>`;
+
+  if (estado === 'cargando') {
+    btn.disabled = true;
+    btn.innerHTML = spinner + 'Guardando...';
+  } else if (estado === 'ok') {
+    btn.innerHTML = check + 'Listo';
+    btn.classList.add('btn-estado-ok');
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = btn._textoOriginal;
+      btn.classList.remove('btn-estado-ok');
+    }, 1100);
+  } else { // 'reset' — algo falló, volver como estaba sin esperar
+    // Si ya se está mostrando el check de éxito, lo dejamos terminar solo
+    // (así funciona con un simple "reset" llamado desde `finally`, sin que
+    // cada función tenga que distinguir a mano el camino de éxito del de error)
+    if (btn.classList.contains('btn-estado-ok')) return;
+    btn.disabled = false;
+    btn.innerHTML = btn._textoOriginal;
+  }
+}
+
 function emptyState(titulo, subtitulo, iconPath) {
   const path = iconPath || `<path d="M3 7h18M3 12h18M3 17h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`;
   return `<div class="empty">
@@ -2194,7 +2267,7 @@ async function guardarAjusteGPS() {
   const reajuste = valor - f;
 
   const btn = document.querySelector('#panel-ajuste-gps .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
   try {
     // K = valor real (queda como registro, coincide con la fórmula de L),
     // G = el reajuste de verdad, que es el que mueve TOTAL (columna H) y
@@ -2204,13 +2277,14 @@ async function guardarAjusteGPS() {
       writeSheet(`'${CONFIG.SHEET_DATOS}'!G${row}`, [[reajuste]]),
     ]);
     toast('✓ Reajuste guardado');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-ajuste-gps');
     const idx = _panelStack.lastIndexOf('panel-ajuste-gps');
     if (idx !== -1) _panelStack.splice(idx, 1);
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -2328,7 +2402,7 @@ async function saveEvento() {
 
   // Bloquear botón para evitar doble guardado
   const btn = document.querySelector('#panel-evento .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     const e = allEquipos.find(x => x.patente === patente);
@@ -2421,6 +2495,7 @@ async function saveEvento() {
     }
 
     toast('Evento registrado ✓');
+    if (btn) btnEstado(btn, 'ok');
     limpiarFotos();
     // Usar _origClosePanel para no disparar history.go(-1) que deja el panel colgado
     _origClosePanel('panel-evento');
@@ -2432,7 +2507,7 @@ async function saveEvento() {
   } catch(err) {
     toast('Error: ' + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -2618,16 +2693,16 @@ async function loadData(background = false) {
 
 // ── Dashboard ─────────────────────────────────────────────────
 function renderDashboard() {
-  document.getElementById('stat-op').textContent  = allEquipos.filter(e => e.estado === 'op').length;
-  document.getElementById('stat-obs').textContent = allEquipos.filter(e => e.estado === 'obs').length;
-  document.getElementById('stat-det').textContent = allEquipos.filter(e => e.estado === 'det' || e.estado === 'rep').length;
+  animarContador(document.getElementById('stat-op'),  allEquipos.filter(e => e.estado === 'op').length);
+  animarContador(document.getElementById('stat-obs'), allEquipos.filter(e => e.estado === 'obs').length);
+  animarContador(document.getElementById('stat-det'), allEquipos.filter(e => e.estado === 'det' || e.estado === 'rep').length);
 
   let docsVenc = 0;
   allEquipos.forEach(e => ['soap','permiso','revision'].forEach(k => {
     const d = diasRestantes(e[k]);
     if (d !== null && d < 0) docsVenc++;
   }));
-  document.getElementById('stat-docs').textContent = docsVenc;
+  animarContador(document.getElementById('stat-docs'), docsVenc);
   document.getElementById('nav-dot').style.display = docsVenc > 0 ? 'block' : 'none';
 
   // Alertas urgentes
@@ -3694,6 +3769,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Primer chequeo — por si la pantalla de módulos arranca visible
   // (ej. modo offline) sin pasar por aplicarRestriccionModulosHome antes.
   setTimeout(_actualizarScrollHintModulos, 300);
+
+  // Esqueleto de carga: apenas arranca la página, todas las listas quedan
+  // con tarjetas "shimmer" en vez de blanco — cada módulo las pisa solo con
+  // sus datos reales apenas termina de cargar (o con emptyState() si no hay
+  // nada), así que no hace falta tocar cada función de carga una por una.
+  ['equipos-list', 'inv-lista', 'inv-dt-lista', 'cont-lista', 'cont-dt-lista',
+   'movh-lista', 'movh-dt-lista', 'and-lista', 'and-dt-lista',
+   'bit-lista', 'bit-dt-lista', 'arr-lista', 'arr-dt-lista'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = skeletonCards(3);
+  });
 });
 
 // ── Helpers para upload de documentos en formulario edición ──

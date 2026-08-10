@@ -189,9 +189,9 @@ function arrRenderLista() {
   const porVencer  = allArriendos.filter(a => _arrInfoEstado(a).filtro === 'porvencer').length;
   const vencidos   = allArriendos.filter(a => _arrInfoEstado(a).filtro === 'vencidos').length;
   const el = id => document.getElementById(id);
-  if (el('arr-stat-activos'))   el('arr-stat-activos').textContent   = activos + porVencer;
-  if (el('arr-stat-porvencer')) el('arr-stat-porvencer').textContent = porVencer;
-  if (el('arr-stat-vencidos'))  el('arr-stat-vencidos').textContent  = vencidos;
+  if (el('arr-stat-activos'))   animarContador(el('arr-stat-activos'),   activos + porVencer);
+  if (el('arr-stat-porvencer')) animarContador(el('arr-stat-porvencer'), porVencer);
+  if (el('arr-stat-vencidos'))  animarContador(el('arr-stat-vencidos'),  vencidos);
 }
 
 // ── Detalle ────────────────────────────────────────────────
@@ -327,7 +327,7 @@ async function arrGuardar() {
   if (!fechaIni)  { toast('La fecha de inicio es obligatoria', 'error'); return; }
 
   const btn = document.querySelector('#panel-arr-form .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
   try {
     await _arrAsegurarHoja();
     const registradoPor = (typeof userEmail !== 'undefined' ? userEmail : '');
@@ -341,6 +341,7 @@ async function arrGuardar() {
         existente.estado, existente.fechaDevolucion, obs, existente.registradoPor,
       ]]);
       toast('✓ Arriendo actualizado');
+      if (btn) btnEstado(btn, 'ok');
     } else {
       const id = 'ARR-' + Date.now();
       await appendSheet(`'${CONFIG.SHEET_ARRIENDOS}'!A:P`, [[
@@ -349,6 +350,7 @@ async function arrGuardar() {
         'ACTIVO', '', obs, registradoPor,
       ]]);
       toast('✓ Arriendo registrado');
+      if (btn) btnEstado(btn, 'ok');
     }
 
     closePanel('panel-arr-form');
@@ -357,7 +359,7 @@ async function arrGuardar() {
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 

@@ -688,6 +688,31 @@ body.is-offline #app { padding-top: 30px; }
   padding: 36px 24px; text-align: center; margin-bottom: 8px;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
+/* ── Esqueleto de carga (shimmer) — mismo lenguaje visual que .card ── */
+.skel-card {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border-radius: 12px; padding: 14px;
+  margin-bottom: 10px; border: 1px solid var(--line);
+}
+.skel-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(90deg, #eceef1 25%, #f5f6f8 37%, #eceef1 63%);
+  background-size: 400% 100%; animation: skel-shimmer 1.4s ease infinite;
+}
+.skel-lines { flex: 1; }
+.skel-bar {
+  height: 11px; border-radius: 6px; margin-bottom: 8px;
+  background: linear-gradient(90deg, #eceef1 25%, #f5f6f8 37%, #eceef1 63%);
+  background-size: 400% 100%; animation: skel-shimmer 1.4s ease infinite;
+}
+.skel-bar--sm { height: 9px; margin-bottom: 0; opacity: 0.7; }
+@keyframes skel-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/* ── Botón "Guardar" con spinner → check (ver btnEstado() en app-v2.js) ── */
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@keyframes btn-check { to { stroke-dashoffset: 0; } }
+.btn-estado-ok { background: #2e7d32 !important; border-color: #2e7d32 !important; }
+
 .empty-icon {
   width: 52px; height: 52px; border-radius: 16px;
   background: var(--neutral-soft, #f1f5f9);

@@ -377,12 +377,13 @@ async function bitGuardarViaje() {
   if (!chofer)               { toast('Indica quién maneja', 'error'); return; }
 
   const btn = document.querySelector('#panel-bit-viaje .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
   try {
     await _bitAsegurarHojas();
     const id = 'BIT-' + Date.now();
     await appendSheet(`'${CONFIG.SHEET_BITACORA}'!A:H`, [[id, fecha, patente, kmi, kmf, destino, chofer, (typeof userEmail !== 'undefined' ? userEmail : '')]]);
     toast('✓ Viaje registrado');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-viaje');
     const idx = _panelStack.lastIndexOf('panel-bit-viaje');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -392,7 +393,7 @@ async function bitGuardarViaje() {
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
 
@@ -429,12 +430,13 @@ async function bitGuardarCombustible() {
   if (!chofer)                   { toast('Indica quién maneja', 'error'); return; }
 
   const btn = document.querySelector('#panel-bit-combustible .pnl-action');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn) btnEstado(btn, 'cargando');
   try {
     await _bitAsegurarHojas();
     const id = 'COMB-' + Date.now();
     await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:G`, [[id, fecha, patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : '')]]);
     toast('✓ Carga de combustible registrada');
+    if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-combustible');
     const idx = _panelStack.lastIndexOf('panel-bit-combustible');
     if (idx !== -1) _panelStack.splice(idx, 1);
@@ -444,6 +446,6 @@ async function bitGuardarCombustible() {
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    if (btn) btnEstado(btn, 'reset');
   }
 }
