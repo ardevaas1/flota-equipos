@@ -414,6 +414,10 @@ body.is-offline #app { padding-top: 30px; }
 .badge.green  { background: #e8f5e9; color: #2e7d32; }
 .badge.amber  { background: #fff3e0; color: #e65100; }
 .badge.red    { background: #ffebee; color: #c62828; }
+/* Pulso suave para lo más urgente (vencido) — solo opacidad, sin anillo
+   creciente ni nada que llame demasiado la atención; respira, no grita. */
+@keyframes badge-pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.badge-pulso { animation: badge-pulso 2.6s ease-in-out infinite; }
 .badge.blue   { background: var(--accent-soft); color: #1565c0; }
 .badge.gray   { background: #f0f0f0; color: #888; }
 

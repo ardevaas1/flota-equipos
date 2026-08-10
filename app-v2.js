@@ -808,7 +808,7 @@ function diasRestantes(fechaStr) {
 
 function docBadge(dias) {
   if (dias === null) return '<span class="badge gray">Sin dato</span>';
-  if (dias < 0)  return `<span class="badge red">Vencido ${Math.abs(dias)}d</span>`;
+  if (dias < 0)  return `<span class="badge red badge-pulso">Vencido ${Math.abs(dias)}d</span>`;
   if (dias < 30) return `<span class="badge amber">Vence en ${dias}d</span>`;
   if (dias < 60) return `<span class="badge blue">Vence en ${dias}d</span>`;
   return `<span class="badge green">Vigente ${dias}d</span>`;
@@ -3041,7 +3041,7 @@ function renderAlertas() {
     const badges = entries.map(([k,lbl]) => {
       const d = diasRestantes(e[k]);
       if (d === null) return `<span class="badge gray">${lbl} sin dato</span>`;
-      if (d < 0)                  { hasVenc  = true; return `<span class="badge red">${lbl} vencido ${Math.abs(d)}d</span>`; }
+      if (d < 0)                  { hasVenc  = true; return `<span class="badge red badge-pulso">${lbl} vencido ${Math.abs(d)}d</span>`; }
       if (d < CONFIG.DIAS_ALERTA) { hasPront = true; return `<span class="badge ${d<30?'amber':'blue'}">${lbl} ${d}d</span>`; }
       return `<span class="badge green">${lbl} ✓ ${d}d</span>`;
     }).join('');

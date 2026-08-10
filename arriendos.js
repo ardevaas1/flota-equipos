@@ -107,7 +107,7 @@ function _arrInfoEstado(a) {
     return { badge: '<span class="badge gray">Sin plazo definido</span>', filtro: 'activos', dias };
   }
   if (dias < 0) {
-    return { badge: `<span class="badge red">Vencido ${Math.abs(dias)}d</span>`, filtro: 'vencidos', dias };
+    return { badge: `<span class="badge red badge-pulso">Vencido ${Math.abs(dias)}d</span>`, filtro: 'vencidos', dias };
   }
   if (dias <= 7) {
     return { badge: `<span class="badge amber">Vence en ${dias}d</span>`, filtro: 'porvencer', dias };
