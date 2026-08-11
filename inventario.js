@@ -1013,9 +1013,6 @@ async function invGuardar() {
 
   if (!row) return;
 
-  const btn = document.querySelector('#panel-inv-edit .pnl-action');
-  if (btn) btnEstado(btn, 'cargando');
-
   // N° de identificación: valor anterior (el que ya está usando la carpeta
   // de Drive de este ítem) vs. el nuevo que se acaba de escribir en el
   // formulario. Si cambia, más abajo renombramos la carpeta sola para que
@@ -1025,6 +1022,17 @@ async function invGuardar() {
     ? document.getElementById('inv-edit-numident').value.trim() : '';
   const proxCalNuevo = modulo === 'topografico' ? _invFechaDeInput(document.getElementById('inv-edit-proxcal').value) : '';
   const ultCalNuevo  = modulo === 'topografico' ? _invFechaDeInput(document.getElementById('inv-edit-ultcal').value)  : '';
+
+  // El N° de identificación no puede repetirse en NINGUNA categoría del
+  // inventario (ver _codigoDisponible) — se excluye el valor que este mismo
+  // ítem ya tenía antes, para no bloquear guardar sin haber cambiado nada.
+  if (numIdentNuevo && !_codigoDisponible(numIdentNuevo, numIdentAntes)) {
+    toast(`El código "${numIdentNuevo}" ya está en uso por otro ítem — usa uno distinto`, 'error');
+    return;
+  }
+
+  const btn = document.querySelector('#panel-inv-edit .pnl-action');
+  if (btn) btnEstado(btn, 'cargando');
 
   try {
     // Mapeo de columnas por módulo
@@ -1892,12 +1900,16 @@ function volverAInicio() {
 
 // Tipos predefinidos por módulo (para el select de equipo)
 const TIPOS_MAQ_MENOR = ['SOPLADOR','VIBROAPISONADOR','ASPIRADORA','TURBOCALEFACTOR','COMPRESOR','HIDROLAVADORA','CORTADORA DE ASFALTO','MOTOBOMBA','BOMBA SUMERGIBLE','PLACA COMPACTADORA','BETONERA','UNIDAD MOTRIZ','RODILLO','OTRO'];
-const TIPOS_HERRAMIENTA = ['DEMOLEDOR 5 KILOS','DEMOLEDOR 10 KILOS','DEMOLEDOR 9 KILOS','ESMERIL 5"','ESMERIL 7"','TALADRO PERCUTOR','PISTOLA IMPACTO','PULIDORA HORMIGÓN','TEODOLITO','OTRO'];
+const TIPOS_HERRAMIENTA = ['DEMOLEDOR 5 KILOS','DEMOLEDOR 10 KILOS','DEMOLEDOR 9 KILOS','ESMERIL 5"','ESMERIL 7"','ESMERIL 9"','TALADRO PERCUTOR 13"','ROTOMARTILLO','ROTOMARTILLO 7"','PISTOLA IMPACTO','PULIDORA HORMIGÓN','PISTOLA DE CALOR','TERMOFUSORA','REVOLVEDOR','TEODOLITO','OTRO'];
 const TIPOS_GENERADOR = ['GENERADOR'];
 const TIPOS_TOPOGRAFICO = ['ESTACION TOTAL','NIVEL TOPOGRAFICO','TEODOLITO','GPS TOPOGRAFICO','TRIPODE','MIRA','PRISMA','OTRO'];
 const TIPOS_CONTAINER = ['OFICINA','BODEGA','BAÑO','OTRO'];
 
-// Prefijos de código por tipo de equipo (se pueden extender)
+// Prefijos de código por tipo de equipo (se pueden extender). Los distintos
+// "pesos" de demoledor (5/9/10 kilos) comparten el mismo prefijo "DM" a
+// propósito — así viene usándose desde antes en la hoja real (DM-001 a
+// DM-020 mezclan 5 y 9 kilos), así que la numeración sigue esa misma
+// familia en vez de arrancar una serie nueva por cada variante.
 const PREFIJOS_TIPO = {
   // Generadores
   'GENERADOR': 'GEN',
@@ -1907,17 +1919,37 @@ const PREFIJOS_TIPO = {
   'CORTADORA DE ASFALTO': 'CAS', 'MOTOBOMBA': 'MTB', 'BOMBA SUMERGIBLE': 'BSM',
   'PLACA COMPACTADORA': 'PLC', 'BETONERA': 'BET', 'UNIDAD MOTRIZ': 'UMO',
   'RODILLO': 'ROD',
-  // Herramientas
-  'DEMOLEDOR 5 KILOS': 'DM5', 'DEMOLEDOR 10 KILOS': 'D10', 'DEMOLEDOR 9 KILOS': 'DM9',
-  'ESMERIL 5"': 'ES5', 'ESMERIL 7"': 'ES7', 'TALADRO PERCUTOR': 'TAL',
-  'PISTOLA IMPACTO': 'PST', 'PULIDORA HORMIGÓN': 'PUL', 'TEODOLITO': 'TEO',
+  // Herramientas: los "pesos"/tamaños de una misma familia comparten
+  // numeración a propósito (así viene usándose en la hoja real: DM-001 a
+  // DM-020 mezcla demoledores de 5 y 9 kilos; ES-001 a ES-004 mezcla
+  // esmeriles de 5", 7" y 9"), en vez de arrancar una serie nueva por
+  // cada variante.
+  'DEMOLEDOR 5 KILOS': 'DM', 'DEMOLEDOR 10 KILOS': 'DM', 'DEMOLEDOR 9 KILOS': 'DM',
+  'ESMERIL 5"': 'ES', 'ESMERIL 7"': 'ES', 'ESMERIL 9"': 'ES',
+  'TALADRO PERCUTOR 13"': 'TAL',
+  'ROTOMARTILLO': 'RT', 'ROTOMARTILLO 7"': 'RT',
+  'PISTOLA DE CALOR': 'PC', 'TERMOFUSORA': 'TF', 'REVOLVEDOR': 'RD',
+  'PISTOLA IMPACTO': 'PST', 'PULIDORA HORMIGÓN': 'PA', 'TEODOLITO': 'TEO',
   // Equipos Topográficos
   'ESTACION TOTAL': 'EST', 'NIVEL TOPOGRAFICO': 'NIV', 'GPS TOPOGRAFICO': 'GPS',
   'TRIPODE': 'TRI', 'MIRA': 'MIR', 'PRISMA': 'PRI',
   'OTRO': 'OTR',
 };
 
-// Calcula el siguiente código para un tipo dado, buscando en TODOS los ítems del sistema
+// Devuelve TODOS los códigos/N° de identificación que existen HOY en
+// cualquier categoría del inventario (Generadores, Maq. Menor, Herramientas,
+// Equipos Topográficos, Containers) — un solo espacio de nombres compartido,
+// a propósito: así una Aspiradora nunca puede terminar con el mismo código
+// que un Demoledor, ni ningún otro cruce entre categorías.
+function _todosLosCodigosDelSistema() {
+  const items = [...allGeneradores, ...allMaqMenor, ...allHerramientas, ...allTopografico, ...allContainers];
+  return items
+    .map(i => (i.codigo || i.numIdent || '').toString().trim().toUpperCase())
+    .filter(Boolean);
+}
+
+// Calcula el siguiente código para un tipo dado, buscando en TODOS los ítems
+// del sistema (sin importar la categoría — ver _todosLosCodigosDelSistema).
 function _nextCodigo(tipo, _datosIgnorado) {
   // Prefijo: usar tabla o generar desde el nombre evitando colisiones
   let prefijo = PREFIJOS_TIPO[tipo];
@@ -1934,22 +1966,39 @@ function _nextCodigo(tipo, _datosIgnorado) {
     prefijo = prefijo.padEnd(3, 'X').slice(0, 3);
   }
 
-  // Buscar en TODOS los ítems del sistema (generadores + maqmenor + herramientas + containers)
-  const todosCodigos = [
-    ...allGeneradores, ...allMaqMenor, ...allHerramientas, ...allTopografico, ...allContainers
-  ].map(i => (i.codigo || '').toString().trim().toUpperCase());
+  const todosCodigos = _todosLosCodigosDelSistema();
 
   const re   = new RegExp(`^${prefijo}-(\\d+)$`, 'i');
-  const nums = todosCodigos
-    .map(c => { const m = c.match(re); return m ? parseInt(m[1]) : 0; })
-    .filter(n => n > 0);
+  const coincidencias = todosCodigos.map(c => c.match(re)).filter(Boolean);
+  const nums = coincidencias.map(m => parseInt(m[1])).filter(n => n > 0);
   const siguiente = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-  return `${prefijo}-${String(siguiente).padStart(2, '0')}`;
+  // El ancho de relleno (cuántos ceros adelante) sigue el mismo que ya
+  // vienen usando los códigos existentes de este prefijo — si ya hay
+  // "DM-001", el siguiente es "DM-021" (3 dígitos), no "DM-21". Si es la
+  // primera vez que se usa el prefijo, arranca en 2 dígitos por defecto.
+  const anchoActual = coincidencias.length
+    ? Math.max(...coincidencias.map(m => m[1].length))
+    : 2;
+  return `${prefijo}-${String(siguiente).padStart(anchoActual, '0')}`;
+}
+
+// Valida que un código/N° de identificación no esté YA usado por otro ítem
+// en CUALQUIER categoría del sistema. `excluir` es el código actual del
+// ítem que se está editando (si es una edición, para no chocar consigo
+// mismo). Devuelve true si está libre, false si ya existe en otro lado.
+function _codigoDisponible(codigo, excluir) {
+  if (!codigo) return true; // vacío no se valida acá (cada form ya exige lo obligatorio)
+  const norm = codigo.toString().trim().toUpperCase();
+  const excluirNorm = (excluir || '').toString().trim().toUpperCase();
+  if (norm === excluirNorm) return true;
+  return !_todosLosCodigosDelSistema().includes(norm);
 }
 
 // Mostrar input personalizado cuando se elige OTRO
 function _onNuevoEquipoChange() {
-  const val = document.getElementById('nuevo-equipo').value;
+  const selEl = document.getElementById('nuevo-equipo');
+  const val = selEl.value;
+  selEl.classList.remove('select-pendiente'); // ya eligió algo, se saca el aviso visual
   const row = document.getElementById('nuevo-equipo-otro-row');
   if (row) row.style.display = val === 'OTRO' ? '' : 'none';
   _actualizarCodigoAuto();
@@ -1982,16 +2031,52 @@ function quitarNuevoInvFoto() {
   document.getElementById('nuevo-foto-remove').style.display = 'none';
 }
 
+// ── Tipos "OTRO" que la gente va escribiendo a mano — quedan guardados en
+// este navegador para aparecer como opción real la próxima vez, en vez de
+// tener que escribirlos de nuevo cada vez. Por módulo, porque un tipo de
+// Herramienta no tiene sentido como opción en Maq. Menor.
+function _tiposCustomKey(mod) { return `lst_tipos_custom_${mod}`; }
+function _getTiposCustom(mod) {
+  try { return JSON.parse(localStorage.getItem(_tiposCustomKey(mod)) || '[]'); }
+  catch(e) { return []; }
+}
+function _agregarTipoCustom(mod, tipo) {
+  if (!tipo) return;
+  const actuales = _getTiposCustom(mod);
+  const tipoUpper = tipo.toUpperCase().trim();
+  if (tipoUpper && !actuales.includes(tipoUpper)) {
+    actuales.push(tipoUpper);
+    try { localStorage.setItem(_tiposCustomKey(mod), JSON.stringify(actuales)); } catch(e) {}
+  }
+}
+// Arma la lista final de tipos para el <select>: los de fábrica + los
+// "OTRO" que se fueron agregando en este navegador, insertados ANTES de
+// la opción "OTRO" (que siempre se deja al final para poder seguir
+// escribiendo un tipo nuevo que no esté en ninguna lista todavía).
+function _tiposConCustom(mod, base) {
+  const custom = _getTiposCustom(mod).filter(t => !base.includes(t));
+  if (!custom.length) return base;
+  const idxOtro = base.indexOf('OTRO');
+  if (idxOtro === -1) return [...base, ...custom];
+  return [...base.slice(0, idxOtro), ...custom, ...base.slice(idxOtro)];
+}
+
 function invAbrirNuevo() {
   const mod = invModulo;
-  const tipos = mod === 'generadores' ? TIPOS_GENERADOR
+  const tiposBase = mod === 'generadores' ? TIPOS_GENERADOR
               : mod === 'maqmenor'    ? TIPOS_MAQ_MENOR
               : mod === 'topografico' ? TIPOS_TOPOGRAFICO
               : TIPOS_HERRAMIENTA;
+  const tipos = _tiposConCustom(mod, tiposBase);
 
-  // Poblar select de tipo
+  // Arranca SIEMPRE en "Selecciona un tipo..." — nunca precargado con el
+  // primer tipo de la lista. Antes quedaba el primero ya elegido de
+  // entrada, y si alguien no se daba cuenta y guardaba así nomás, el ítem
+  // quedaba cargado con un tipo que nunca eligió a propósito.
   const sel = document.getElementById('nuevo-equipo');
-  sel.innerHTML = tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+  sel.innerHTML = '<option value="" disabled selected>Selecciona un tipo...</option>'
+    + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+  sel.classList.add('select-pendiente');
 
   // Código solo para generadores; maq. menor y herramientas no lo tienen en el sheet
   document.getElementById('nuevo-codigo-row').style.display = mod === 'generadores' ? '' : 'none';
@@ -2019,7 +2104,8 @@ function invAbrirNuevo() {
   const nextNum = datos.length > 0 ? Math.max(...datos.map(i => parseInt(i.num)||0)) + 1 : 1;
   document.getElementById('nuevo-num').value = nextNum;
 
-  // Autocompletar código según el primer tipo disponible
+  // Sin tipo elegido todavía no hay nada que autocompletar — se limpia
+  // (por si quedó algo de la vez anterior que se abrió este panel)
   _actualizarCodigoAuto();
 
   openPanel('panel-nuevo-inv');
@@ -2029,9 +2115,24 @@ function invAbrirNuevo() {
 function _actualizarCodigoAuto() {
   const mod   = document.getElementById('nuevo-modulo').value;
   const tipo  = document.getElementById('nuevo-equipo').value;
-  const datos = _invDatos(mod);
   const codigoEl = document.getElementById('nuevo-codigo');
+  const numIdentEl = document.getElementById('nuevo-numident');
+  if (!tipo) {
+    // Todavía no eligió un tipo — no hay nada que autocompletar (evita
+    // generar un código con prefijo "OTR" o similar antes de tiempo)
+    if (codigoEl) codigoEl.value = '';
+    if (numIdentEl) numIdentEl.value = '';
+    return;
+  }
+  const datos = _invDatos(mod);
   if (codigoEl) codigoEl.value = _nextCodigo(tipo, datos);
+  // Herramientas / Maq. Menor / Topográfico no tienen "código", usan
+  // "N° de identificación" — pero es el mismo espacio de numeración
+  // compartido (ver _todosLosCodigosDelSistema), así que se autocompleta
+  // igual. La persona lo puede pisar a mano si quiere otra cosa.
+  if (numIdentEl && (mod === 'herramientas' || mod === 'maqmenor' || mod === 'topografico')) {
+    numIdentEl.value = _nextCodigo(tipo, datos);
+  }
 }
 
 async function invGuardarNuevo() {
@@ -2053,11 +2154,26 @@ async function invGuardarNuevo() {
 
   _limpiarErrores('panel-nuevo-inv');
   let valido = true;
+  if (!_campoValido('nuevo-equipo', !!equipoSel)) valido = false;
   if (!_campoValido('nuevo-equipo-otro', equipoSel !== 'OTRO' || !!equipoOtro)) valido = false;
   if (!_campoValido('nuevo-marca', !!marca)) valido = false;
   if (mod === 'generadores' && !_campoValido('nuevo-codigo', !!codigo)) valido = false;
   if (!valido) {
-    toast('Completa los campos obligatorios marcados en rojo', 'error');
+    toast(equipoSel ? 'Completa los campos obligatorios marcados en rojo' : 'Elige un tipo de equipo antes de guardar', 'error');
+    _enfocarPrimerError('panel-nuevo-inv');
+    return;
+  }
+
+  // El código/N° de identificación no puede repetirse en NINGUNA categoría
+  // del inventario (ver _codigoDisponible) — sin este chequeo, alguien
+  // podría escribir a mano el mismo código que ya tiene otro ítem de un
+  // tipo totalmente distinto (ej. una Aspiradora con el código de un
+  // Demoledor) y quedarían dos ítems indistinguibles entre sí.
+  const codigoAValidar = codigo || numIdent;
+  if (codigoAValidar && !_codigoDisponible(codigoAValidar)) {
+    toast(`El código "${codigoAValidar}" ya está en uso por otro ítem — usa uno distinto`, 'error');
+    const campoId = codigo ? 'nuevo-codigo' : 'nuevo-numident';
+    _campoValido(campoId, false);
     _enfocarPrimerError('panel-nuevo-inv');
     return;
   }
@@ -2099,6 +2215,11 @@ async function invGuardarNuevo() {
     await appendSheet(`'${sheetName}'!A:Z`, [fila]);
     toast('✓ Ítem agregado');
     if (btn) btnEstado(btn, 'ok');
+    // Si era un tipo escrito a mano ("OTRO"), queda guardado en este
+    // navegador para aparecer como opción real la próxima vez que se
+    // agregue un ítem de este mismo módulo — no hace falta volver a
+    // escribirlo de nuevo cada vez.
+    if (equipoSel === 'OTRO' && equipoOtro) _agregarTipoCustom(mod, equipoOtro);
 
     // Subir foto de referencia si se seleccionó
     if (_nuevoInvFoto) {
