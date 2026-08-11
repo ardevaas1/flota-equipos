@@ -1975,10 +1975,13 @@ function _nextCodigo(tipo, _datosIgnorado) {
   // El ancho de relleno (cuántos ceros adelante) sigue el mismo que ya
   // vienen usando los códigos existentes de este prefijo — si ya hay
   // "DM-001", el siguiente es "DM-021" (3 dígitos), no "DM-21". Si es la
-  // primera vez que se usa el prefijo, arranca en 2 dígitos por defecto.
+  // primera vez que se usa el prefijo, arranca en 3 dígitos por defecto
+  // (así vienen casi todos los códigos ya cargados: DM-001, ES-001,
+  // PA-001, PC-001, RT-001, TF-001 — el único caso real con 2 dígitos es
+  // GEN-01, que ya tiene precedente propio así que no pasa por acá).
   const anchoActual = coincidencias.length
     ? Math.max(...coincidencias.map(m => m[1].length))
-    : 2;
+    : 3;
   return `${prefijo}-${String(siguiente).padStart(anchoActual, '0')}`;
 }
 
