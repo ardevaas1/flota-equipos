@@ -3956,8 +3956,17 @@ async function _asegurarDatosBusquedaGlobal() {
   _globalSearchDatosListos = true;
 }
 
+// Quita tildes/acentos para comparar sin que "ménsula" sin tilde (o
+// cualquier otra palabra escrita rápido, sin acentos, como se escribe
+// normalmente en el celular) deje de encontrar cosas que sí tienen tilde
+// en el Sheet. Se usa tanto en lo que se escribe como en lo que se busca,
+// así da lo mismo con o sin tilde de cualquiera de los dos lados.
+function _sinTildes(s) {
+  return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 async function buscarGlobal(query) {
-  const txt = (query || '').trim().toLowerCase();
+  const txt = _sinTildes((query || '').trim());
   const cont = document.getElementById('busqueda-global-resultados');
   if (!cont) return;
 
@@ -3969,14 +3978,14 @@ async function buscarGlobal(query) {
 
   // Si mientras cargaba los datos la persona ya cambió lo que escribió,
   // no pisar con resultados de una búsqueda que ya no corresponde
-  const actual = (document.getElementById('busqueda-global-input')?.value || '').trim().toLowerCase();
+  const actual = _sinTildes((document.getElementById('busqueda-global-input')?.value || '').trim());
   if (actual !== txt) return;
 
   const resultados = [];
 
   if (_moduloPermitidoBusqueda('flota')) {
     (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
-      const texto = [e.equipo, e.marca, e.modelo, e.patente, e.codigo].filter(Boolean).join(' ').toLowerCase();
+      const texto = _sinTildes([e.equipo, e.marca, e.modelo, e.patente, e.codigo].filter(Boolean).join(' '));
       if (!texto.includes(txt)) return;
       resultados.push({
         cat: 'Flota',
@@ -3984,13 +3993,24 @@ async function buscarGlobal(query) {
         titulo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
         sub: e.patente || '',
         ir: () => {
-          if (typeof IS_DESKTOP === 'function' && IS_DESKTOP()) {
-            dtShowPage('equipos', document.querySelectorAll('.desktop-nav-item')[0]);
-            dtSelectEquipo(e.patente);
-          } else {
-            showPage('equipos', document.querySelectorAll('.nav-item')[1]);
-            openFicha(e.patente);
-          }
+          // Antes esto solo cambiaba de pestaña DENTRO de Flota (showPage/
+          // dtShowPage), pero nunca navegaba primero de la pantalla de
+          // inicio HACIA Flota (a diferencia de los demás resultados, que
+          // sí llaman irAModulo antes) — por eso el menú se deslizaba pero
+          // Flota nunca terminaba de abrirse. Con irAModulo('flota') primero
+          // y el mismo pequeño delay que usan las otras categorías (para
+          // esperar a que la transición termine antes de seleccionar la
+          // pestaña/ficha), queda igual que el resto.
+          irAModulo('flota');
+          setTimeout(() => {
+            if (typeof IS_DESKTOP === 'function' && IS_DESKTOP()) {
+              dtShowPage('equipos', document.querySelectorAll('.desktop-nav-item')[0]);
+              dtSelectEquipo(e.patente);
+            } else {
+              showPage('equipos', document.querySelectorAll('.nav-item')[1]);
+              openFicha(e.patente);
+            }
+          }, 340);
         },
       });
     });
@@ -4005,7 +4025,7 @@ async function buscarGlobal(query) {
     ];
     catsInv.forEach(([mod, arr, etiqueta]) => {
       arr.forEach(i => {
-        const texto = [i.equipo, i.marca, i.modelo, i.codigo, i.numIdent].filter(Boolean).join(' ').toLowerCase();
+        const texto = _sinTildes([i.equipo, i.marca, i.modelo, i.codigo, i.numIdent].filter(Boolean).join(' '));
         if (!texto.includes(txt)) return;
         resultados.push({
           cat: etiqueta,
@@ -4023,7 +4043,7 @@ async function buscarGlobal(query) {
 
   if (_moduloPermitidoBusqueda('containers')) {
     (typeof allContainers !== 'undefined' ? allContainers : []).forEach(c => {
-      const texto = [c.tipo, 'N' + c.num].filter(Boolean).join(' ').toLowerCase();
+      const texto = _sinTildes([c.tipo, 'N' + c.num].filter(Boolean).join(' '));
       if (!texto.includes(txt)) return;
       resultados.push({
         cat: 'Container',
@@ -4036,7 +4056,7 @@ async function buscarGlobal(query) {
 
   if (_moduloPermitidoBusqueda('andamios')) {
     (typeof allAndamios !== 'undefined' ? allAndamios : []).forEach(p => {
-      const texto = (p.tipo || '').toLowerCase();
+      const texto = _sinTildes(p.tipo || '');
       if (!texto.includes(txt)) return;
       resultados.push({
         cat: 'Andamios',
@@ -4049,7 +4069,7 @@ async function buscarGlobal(query) {
 
   if (_moduloPermitidoBusqueda('arriendos')) {
     (typeof allArriendos !== 'undefined' ? allArriendos : []).forEach(a => {
-      const texto = [a.equipo, a.proveedor].filter(Boolean).join(' ').toLowerCase();
+      const texto = _sinTildes([a.equipo, a.proveedor].filter(Boolean).join(' '));
       if (!texto.includes(txt)) return;
       resultados.push({
         cat: 'Arriendos',
