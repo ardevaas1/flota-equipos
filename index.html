@@ -878,6 +878,21 @@
       <div class="modulos-title">Constructora LST</div>
       <div class="modulos-sub">Gestión de Recursos</div>
     </div>
+
+    <!-- Buscador global: encuentra cualquier equipo/herramienta/generador/etc
+         por código, N° de identificación, patente, marca o modelo, en TODA
+         la app, y te lleva directo a su ficha sin tener que saber en qué
+         módulo está. -->
+    <div class="busqueda-global-wrap">
+      <div class="searchbox">
+        <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <input type="text" id="busqueda-global-input" placeholder="Buscar por código, patente, marca..."
+          oninput="_deb('busq-global', () => buscarGlobal(document.getElementById('busqueda-global-input').value))"
+          style="flex:1;border:none;outline:none;font-size:14px">
+      </div>
+      <div id="busqueda-global-resultados" class="busqueda-global-resultados hidden"></div>
+    </div>
+
     <div class="modulos-lista">
       <div class="modulo-card modulo-card--flota" onclick="irAModulo('flota')">
         <div class="modulo-icon modulo-icon--flota">

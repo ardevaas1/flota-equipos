@@ -3918,6 +3918,140 @@ async function testAppsScript() {
   }
 }
 
+// ══ BUSCADOR GLOBAL (pantalla de inicio) ══════════════════════
+// Encuentra cualquier ítem por código/patente/marca/modelo en TODA la
+// app (Flota, Inventario completo, Containers, Andamios, Arriendos) y
+// abre su ficha directo, sin tener que saber en qué módulo vive.
+let _globalSearchDatosListos = false;
+async function _asegurarDatosBusquedaGlobal() {
+  if (_globalSearchDatosListos) return;
+  const tareas = [];
+  // Flota ya se carga sola al iniciar sesión (loadData), así que allEquipos
+  // ya está listo de entrada — acá solo hace falta traer lo que se carga
+  // recién al entrar a cada módulo (inventario, andamios, arriendos).
+  if (typeof loadInventario === 'function' && !allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allTopografico.length) {
+    tareas.push(loadInventario().catch(e => console.warn('[BUSCADOR] Inventario:', e.message)));
+  }
+  if (typeof andCargar === 'function' && !allAndamios.length) {
+    tareas.push(andCargar().catch(e => console.warn('[BUSCADOR] Andamios:', e.message)));
+  }
+  if (typeof loadArriendos === 'function' && !allArriendos.length) {
+    tareas.push(loadArriendos().catch(e => console.warn('[BUSCADOR] Arriendos:', e.message)));
+  }
+  if (tareas.length) await Promise.all(tareas);
+  _globalSearchDatosListos = true;
+}
+
+async function buscarGlobal(query) {
+  const txt = (query || '').trim().toLowerCase();
+  const cont = document.getElementById('busqueda-global-resultados');
+  if (!cont) return;
+
+  if (txt.length < 2) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+
+  cont.classList.remove('hidden');
+  cont.innerHTML = '<div class="busqueda-global-msg">Buscando en toda la app...</div>';
+  await _asegurarDatosBusquedaGlobal();
+
+  // Si mientras cargaba los datos la persona ya cambió lo que escribió,
+  // no pisar con resultados de una búsqueda que ya no corresponde
+  const actual = (document.getElementById('busqueda-global-input')?.value || '').trim().toLowerCase();
+  if (actual !== txt) return;
+
+  const resultados = [];
+
+  (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
+    const texto = [e.equipo, e.marca, e.modelo, e.patente, e.codigo].filter(Boolean).join(' ').toLowerCase();
+    if (!texto.includes(txt)) return;
+    resultados.push({
+      cat: 'Flota',
+      titulo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+      sub: e.patente || '',
+      ir: () => {
+        if (typeof IS_DESKTOP === 'function' && IS_DESKTOP()) {
+          dtShowPage('equipos', document.querySelectorAll('.desktop-nav-item')[0]);
+          dtSelectEquipo(e.patente);
+        } else {
+          showPage('equipos', document.querySelectorAll('.nav-item')[1]);
+          openFicha(e.patente);
+        }
+      },
+    });
+  });
+
+  const catsInv = [
+    ['generadores', typeof allGeneradores !== 'undefined' ? allGeneradores : [], 'Generador'],
+    ['maqmenor', typeof allMaqMenor !== 'undefined' ? allMaqMenor : [], 'Maq. Menor'],
+    ['herramientas', typeof allHerramientas !== 'undefined' ? allHerramientas : [], 'Herramienta'],
+    ['topografico', typeof allTopografico !== 'undefined' ? allTopografico : [], 'Topográfico'],
+  ];
+  catsInv.forEach(([mod, arr, etiqueta]) => {
+    arr.forEach(i => {
+      const texto = [i.equipo, i.marca, i.modelo, i.codigo, i.numIdent].filter(Boolean).join(' ').toLowerCase();
+      if (!texto.includes(txt)) return;
+      resultados.push({
+        cat: etiqueta,
+        titulo: [i.marca, i.modelo].filter(Boolean).join(' ') || i.equipo,
+        sub: i.codigo || i.numIdent || '',
+        ir: () => {
+          irAModulo('inventario');
+          setTimeout(() => { invSetModulo(mod); invAbrirDetalle(mod, i.rowIndex); }, 340);
+        },
+      });
+    });
+  });
+
+  (typeof allContainers !== 'undefined' ? allContainers : []).forEach(c => {
+    const texto = [c.tipo, 'N' + c.num].filter(Boolean).join(' ').toLowerCase();
+    if (!texto.includes(txt)) return;
+    resultados.push({
+      cat: 'Container', titulo: c.tipo, sub: 'N° ' + c.num,
+      ir: () => { irAModulo('containers'); setTimeout(() => contAbrirDetalle(c.rowIndex), 340); },
+    });
+  });
+
+  (typeof allAndamios !== 'undefined' ? allAndamios : []).forEach(p => {
+    const texto = (p.tipo || '').toLowerCase();
+    if (!texto.includes(txt)) return;
+    resultados.push({
+      cat: 'Andamios', titulo: p.tipo, sub: (p.cantidad || 0) + ' piezas',
+      ir: () => { irAModulo('andamios'); setTimeout(() => andAbrirEditar(p.rowIndex), 340); },
+    });
+  });
+
+  (typeof allArriendos !== 'undefined' ? allArriendos : []).forEach(a => {
+    const texto = [a.equipo, a.proveedor].filter(Boolean).join(' ').toLowerCase();
+    if (!texto.includes(txt)) return;
+    resultados.push({
+      cat: 'Arriendos', titulo: a.equipo, sub: a.proveedor || '',
+      ir: () => { irAModulo('arriendos'); setTimeout(() => arrAbrirDetalle(a.rowIndex), 340); },
+    });
+  });
+
+  if (!resultados.length) {
+    cont.innerHTML = `<div class="busqueda-global-msg">Sin resultados para "${query}"</div>`;
+    return;
+  }
+
+  window._resultadosBusquedaGlobal = resultados;
+  cont.innerHTML = resultados.slice(0, 30).map((r, idx) => `
+    <div class="busqueda-global-item" onclick="_irAResultadoGlobal(${idx})">
+      <span class="busqueda-global-cat">${r.cat}</span>
+      <div class="busqueda-global-item-body">
+        <div class="busqueda-global-item-titulo">${r.titulo}</div>
+        <div class="busqueda-global-item-sub">${r.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+function _irAResultadoGlobal(idx) {
+  const r = (window._resultadosBusquedaGlobal || [])[idx];
+  if (!r) return;
+  document.getElementById('busqueda-global-resultados').classList.add('hidden');
+  document.getElementById('busqueda-global-input').value = '';
+  r.ir();
+}
+
 // ── Interceptar refresh para no perder sesión ─────────────────
 // En móvil: bloquea el gesto pull-to-refresh del navegador.
 // En desktop: intercepta Ctrl+R / F5 y en vez de recargar llama loadData().
