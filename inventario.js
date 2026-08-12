@@ -1848,7 +1848,14 @@ function invSetModulo(mod) {
   // Tabs móvil
   document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
   const tabEl = document.getElementById('inv-tab-' + mod);
-  if (tabEl) tabEl.classList.add('active');
+  if (tabEl) {
+    tabEl.classList.add('active');
+    // Si la pestaña quedó fuera de la vista (fila de pestañas más ancha
+    // que la pantalla, como pasaba con "Topográfico"), la trae a la
+    // vista sola — útil sobre todo cuando se llega acá desde el
+    // buscador global, sin haber tocado la pestaña a mano.
+    tabEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }
   // Tabs desktop
   document.querySelectorAll('.inv-desktop-tab').forEach(t => t.classList.remove('active'));
   const dtTab = document.getElementById('inv-dt-tab-' + mod);

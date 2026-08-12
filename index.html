@@ -1056,11 +1056,13 @@
       </div>
       <button class="header-btn" onclick="loadData(true)" id="inv-refresh-btn">↻</button>
     </header>
-    <div class="inv-tabs" id="inv-mobile-tabs">
-      <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Generadores</button>
-      <button class="inv-tab" id="inv-tab-maqmenor" onclick="invSetModulo('maqmenor')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Maq. Menor</button>
-      <button class="inv-tab" id="inv-tab-herramientas" onclick="invSetModulo('herramientas')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Herramientas</button>
-      <button class="inv-tab" id="inv-tab-topografico" onclick="invSetModulo('topografico')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Topográfico</button>
+    <div class="inv-tabs-wrap">
+      <div class="inv-tabs" id="inv-mobile-tabs">
+        <button class="inv-tab active" id="inv-tab-generadores" onclick="invSetModulo('generadores')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Generadores</button>
+        <button class="inv-tab" id="inv-tab-maqmenor" onclick="invSetModulo('maqmenor')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Maq. Menor</button>
+        <button class="inv-tab" id="inv-tab-herramientas" onclick="invSetModulo('herramientas')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M2 14V9a1 1 0 0 1 1-1h9l3 3h6v3h-6l-3 3H6a1 1 0 0 1-1-1v-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Herramientas</button>
+        <button class="inv-tab" id="inv-tab-topografico" onclick="invSetModulo('topografico')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="9" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M12 13v4M8 21l4-4 4 4M5 9H2M22 9h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Topográfico</button>
+      </div>
     </div>
     <div class="inv-stats" id="inv-mobile-stats">
       <div class="inv-stat green"><div class="inv-stat-n" id="inv-stat-op">—</div><div class="inv-stat-l">Operativos</div></div>
