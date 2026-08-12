@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v6';
+const CACHE_NAME = 'lst-flota-shell-v7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -17,6 +17,12 @@ const APP_SHELL = [
   './manifest.json',
   './logo.png',
   './logo-white.png',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-192.png',
+  './icon-maskable-512.png',
+  './apple-touch-icon.png',
+  './favicon.png',
 ];
 // Nota: andamios-seed.js (~800KB, catálogo con fotos) ya NO se precachea aquí
 // a propósito — ahora se carga bajo demanda solo cuando alguien toca "Importar
