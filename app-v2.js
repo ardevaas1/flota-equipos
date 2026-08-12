@@ -3923,19 +3923,33 @@ async function testAppsScript() {
 // app (Flota, Inventario completo, Containers, Andamios, Arriendos) y
 // abre su ficha directo, sin tener que saber en qué módulo vive.
 let _globalSearchDatosListos = false;
+// Un módulo está permitido en la búsqueda si la persona ve TODO (admin,
+// viewer, o sin rol de módulo asignado) o si ese módulo puntual está en
+// su lista de roles — el mismo criterio que ya usa
+// aplicarRestriccionModulosHome() para decidir qué tarjetas mostrar en
+// la pantalla de inicio. Sin esto, alguien con acceso SOLO a Flota podía
+// buscar y encontrar (y abrir) herramientas de Inventario, que es
+// justo lo que el rol restringido debería impedir.
+function _moduloPermitidoBusqueda(mod) {
+  const irrestricto = (userRole === 'admin' || userRole === 'viewer' || !userRoles.length);
+  return irrestricto || userRoles.includes(mod);
+}
+
 async function _asegurarDatosBusquedaGlobal() {
   if (_globalSearchDatosListos) return;
   const tareas = [];
   // Flota ya se carga sola al iniciar sesión (loadData), así que allEquipos
   // ya está listo de entrada — acá solo hace falta traer lo que se carga
-  // recién al entrar a cada módulo (inventario, andamios, arriendos).
-  if (typeof loadInventario === 'function' && !allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allTopografico.length) {
+  // recién al entrar a cada módulo (inventario, andamios, arriendos). Y
+  // solo si la persona tiene permiso para ese módulo — si no lo tiene, ni
+  // siquiera se pide el dato (no solo se oculta el resultado).
+  if (_moduloPermitidoBusqueda('inventario') && typeof loadInventario === 'function' && !allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allTopografico.length) {
     tareas.push(loadInventario().catch(e => console.warn('[BUSCADOR] Inventario:', e.message)));
   }
-  if (typeof andCargar === 'function' && !allAndamios.length) {
+  if (_moduloPermitidoBusqueda('andamios') && typeof andCargar === 'function' && !allAndamios.length) {
     tareas.push(andCargar().catch(e => console.warn('[BUSCADOR] Andamios:', e.message)));
   }
-  if (typeof loadArriendos === 'function' && !allArriendos.length) {
+  if (_moduloPermitidoBusqueda('arriendos') && typeof loadArriendos === 'function' && !allArriendos.length) {
     tareas.push(loadArriendos().catch(e => console.warn('[BUSCADOR] Arriendos:', e.message)));
   }
   if (tareas.length) await Promise.all(tareas);
@@ -3960,73 +3974,91 @@ async function buscarGlobal(query) {
 
   const resultados = [];
 
-  (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
-    const texto = [e.equipo, e.marca, e.modelo, e.patente, e.codigo].filter(Boolean).join(' ').toLowerCase();
-    if (!texto.includes(txt)) return;
-    resultados.push({
-      cat: 'Flota',
-      titulo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
-      sub: e.patente || '',
-      ir: () => {
-        if (typeof IS_DESKTOP === 'function' && IS_DESKTOP()) {
-          dtShowPage('equipos', document.querySelectorAll('.desktop-nav-item')[0]);
-          dtSelectEquipo(e.patente);
-        } else {
-          showPage('equipos', document.querySelectorAll('.nav-item')[1]);
-          openFicha(e.patente);
-        }
-      },
-    });
-  });
-
-  const catsInv = [
-    ['generadores', typeof allGeneradores !== 'undefined' ? allGeneradores : [], 'Generador'],
-    ['maqmenor', typeof allMaqMenor !== 'undefined' ? allMaqMenor : [], 'Maq. Menor'],
-    ['herramientas', typeof allHerramientas !== 'undefined' ? allHerramientas : [], 'Herramienta'],
-    ['topografico', typeof allTopografico !== 'undefined' ? allTopografico : [], 'Topográfico'],
-  ];
-  catsInv.forEach(([mod, arr, etiqueta]) => {
-    arr.forEach(i => {
-      const texto = [i.equipo, i.marca, i.modelo, i.codigo, i.numIdent].filter(Boolean).join(' ').toLowerCase();
+  if (_moduloPermitidoBusqueda('flota')) {
+    (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => {
+      const texto = [e.equipo, e.marca, e.modelo, e.patente, e.codigo].filter(Boolean).join(' ').toLowerCase();
       if (!texto.includes(txt)) return;
       resultados.push({
-        cat: etiqueta,
-        titulo: [i.marca, i.modelo].filter(Boolean).join(' ') || i.equipo,
-        sub: i.codigo || i.numIdent || '',
+        cat: 'Flota',
+        icono: (typeof iconoEquipo === 'function' ? iconoEquipo(e.equipo) : ''),
+        titulo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
+        sub: e.patente || '',
         ir: () => {
-          irAModulo('inventario');
-          setTimeout(() => { invSetModulo(mod); invAbrirDetalle(mod, i.rowIndex); }, 340);
+          if (typeof IS_DESKTOP === 'function' && IS_DESKTOP()) {
+            dtShowPage('equipos', document.querySelectorAll('.desktop-nav-item')[0]);
+            dtSelectEquipo(e.patente);
+          } else {
+            showPage('equipos', document.querySelectorAll('.nav-item')[1]);
+            openFicha(e.patente);
+          }
         },
       });
     });
-  });
+  }
 
-  (typeof allContainers !== 'undefined' ? allContainers : []).forEach(c => {
-    const texto = [c.tipo, 'N' + c.num].filter(Boolean).join(' ').toLowerCase();
-    if (!texto.includes(txt)) return;
-    resultados.push({
-      cat: 'Container', titulo: c.tipo, sub: 'N° ' + c.num,
-      ir: () => { irAModulo('containers'); setTimeout(() => contAbrirDetalle(c.rowIndex), 340); },
+  if (_moduloPermitidoBusqueda('inventario')) {
+    const catsInv = [
+      ['generadores', typeof allGeneradores !== 'undefined' ? allGeneradores : [], 'Generador'],
+      ['maqmenor', typeof allMaqMenor !== 'undefined' ? allMaqMenor : [], 'Maq. Menor'],
+      ['herramientas', typeof allHerramientas !== 'undefined' ? allHerramientas : [], 'Herramienta'],
+      ['topografico', typeof allTopografico !== 'undefined' ? allTopografico : [], 'Topográfico'],
+    ];
+    catsInv.forEach(([mod, arr, etiqueta]) => {
+      arr.forEach(i => {
+        const texto = [i.equipo, i.marca, i.modelo, i.codigo, i.numIdent].filter(Boolean).join(' ').toLowerCase();
+        if (!texto.includes(txt)) return;
+        resultados.push({
+          cat: etiqueta,
+          icono: (typeof invIcono === 'function' ? invIcono(i.equipo) : ''),
+          titulo: [i.marca, i.modelo].filter(Boolean).join(' ') || i.equipo,
+          sub: i.codigo || i.numIdent || '',
+          ir: () => {
+            irAModulo('inventario');
+            setTimeout(() => { invSetModulo(mod); invAbrirDetalle(mod, i.rowIndex); }, 340);
+          },
+        });
+      });
     });
-  });
+  }
 
-  (typeof allAndamios !== 'undefined' ? allAndamios : []).forEach(p => {
-    const texto = (p.tipo || '').toLowerCase();
-    if (!texto.includes(txt)) return;
-    resultados.push({
-      cat: 'Andamios', titulo: p.tipo, sub: (p.cantidad || 0) + ' piezas',
-      ir: () => { irAModulo('andamios'); setTimeout(() => andAbrirEditar(p.rowIndex), 340); },
+  if (_moduloPermitidoBusqueda('containers')) {
+    (typeof allContainers !== 'undefined' ? allContainers : []).forEach(c => {
+      const texto = [c.tipo, 'N' + c.num].filter(Boolean).join(' ').toLowerCase();
+      if (!texto.includes(txt)) return;
+      resultados.push({
+        cat: 'Container',
+        icono: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M9 7v12M15 7v12" stroke="white" stroke-width="1.4"/></svg>',
+        titulo: c.tipo, sub: 'N° ' + c.num,
+        ir: () => { irAModulo('containers'); setTimeout(() => contAbrirDetalle(c.rowIndex), 340); },
+      });
     });
-  });
+  }
 
-  (typeof allArriendos !== 'undefined' ? allArriendos : []).forEach(a => {
-    const texto = [a.equipo, a.proveedor].filter(Boolean).join(' ').toLowerCase();
-    if (!texto.includes(txt)) return;
-    resultados.push({
-      cat: 'Arriendos', titulo: a.equipo, sub: a.proveedor || '',
-      ir: () => { irAModulo('arriendos'); setTimeout(() => arrAbrirDetalle(a.rowIndex), 340); },
+  if (_moduloPermitidoBusqueda('andamios')) {
+    (typeof allAndamios !== 'undefined' ? allAndamios : []).forEach(p => {
+      const texto = (p.tipo || '').toLowerCase();
+      if (!texto.includes(txt)) return;
+      resultados.push({
+        cat: 'Andamios',
+        icono: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 21V3M20 21V3M4 8h16M4 16h16" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>',
+        titulo: p.tipo, sub: (p.cantidad || 0) + ' piezas',
+        ir: () => { irAModulo('andamios'); setTimeout(() => andAbrirEditar(p.rowIndex), 340); },
+      });
     });
-  });
+  }
+
+  if (_moduloPermitidoBusqueda('arriendos')) {
+    (typeof allArriendos !== 'undefined' ? allArriendos : []).forEach(a => {
+      const texto = [a.equipo, a.proveedor].filter(Boolean).join(' ').toLowerCase();
+      if (!texto.includes(txt)) return;
+      resultados.push({
+        cat: 'Arriendos',
+        icono: '<svg viewBox="0 0 24 24" fill="white"><path d="M11 6H14L17.29 2.7A1 1 0 0 1 18.71 2.7L21.29 5.29A1 1 0 0 1 21.29 6.7L19 9H11V11A1 1 0 0 1 10 12A1 1 0 0 1 9 11V8A2 2 0 0 1 11 6M5 11V15L2.71 17.29A1 1 0 0 0 2.71 18.7L5.29 21.29A1 1 0 0 0 6.71 21.29L11 17H15A1 1 0 0 0 16 16V15H17A1 1 0 0 0 18 14V13H19A1 1 0 0 0 20 12V11H13V12A2 2 0 0 1 11 14H9A2 2 0 0 1 7 12V9Z"/></svg>',
+        titulo: a.equipo, sub: a.proveedor || '',
+        ir: () => { irAModulo('arriendos'); setTimeout(() => arrAbrirDetalle(a.rowIndex), 340); },
+      });
+    });
+  }
 
   if (!resultados.length) {
     cont.innerHTML = `<div class="busqueda-global-msg">Sin resultados para "${query}"</div>`;
@@ -4036,11 +4068,13 @@ async function buscarGlobal(query) {
   window._resultadosBusquedaGlobal = resultados;
   cont.innerHTML = resultados.slice(0, 30).map((r, idx) => `
     <div class="busqueda-global-item" onclick="_irAResultadoGlobal(${idx})">
-      <span class="busqueda-global-cat">${r.cat}</span>
+      <div class="busqueda-global-icon">${r.icono || ''}</div>
       <div class="busqueda-global-item-body">
+        <div class="busqueda-global-cat">${r.cat}</div>
         <div class="busqueda-global-item-titulo">${r.titulo}</div>
         <div class="busqueda-global-item-sub">${r.sub}</div>
       </div>
+      <svg class="busqueda-global-item-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>`).join('');
 }
 

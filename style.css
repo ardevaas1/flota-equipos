@@ -1549,27 +1549,39 @@ body.is-offline #app { padding-top: 30px; }
   background:
     radial-gradient(ellipse 480px 260px at 50% -20%, rgba(255,255,255,0.18), transparent 60%),
     linear-gradient(135deg, #1d4d75 0%, var(--accent) 55%, #6fb1de 100%);
-  padding: 36px 20px 30px;
+  padding: 36px 20px 34px;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   border-radius: 0 0 28px 28px;
   box-shadow: 0 10px 24px rgba(74,143,193,0.25);
 }
 
-/* ── Buscador global (pantalla de inicio) ── */
+/* ── Buscador global (pantalla de inicio) ──
+   "Flotante": se monta sobre el borde inferior del header con margen
+   negativo, en vez de ir integrado adentro del degradé — fondo blanco
+   sólido y sombra propia, para que se siga leyendo bien con sol directo
+   (a diferencia de un estilo "vidrio" semi-transparente, que se prueba
+   lindo en pantalla pero pierde contraste afuera, en obra). */
 .busqueda-global-wrap {
   position: relative;
-  padding: 16px 20px 4px;
+  padding: 0 24px;
   max-width: 480px;
   width: 100%;
-  margin: 0 auto;
+  margin: -22px auto 0;
+  z-index: 3;
+}
+.searchbox--flotante {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(29,77,117,0.28);
+  padding: 13px 16px;
 }
 .busqueda-global-resultados {
   position: absolute;
-  left: 20px; right: 20px;
-  top: calc(100% - 2px);
+  left: 24px; right: 24px;
+  top: calc(100% + 6px);
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+  border-radius: 14px;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.16);
   border: 1px solid var(--line);
   max-height: 340px;
   overflow-y: auto;
@@ -1579,21 +1591,23 @@ body.is-offline #app { padding-top: 30px; }
   padding: 16px; text-align: center; color: var(--ink-soft); font-size: 13px;
 }
 .busqueda-global-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; cursor: pointer;
-  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px; cursor: pointer;
+  border-bottom: 1px solid #f2f3f5;
 }
 .busqueda-global-item:last-child { border-bottom: none; }
 .busqueda-global-item:active { background: var(--accent-soft); }
-.busqueda-global-cat {
-  flex-shrink: 0;
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-  color: var(--accent); background: var(--accent-soft);
-  padding: 3px 7px; border-radius: 6px;
+.busqueda-global-icon {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(145deg, #5aa3d8, var(--accent-dark, #3a7aad));
+  display: flex; align-items: center; justify-content: center;
 }
+.busqueda-global-icon svg { width: 19px; height: 19px; }
 .busqueda-global-item-body { min-width: 0; flex: 1; }
-.busqueda-global-item-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.busqueda-global-item-sub { font-size: 12px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.busqueda-global-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--accent); margin-bottom: 2px; }
+.busqueda-global-item-titulo { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.busqueda-global-item-sub { font-size: 12px; color: #8a8f9e; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.busqueda-global-item-arrow { flex-shrink: 0; opacity: 0.35; }
 
 .modulos-logo-wrap {
   width: 72px; height: 72px; border-radius: 20px;
