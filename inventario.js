@@ -3838,27 +3838,13 @@ function _andSoloLectura() {
   return true;
 }
 
-// Envía una escritura de Andamios al Apps Script en vez de escribir directo a
-// Sheets con el token del usuario. El script valida el rol server-side (contra
-// la hoja USUARIOS) y escribe con SUS PROPIOS permisos — así alguien con rol
-// 'andamios' puede contar/editar piezas sin necesitar que le compartan la
-// planilla como Editor. Requiere que APPS_SCRIPT_URL (app-v2.js) apunte a la
-// implementación con el código de APPS_SCRIPT_ACTUALIZADO.js.
+// Envía una escritura de Andamios al Apps Script — ahora es un envoltorio
+// fino sobre _appsScriptCall() (app-v2.js), el mismo helper que ya usan
+// writeSheet()/appendSheet() para todos los demás módulos. Se deja esta
+// función con su nombre de siempre para no tener que tocar cada uno de
+// los llamados a and_* ya existentes en este archivo.
 async function _andEscrituraRemota(accion, params) {
-  await ensureToken();
-  const qs = new URLSearchParams({ accion, accessToken, ...params }).toString();
-  return _conIndicadorCarga((async () => {
-    let res;
-    try {
-      res = await fetch(`${APPS_SCRIPT_URL}?${qs}`);
-    } catch (e) {
-      throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
-    }
-    if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error desconocido al guardar');
-    return data;
-  })());
+  return _appsScriptCall(accion, params);
 }
 const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita re-consultar Drive en cada render
 

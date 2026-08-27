@@ -1009,6 +1009,41 @@ async function _fetchConReintento(url, options, intentos = 3) {
   return ultimoRes;
 }
 
+// Llama a una acción del Apps Script — usado por writeSheet()/appendSheet()
+// (todos los módulos) y por _andEscrituraRemota() (Andamios). Antes cada
+// módulo escribía DIRECTO a la API de Sheets con el token de Google de
+// quien estuviera usando la app — lo cual exige que esa persona tenga
+// permiso de Editor sobre la planilla completa, aunque en la app solo
+// vea/edite un módulo. Pasando todo por acá, el Apps Script escribe con
+// SUS PROPIOS permisos (los del dueño que lo implementó) y valida el rol
+// de quien llama contra la hoja USUARIOS — así nadie necesita que le
+// compartan el Sheet como Editor para poder guardar nada.
+//
+// Se manda por POST (no GET) para no toparse con el límite de largo de
+// URL en escrituras grandes (ej. guardar varios movimientos a la vez), y
+// con Content-Type text/plain a propósito — con "application/json" el
+// navegador dispara un preflight CORS (OPTIONS) que Apps Script no
+// contesta bien, y la llamada fallaría siempre.
+async function _appsScriptCall(accion, params) {
+  await ensureToken();
+  return _conIndicadorCarga((async () => {
+    let res;
+    try {
+      res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ accion, accessToken, ...params }),
+      });
+    } catch (e) {
+      throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
+    }
+    if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'No se pudo guardar');
+    return data;
+  })());
+}
+
 async function fetchSheet(range) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
@@ -1019,32 +1054,16 @@ async function fetchSheet(range) {
   })());
 }
 
+// Antes escribía DIRECTO a la API de Sheets con el token del usuario (por
+// eso hacía falta compartirle la planilla como Editor a cada persona,
+// para CUALQUIER módulo). Ahora pasa por el Apps Script — ver
+// _appsScriptCall más arriba.
 async function writeSheet(range, values) {
-  await ensureToken();
-  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-  return _conIndicadorCarga((async () => {
-    const res = await _fetchConReintento(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
-    });
-    if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-    return res.json();
-  })());
+  return _appsScriptCall('sheet_write', { range, values: JSON.stringify(values) });
 }
 
 async function appendSheet(range, values) {
-  await ensureToken();
-  const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-  return _conIndicadorCarga((async () => {
-    const res = await _fetchConReintento(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ range, majorDimension: 'ROWS', values }),
-    });
-    if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-    return res.json();
-  })());
+  return _appsScriptCall('sheet_append', { range, values: JSON.stringify(values) });
 }
 
 // ── Google Drive API ──────────────────────────────────────────

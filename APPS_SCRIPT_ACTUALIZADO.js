@@ -16,6 +16,9 @@ const SHEET_AND_UBIC = 'AND-UBICACIONES'; // cantidad por pieza + ubicación (ob
 
 function doGet(e) {
   if (e.parameter && e.parameter.accion) {
+    if (e.parameter.accion === 'sheet_write' || e.parameter.accion === 'sheet_append') {
+      return manejarEscrituraGenerica(e.parameter);
+    }
     return manejarAccionAndamios(e.parameter);
   }
 
@@ -148,6 +151,112 @@ function _rolDe(email) {
   const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
   const rol = fila ? (fila[1] || '').toString().toLowerCase().trim() : '';
   return rol || 'viewer';
+}
+
+// ============================================================
+// ESCRITURA SERVER-SIDE GENÉRICA — PARA TODA LA APP
+// ------------------------------------------------------------
+// Lo mismo que ya se hacía solo para Andamios (más abajo), pero
+// generalizado: writeSheet()/appendSheet() del cliente (usadas por TODOS
+// los módulos: Flota, Inventario, Containers, Movimientos, Bitácora,
+// Arriendos) mandan la escritura acá en vez de escribir directo a
+// Sheets con el token de quien esté usando la app — así nadie necesita
+// que le compartan la planilla como Editor para poder guardar nada,
+// solo necesita su rol correspondiente cargado en la hoja USUARIOS.
+//
+// El cliente sigue armando el mismo "range" de siempre, con la hoja
+// entre comillas simples (ej. "'ARRIENDOS'!A5:P5") — acá se separa el
+// nombre de hoja de ese range para saber contra qué rol de módulo
+// validar. Si el día de mañana se agrega una hoja nueva, agregar su
+// nombre a este mapeo (si no está, por seguridad NO se deja escribir).
+const ROL_REQUERIDO_POR_HOJA = {
+  'MAQUINARIA':            'flota',
+  'MANTENCIONES':          'flota',
+  'GENERADORES':           'inventario',
+  'MAQUINARIA MENOR':      'inventario',
+  'HERRAMIENTAS':          'inventario',
+  'EQUIPOS TOPOGRAFICOS':  'inventario',
+  'MANT-GEN':              'inventario', // eventos de generadores
+  'CONTENEDORES':          'containers',
+  'MOVIMIENTOS':           'mover',
+  'BITACORA':              'chofer',
+  'COMBUSTIBLE':           'chofer',
+  'ARRIENDOS':             'arriendos',
+  'ANDAMIOS':              'andamios',
+  'AND-UBICACIONES':       'andamios',
+  'AND-HISTORIAL':         'andamios',
+};
+
+// Mismo criterio que ya usa el cliente para decidir qué puede hacer cada
+// persona (ver checkUserRole en app-v2.js): la celda de rol puede traer
+// varios roles separados por coma ("flota,containers"), "admin" pasa
+// cualquier chequeo, y cualquier otro rol solo pasa el que sea el suyo.
+function _tienePermisoParaHoja(email, sheetName) {
+  const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
+  if (!sh || sh.getLastRow() < 2) return false;
+  const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues();
+  const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
+  const celda = fila ? (fila[1] || '').toString().toLowerCase().trim() : '';
+  const tokens = celda.split(',').map(t => t.trim()).filter(Boolean);
+
+  if (tokens.includes('admin')) return true;
+
+  // DATOS (ajuste de valor real por GPS) es un caso aparte, admin
+  // únicamente sin excepción — ya lo era del lado del cliente, esto solo
+  // lo respalda del lado del servidor.
+  if (sheetName === 'DATOS') return false;
+
+  const rolNecesario = ROL_REQUERIDO_POR_HOJA[sheetName];
+  if (!rolNecesario) return false; // hoja no reconocida: por las dudas, no se deja escribir
+  return tokens.includes(rolNecesario);
+}
+
+// Handler genérico de "sheet_write" / "sheet_append" — reemplaza escribir
+// directo a la API de Sheets con el token del usuario.
+function manejarEscrituraGenerica(p) {
+  try {
+    const email = _emailVerificadoDesdeToken(p.accessToken);
+    if (!email) {
+      return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
+    }
+
+    const m = (p.range || '').match(/^'([^']+)'!(.+)$/);
+    if (!m) return _jsonOut({ success: false, error: 'Rango inválido: ' + p.range });
+    const sheetName = m[1];
+    const celda = m[2];
+
+    if (!_tienePermisoParaHoja(email, sheetName)) {
+      return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar "' + sheetName + '".' });
+    }
+
+    const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(sheetName);
+    if (!sh) return _jsonOut({ success: false, error: 'No se encontró la hoja "' + sheetName + '".' });
+
+    let values;
+    try { values = JSON.parse(p.values); } catch (e) { return _jsonOut({ success: false, error: 'Valores inválidos' }); }
+    if (!Array.isArray(values) || !values.length) {
+      return _jsonOut({ success: false, error: 'Sin valores para guardar' });
+    }
+
+    if (p.accion === 'sheet_write') {
+      sh.getRange(celda).setValues(values);
+      return _jsonOut({ success: true });
+    }
+
+    if (p.accion === 'sheet_append') {
+      // Mismo comportamiento que "append" de la API de Sheets: agrega
+      // DESPUÉS de la última fila con contenido real — el rango puntual
+      // que mandó el cliente (ej. "A:P") solo sirve acá para saber la
+      // hoja, no la posición exacta.
+      const filaLibre = sh.getLastRow() + 1;
+      sh.getRange(filaLibre, 1, values.length, values[0].length).setValues(values);
+      return _jsonOut({ success: true });
+    }
+
+    return _jsonOut({ success: false, error: 'Acción de escritura desconocida: ' + p.accion });
+  } catch (err) {
+    return _jsonOut({ success: false, error: String(err) });
+  }
 }
 
 // Devuelve la hoja AND-HISTORIAL, creándola (con encabezados) la primera vez
