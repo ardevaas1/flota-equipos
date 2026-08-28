@@ -3,8 +3,6 @@
 // ============================================
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-const DRIVE_API   = 'https://www.googleapis.com/drive/v3';
-const DRIVE_UP    = 'https://www.googleapis.com/upload/drive/v3';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVj2C6YCjlwm4OwXqFBk8RiuYbGS0QXnA062oTq7_j_NiGu2xl5dOrGZb-RdJdExbYqg/exec';
 
 let allEquipos    = [];
@@ -1066,51 +1064,69 @@ async function appendSheet(range, values) {
   return _appsScriptCall('sheet_append', { range, values: JSON.stringify(values) });
 }
 
-// ── Google Drive API ──────────────────────────────────────────
+// ── Google Drive — a través del Apps Script ──────────────────
+// Mismo mecanismo que _appsScriptCall (arriba) pero para operaciones de
+// Drive (buscar/subir/mover/borrar archivos y carpetas): reemplaza usar
+// el token de Google de quien esté usando la app por las llamadas
+// directas a la API de Drive — así nadie necesita acceso directo a la
+// carpeta de fotos para poder subir/ver una, solo su rol correspondiente
+// en la hoja USUARIOS (mismo criterio que ya se usa para las hojas de
+// cálculo). "modulo" identifica para qué módulo es la operación.
+async function _driveCall(accion, modulo, params) {
+  return _appsScriptCall(accion, { modulo, ...params });
+}
 
-// Busca o crea una carpeta. Usa uploadType=multipart porque es el único
-// endpoint que acepta CORS desde GitHub Pages.
-async function findOrCreateFolder(name, parentId) {
-  await ensureToken();
-  return _conIndicadorCarga((async () => {
+// Busca (o crea si no existe) una carpeta. Antes hacía el multipart a
+// mano contra la API de Drive — ahora pasa por el Apps Script.
+async function findOrCreateFolder(modulo, name, parentId) {
+  const data = await _driveCall('drive_find_or_create_folder', modulo, { name, parentId });
+  return data.id;
+}
 
-  // 1. Buscar si ya existe
-  const q = encodeURIComponent(`'${parentId}' in parents and name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const searchRes = await fetch(`${DRIVE_API}/files?q=${q}&fields=files(id,name)`, { headers: authHeader() });
-  if (!searchRes.ok) throw new Error(_friendlyGoogleApiError(searchRes.status, await searchRes.text()));
-  const searchData = await searchRes.json();
-  if (searchData.files && searchData.files.length > 0) {
-    console.log('[FOLDER] Encontrada:', name, searchData.files[0].id);
-    return searchData.files[0].id;
-  }
-
-  // 2. Crear — multipart con body vacío (único endpoint CORS-friendly desde GitHub Pages)
-  console.log('[FOLDER] Creando:', name, 'en:', parentId);
-  const boundary = 'lst_boundary_' + Date.now();
-  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] });
-  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: text/plain\r\n\r\n\r\n--${boundary}--`;
-
-  const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-    body,
+// Sube un archivo (ya en base64) a una carpeta. Devuelve el mismo objeto
+// {id,name,thumbnailLink,webContentLink,webViewLink,createdTime} que
+// antes se leía de la respuesta directa de la API de Drive, para no
+// tener que tocar cómo cada módulo usa esos datos después de subir.
+async function driveUpload(modulo, folderId, fileName, mimeType, fileDataBase64, replaceExisting) {
+  const data = await _driveCall('drive_upload', modulo, {
+    folderId, fileName, mimeType, fileData: fileDataBase64,
+    replaceExisting: replaceExisting ? 'true' : 'false',
   });
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    console.error('[FOLDER] Error:', err);
-    throw new Error(_friendlyGoogleApiError(createRes.status, err));
-  }
-  const folder = await createRes.json();
-  console.log('[FOLDER] Creada OK:', name, folder.id);
-  return folder.id;
+  return data.file;
+}
 
-  })());
+// Busca archivos con la MISMA sintaxis de "q" que ya se usaba con la API
+// de Drive directo (ej. "'ID' in parents and name contains 'algo'") —
+// no hace falta traducir las búsquedas que ya estaban armadas.
+async function driveSearch(modulo, q, opciones) {
+  opciones = opciones || {};
+  const data = await _driveCall('drive_search', modulo, {
+    q, orderBy: opciones.orderBy || '', pageSize: opciones.pageSize || '',
+  });
+  return { files: data.files || [] };
+}
+
+async function driveTrash(modulo, fileId) {
+  return _driveCall('drive_trash', modulo, { fileId });
+}
+
+async function driveMove(modulo, fileId, addParentId, removeParentId) {
+  return _driveCall('drive_move', modulo, { fileId, addParentId: addParentId || '', removeParentId: removeParentId || '' });
+}
+
+async function driveRename(modulo, fileId, newName) {
+  return _driveCall('drive_rename', modulo, { fileId, newName });
+}
+
+async function driveGetParents(modulo, fileId) {
+  const data = await _driveCall('drive_get_parents', modulo, { fileId });
+  return data.parents || [];
 }
 
 // Devuelve el ID de [PATENTE]/ — la crea si no existe
 async function getFolderForPatente(patente) {
   if (driveFolders[patente]) return driveFolders[patente];
-  const id = await findOrCreateFolder(patente, CONFIG.DRIVE_ROOT_FOLDER);
+  const id = await findOrCreateFolder('flota', patente, CONFIG.DRIVE_ROOT_FOLDER);
   driveFolders[patente] = id;
   return id;
 }
@@ -1121,16 +1137,17 @@ async function getSubfolder(patente, subfolder) {
   const key = `${patente}/${subfolder}`;
   if (driveSubfolders[key]) return driveSubfolders[key];
   const parentId = await getFolderForPatente(patente);
-  const id = await findOrCreateFolder(subfolder, parentId);
+  const id = await findOrCreateFolder('flota', subfolder, parentId);
   driveSubfolders[key] = id;
   return id;
 }
 
-// Sube un archivo a [PATENTE]/subfolder (default 'Eventos')
+// Sube un archivo a [PATENTE]/subfolder (default 'Eventos'). Antes armaba
+// el multipart a mano y pegaba directo a la API de Drive con el token del
+// usuario — ahora pasa por driveUpload() (Apps Script).
 async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
   console.log('[UPLOAD] uploadFile:', prefixName, patente, file?.name, file?.size, '→', subfolder);
   toast('Subiendo ' + prefixName + '...');
-  await ensureToken();
 
   let folderId;
   try {
@@ -1140,12 +1157,10 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
     folderId = CONFIG.DRIVE_ROOT_FOLDER;
   }
 
-  // Nombre del archivo
   const ext = file.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
   const mimeType = file.type || 'application/octet-stream';
 
-  // Leer como base64
   const b64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -1153,54 +1168,10 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
     reader.readAsDataURL(file);
   });
 
-  // Construir multipart body manualmente
-  // Este endpoint SÍ acepta requests desde github.io
-  const boundary = 'lst_boundary_' + Date.now();
-  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-
-  const body = [
-    '--' + boundary,
-    'Content-Type: application/json; charset=UTF-8',
-    '',
-    metadata,
-    '--' + boundary,
-    'Content-Type: ' + mimeType,
-    'Content-Transfer-Encoding: base64',
-    '',
-    b64,
-    '--' + boundary + '--'
-  ].join('\r\n');
-
-  console.log('[UPLOAD] Iniciando fetch multipart para:', fileName);
-  console.log('[UPLOAD] folderId:', folderId);
-  console.log('[UPLOAD] token válido:', !!accessToken, 'expira en:', Math.round((tokenExpiry - Date.now())/1000) + 's');
-  console.log('[UPLOAD] body length:', body.length, 'b64 length:', b64.length);
+  console.log('[UPLOAD] subiendo:', fileName, 'a carpeta:', folderId, 'b64 length:', b64.length);
   toast('Enviando a Drive...', 'loading');
 
-  let res;
-  try {
-    res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + accessToken,
-        'Content-Type': 'multipart/related; boundary=' + boundary,
-      },
-      body: body
-    });
-  } catch(fetchErr) {
-    console.error('[UPLOAD] fetch error:', fetchErr);
-    throw new Error('Error de red: ' + fetchErr.message);
-  }
-
-  console.log('[UPLOAD] respuesta status:', res.status);
-  
-  if (!res.ok) {
-    const err = await res.text();
-    console.error('[UPLOAD] error body:', err);
-    throw new Error(_friendlyGoogleApiError(res.status, err));
-  }
-
-  const result = await res.json();
+  const result = await driveUpload('flota', folderId, fileName, mimeType, b64, false);
   console.log('[UPLOAD] éxito:', result);
   toast(prefixName + ' subido ✓');
   return { id: result.id, name: result.name };
@@ -1667,13 +1638,8 @@ async function _actualizarLinkCarpetaFicha(docId, e) {
   const ETIQUETA = 'Abrir carpeta de fotos';
   let folderUrl = null;
   try {
-    await ensureToken();
     const q = `mimeType='application/vnd.google-apps.folder' and name='${e.patente}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    const data = await res.json();
+    const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       folderUrl = `https://drive.google.com/drive/folders/${data.files[0].id}`;
     }
@@ -1964,36 +1930,20 @@ function _extraerTablaComoObjeto(doc, ...anclas) {
 
 async function _obtenerCarpetaPadre(fileId) {
   try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`, {
-      headers: { Authorization: 'Bearer ' + accessToken },
-    });
-    const data = await res.json();
-    return (data.parents && data.parents[0]) || null;
+    const parents = await driveGetParents('flota', fileId);
+    return parents[0] || null;
   } catch (e) { return null; }
 }
 
 // Sube contenido HTML a Drive dejando que Google lo convierta a Doc nativo
-// (mismo mecanismo con el que se armó y aprobó la plantilla de ejemplo).
+// (mismo mecanismo con el que se armó y aprobó la plantilla de ejemplo) —
+// caso especial de subida (no es una foto), por eso tiene su propia
+// acción de Apps Script en vez de reusar driveUpload().
 async function _crearDocDesdeHtml(nombreArchivo, htmlContent, parentFolderId) {
-  const boundary = 'lst_ficha_' + Date.now();
-  const metadata = JSON.stringify({
-    name: nombreArchivo,
-    mimeType: 'application/vnd.google-apps.document',
-    parents: parentFolderId ? [parentFolderId] : undefined,
+  const data = await _driveCall('drive_create_google_doc', 'flota', {
+    name: nombreArchivo, html: htmlContent, parentId: parentFolderId || '',
   });
-  const body = [
-    '--' + boundary, 'Content-Type: application/json; charset=UTF-8', '', metadata,
-    '--' + boundary, 'Content-Type: text/html; charset=UTF-8', '', htmlContent,
-    '--' + boundary + '--',
-  ].join('\r\n');
-
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-    body,
-  });
-  if (!res.ok) throw new Error('Drive create ' + res.status + ': ' + (await res.text()).slice(0, 200));
-  return res.json();
+  return data.file;
 }
 
 // Arma el HTML de la plantilla nueva con los datos fijos ya completados
@@ -2448,40 +2398,10 @@ async function saveEvento() {
           const ext      = foto.name.split('.').pop() || 'jpg';
           const suffix   = _eventoFotos.length > 1 ? `_${i+1}` : '';
           const fileName = `${prefixBase}${suffix}_${patente}_${fechaStr}.${ext}`;
-          const boundary = 'lst_ev_' + Date.now() + '_' + i;
-          const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
 
-          const body = [
-            '--' + boundary,
-            'Content-Type: application/json; charset=UTF-8',
-            '',
-            metadata,
-            '--' + boundary,
-            'Content-Type: ' + foto.mimeType,
-            'Content-Transfer-Encoding: base64',
-            '',
-            foto.b64,
-            '--' + boundary + '--'
-          ].join('\r\n');
-
-          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + accessToken,
-              'Content-Type': 'multipart/related; boundary=' + boundary,
-            },
-            body,
-          });
-
-          if (!res.ok) {
-            const err = await res.text();
-            console.error('[EVENTO] Error foto', i+1, err);
-            toast(`Error foto ${i+1}: ${res.status}`, 'error');
-          } else {
-            const result = await res.json();
-            fotosSubidas.push(result.name || fileName);
-            console.log('[EVENTO] Foto subida OK:', result.name);
-          }
+          const result = await driveUpload('flota', folderId, fileName, foto.mimeType, foto.b64, false);
+          fotosSubidas.push(result.name || fileName);
+          console.log('[EVENTO] Foto subida OK:', result.name);
         } catch(fotoErr) {
           console.error('[EVENTO] Error subiendo foto', i+1, fotoErr);
           toast(`Error foto ${i+1}: ${fotoErr.message}`, 'error');
@@ -2963,14 +2883,9 @@ function openFicha(patente, soloLectura) {
 async function abrirCarpetaDrive(patente) {
   toast('Buscando carpeta en Drive...', 'loading');
   try {
-    await ensureToken();
     // Buscar carpeta con nombre igual a la patente dentro de DRIVE_ROOT_FOLDER
     const q = `mimeType='application/vnd.google-apps.folder' and name='${patente}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    const data = await res.json();
+    const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       const folderId = data.files[0].id;
       window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
@@ -3022,8 +2937,6 @@ async function abrirCarpetaFotosEquipo(patente) {
 async function openDocDrive(patente, prefix) {
   toast('Buscando documento en Drive...', 'loading');
   try {
-    await ensureToken();
-
     // Busca en: [PATENTE]/Documentos/ → [PATENTE]/ → raíz (retrocompatible)
     const foldersToSearch = [];
     try { foldersToSearch.push(await getSubfolder(patente, 'Documentos')); } catch(e) {}
@@ -3034,10 +2947,8 @@ async function openDocDrive(patente, prefix) {
     const unique = [...new Set(foldersToSearch)];
 
     for (const folder of unique) {
-      const q = encodeURIComponent(`'${folder}' in parents and name contains '${prefix}_${patente}' and trashed=false`);
-      const url = `${DRIVE_API}/files?q=${q}&fields=files(id,name,webViewLink)&orderBy=createdTime desc`;
-      const res = await fetch(url, { headers: authHeader() });
-      const data = await res.json();
+      const q = `'${folder}' in parents and name contains '${prefix}_${patente}' and trashed=false`;
+      const data = await driveSearch('flota', q, { orderBy: 'createdTime desc' });
       if (data.files && data.files.length > 0) {
         toast('Abriendo ' + data.files[0].name + '...');
         window.open(`https://drive.google.com/uc?export=view&id=${data.files[0].id}`, '_blank');
@@ -3315,33 +3226,10 @@ async function saveEquipo() {
           rd.onerror = rej;
           rd.readAsDataURL(_editFotoRefFile);
         });
-        const boundary = 'lst_boundary_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [fotoFolderId] });
-        const body = [
-          '--' + boundary,
-          'Content-Type: application/json; charset=UTF-8',
-          '',
-          metadata,
-          '--' + boundary,
-          'Content-Type: ' + mimeType,
-          'Content-Transfer-Encoding: base64',
-          '',
-          b64,
-          '--' + boundary + '--'
-        ].join('\r\n');
-        const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-          body,
-        });
-        if (!uploadRes.ok) throw new Error('Drive upload ' + uploadRes.status);
-        const fileData = await uploadRes.json();
-        // Hacer público para mostrar como <img>
-        await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`, {
-          method: 'POST',
-          headers: { ...authHeader(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-        });
+        // driveUpload() ya deja el archivo compartido "cualquiera con el
+        // link puede ver" al subirlo — no hace falta un paso aparte de
+        // permisos como antes.
+        const fileData = await driveUpload('flota', fotoFolderId, fileName, mimeType, b64, false);
         fotoRefVal = `https://drive.google.com/thumbnail?id=${fileData.id}&sz=w800`;
         console.log('[FOTOREF] Subida OK:', fotoRefVal);
       } catch(fe) {
@@ -3392,40 +3280,11 @@ async function saveEquipo() {
           // Revisión Técnica), se numera para no pisarse en Drive.
           const numSufijo = doc.multiIdx ? `_${doc.multiIdx}` : '';
           const fileName = `${doc.prefix}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}${numSufijo}.${ext}`;
-          const boundary = 'lst_boundary_' + Date.now();
-          const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-          const body = [
-            '--' + boundary,
-            'Content-Type: application/json; charset=UTF-8',
-            '',
-            metadata,
-            '--' + boundary,
-            'Content-Type: ' + doc.mimeType,
-            'Content-Transfer-Encoding: base64',
-            '',
-            doc.b64,
-            '--' + boundary + '--'
-          ].join('\r\n');
 
-          console.log('[SAVE] POST a Drive, body length:', body.length);
-          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + accessToken,
-              'Content-Type': 'multipart/related; boundary=' + boundary,
-            },
-            body,
-          });
-          console.log('[SAVE] Drive response status:', res.status);
-          if (!res.ok) {
-            const errText = await res.text();
-            console.error('[SAVE] Drive error:', errText);
-            toast('Error ' + doc.prefix + ': ' + res.status, 'error');
-          } else {
-            const result = await res.json();
-            console.log('[SAVE] Subida OK:', result.id, result.name);
-            toast(doc.prefix + ' subido a Drive ✓');
-          }
+          console.log('[SAVE] Subiendo a Drive:', fileName);
+          const result = await driveUpload('flota', folderId, fileName, doc.mimeType, doc.b64, false);
+          console.log('[SAVE] Subida OK:', result.id, result.name);
+          toast(doc.prefix + ' subido a Drive ✓');
         } catch(uploadErr) {
           console.error('[SAVE] Error subiendo ' + doc.prefix + ':', uploadErr);
           toast('Error subiendo ' + doc.prefix + ': ' + uploadErr.message, 'error');

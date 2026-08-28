@@ -19,6 +19,9 @@ function doGet(e) {
     if (e.parameter.accion === 'sheet_write' || e.parameter.accion === 'sheet_append') {
       return manejarEscrituraGenerica(e.parameter);
     }
+    if (e.parameter.accion.indexOf('drive_') === 0) {
+      return manejarDriveGenerico(e.parameter);
+    }
     return manejarAccionAndamios(e.parameter);
   }
 
@@ -192,23 +195,40 @@ const ROL_REQUERIDO_POR_HOJA = {
 // varios roles separados por coma ("flota,containers"), "admin" pasa
 // cualquier chequeo, y cualquier otro rol solo pasa el que sea el suyo.
 function _tienePermisoParaHoja(email, sheetName) {
-  const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
-  if (!sh || sh.getLastRow() < 2) return false;
-  const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues();
-  const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
-  const celda = fila ? (fila[1] || '').toString().toLowerCase().trim() : '';
-  const tokens = celda.split(',').map(t => t.trim()).filter(Boolean);
-
-  if (tokens.includes('admin')) return true;
-
   // DATOS (ajuste de valor real por GPS) es un caso aparte, admin
   // únicamente sin excepción — ya lo era del lado del cliente, esto solo
   // lo respalda del lado del servidor.
-  if (sheetName === 'DATOS') return false;
+  if (sheetName === 'DATOS') return _esAdmin(email);
 
   const rolNecesario = ROL_REQUERIDO_POR_HOJA[sheetName];
   if (!rolNecesario) return false; // hoja no reconocida: por las dudas, no se deja escribir
-  return tokens.includes(rolNecesario);
+  return _tienePermisoParaModulo(email, rolNecesario);
+}
+
+// Lee la celda de rol de una persona (col A=email, col B=rol) y la separa
+// en tokens — la celda puede traer varios roles separados por coma
+// ("flota,containers"). Se usa tanto para hojas (_tienePermisoParaHoja)
+// como para Drive (_tienePermisoParaModulo) — una sola fuente de verdad.
+function _tokensDeRol(email) {
+  const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues();
+  const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
+  const celda = fila ? (fila[1] || '').toString().toLowerCase().trim() : '';
+  return celda.split(',').map(t => t.trim()).filter(Boolean);
+}
+function _esAdmin(email) { return _tokensDeRol(email).includes('admin'); }
+
+// Mismo criterio que ya usa el cliente para decidir qué puede hacer cada
+// persona (ver checkUserRole en app-v2.js): "admin" pasa cualquier
+// chequeo, cualquier otro rol solo pasa el que sea el suyo. Se usa para
+// Drive (subir/buscar/mover fotos) — para hojas de cálculo ver
+// _tienePermisoParaHoja, que además sabe traducir nombre de hoja -> rol.
+function _tienePermisoParaModulo(email, modulo) {
+  const tokens = _tokensDeRol(email);
+  if (tokens.includes('admin')) return true;
+  if (!modulo) return false;
+  return tokens.includes(modulo.toLowerCase());
 }
 
 // Handler genérico de "sheet_write" / "sheet_append" — reemplaza escribir
@@ -250,7 +270,10 @@ function manejarEscrituraGenerica(p) {
       // hoja, no la posición exacta.
       const filaLibre = sh.getLastRow() + 1;
       sh.getRange(filaLibre, 1, values.length, values[0].length).setValues(values);
-      return _jsonOut({ success: true });
+      // Se devuelve la fila real donde quedó escrito (algún lugar del
+      // cliente la necesita para, por ejemplo, subir después una foto al
+      // container recién creado sin adivinar en qué fila cayó).
+      return _jsonOut({ success: true, row: filaLibre });
     }
 
     return _jsonOut({ success: false, error: 'Acción de escritura desconocida: ' + p.accion });
@@ -375,6 +398,147 @@ function _trasladarUbicacionAnd(shAndamios, row, origen, destino, cantidad, tipo
 
   _recalcularTotalAnd(shAndamios, row); // el total no cambia, pero se recalcula por las dudas
   _registrarHistorialAnd(row, tipoNombre, cantidadOrigen, cantidadOrigen - cantidad, email, `Traslado (${origen} → ${destino})`);
+}
+
+// ============================================================
+// DRIVE SERVER-SIDE GENÉRICO — PARA TODA LA APP (fotos/carpetas)
+// ------------------------------------------------------------
+// Mismo problema que las escrituras a Sheets, pero para archivos: antes
+// cada módulo subía/buscaba/movía fotos en Drive con el token de Google
+// de quien estuviera usando la app, lo que exige que esa persona tenga
+// acceso directo a la carpeta de Drive. Ahora pasa por acá — se usa
+// DriveApp (el servicio nativo de Apps Script), que actúa con los
+// permisos de quien implementó el script, después de validar el rol de
+// quien llama contra la hoja USUARIOS (mismo criterio que las hojas).
+// ============================================================
+
+// Link de miniatura/vista pública — se arma a mano en vez de depender del
+// campo "thumbnailLink" de la API de Drive (que DriveApp no expone
+// directo); funciona igual de bien porque el archivo ya queda compartido
+// "cualquiera con el link puede ver" al subirlo (ver drive_upload).
+function _thumbUrl(fileId) { return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000'; }
+function _viewUrl(fileId)  { return 'https://drive.google.com/uc?export=view&id=' + fileId; }
+
+function _archivoAObjeto(file) {
+  return {
+    id: file.getId(),
+    name: file.getName(),
+    thumbnailLink: _thumbUrl(file.getId()),
+    webContentLink: _viewUrl(file.getId()),
+    webViewLink: file.getUrl(),
+    createdTime: file.getDateCreated().toISOString(),
+  };
+}
+
+function manejarDriveGenerico(p) {
+  try {
+    const email = _emailVerificadoDesdeToken(p.accessToken);
+    if (!email) {
+      return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
+    }
+    if (!_tienePermisoParaModulo(email, p.modulo)) {
+      return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar archivos de "' + (p.modulo || '') + '".' });
+    }
+
+    switch (p.accion) {
+
+      case 'drive_find_or_create_folder': {
+        const parent = DriveApp.getFolderById(p.parentId);
+        const existentes = parent.getFoldersByName(p.name);
+        if (existentes.hasNext()) return _jsonOut({ success: true, id: existentes.next().getId() });
+        const nueva = parent.createFolder(p.name);
+        return _jsonOut({ success: true, id: nueva.getId() });
+      }
+
+      case 'drive_upload': {
+        const folder = DriveApp.getFolderById(p.folderId);
+        if (String(p.replaceExisting) === 'true') {
+          const existentes = folder.getFilesByName(p.fileName);
+          while (existentes.hasNext()) existentes.next().setTrashed(true);
+        }
+        const bytes = Utilities.base64Decode(p.fileData);
+        const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream', p.fileName);
+        const file = folder.createFile(blob);
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        return _jsonOut({ success: true, file: _archivoAObjeto(file) });
+      }
+
+      // Acepta la MISMA sintaxis de búsqueda que ya usaba el cliente
+      // directo con la API de Drive (el parámetro "q") — DriveApp.searchFiles
+      // entiende el mismo lenguaje, así que no hace falta traducir nada de
+      // las búsquedas que ya estaban armadas en cada módulo.
+      case 'drive_search': {
+        const it = DriveApp.searchFiles(p.q);
+        const archivos = [];
+        while (it.hasNext() && archivos.length < 1000) archivos.push(_archivoAObjeto(it.next()));
+        if (p.orderBy === 'createdTime desc') {
+          archivos.sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
+        }
+        const pageSize = parseInt(p.pageSize, 10) || archivos.length;
+        return _jsonOut({ success: true, files: archivos.slice(0, pageSize) });
+      }
+
+      case 'drive_trash': {
+        DriveApp.getFileById(p.fileId).setTrashed(true);
+        return _jsonOut({ success: true });
+      }
+
+      case 'drive_move': {
+        const file = DriveApp.getFileById(p.fileId);
+        if (p.addParentId)    DriveApp.getFolderById(p.addParentId).addFile(file);
+        if (p.removeParentId) DriveApp.getFolderById(p.removeParentId).removeFile(file);
+        return _jsonOut({ success: true });
+      }
+
+      case 'drive_rename': {
+        DriveApp.getFileById(p.fileId).setName(p.newName);
+        return _jsonOut({ success: true });
+      }
+
+      // Crear un Google Doc NATIVO a partir de HTML (para la Ficha Técnica) —
+      // DriveApp no soporta la conversión automática HTML→Doc, así que este
+      // caso puntual usa la API REST de Drive directo, pero con el token
+      // DEL SCRIPT (ScriptApp.getOAuthToken()), nunca con el de quien llama.
+      case 'drive_create_google_doc': {
+        const boundary = 'lst_ficha_' + new Date().getTime();
+        const metadata = JSON.stringify({
+          name: p.name,
+          mimeType: 'application/vnd.google-apps.document',
+          parents: p.parentId ? [p.parentId] : undefined,
+        });
+        const body = [
+          '--' + boundary, 'Content-Type: application/json; charset=UTF-8', '', metadata,
+          '--' + boundary, 'Content-Type: text/html; charset=UTF-8', '', p.html,
+          '--' + boundary + '--',
+        ].join('\r\n');
+        const res = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'post',
+          contentType: 'multipart/related; boundary=' + boundary,
+          headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+          payload: body,
+          muteHttpExceptions: true,
+        });
+        const status = res.getResponseCode();
+        if (status < 200 || status >= 300) {
+          return _jsonOut({ success: false, error: 'Drive API error ' + status + ': ' + res.getContentText().slice(0, 300) });
+        }
+        return _jsonOut({ success: true, file: JSON.parse(res.getContentText()) });
+      }
+
+      case 'drive_get_parents': {
+        const file = DriveApp.getFileById(p.fileId);
+        const parents = [];
+        const it = file.getParents();
+        while (it.hasNext()) parents.push(it.next().getId());
+        return _jsonOut({ success: true, parents });
+      }
+
+      default:
+        return _jsonOut({ success: false, error: 'Acción de Drive desconocida: ' + p.accion });
+    }
+  } catch (err) {
+    return _jsonOut({ success: false, error: String(err) });
+  }
 }
 
 function manejarAccionAndamios(p) {

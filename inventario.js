@@ -599,13 +599,8 @@ async function invCargarMiniatura(fileName, thumbId) {
   }
 
   try {
-    const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,thumbnailLink,webContentLink)&pageSize=1`,
-      { headers: { 'Authorization': 'Bearer ' + accessToken } }
-    );
-    if (!res.ok) throw new Error('Error Drive ' + res.status);
-    const data = await res.json();
+    const q = `name = '${fileName}' and trashed = false`;
+    const data = await driveSearch('inventario', q, { pageSize: 1 });
     if (!data.files || data.files.length === 0) {
       el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
       return;
@@ -718,17 +713,16 @@ async function invAbrirFotoModal(fileName) {
   document.body.style.overflow = 'hidden';
 
   try {
-    const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink,createdTime)&orderBy=createdTime desc&pageSize=1`,
-      { headers: { 'Authorization': 'Bearer ' + accessToken } }
-    );
-    if (miToken !== _fotoModalToken) return; // se abrió otra foto mientras esperábamos esta respuesta
-    if (res.status === 403) {
-      spinnerTxt.textContent = '⚠️ No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan';
+    const q = `name = '${fileName}' and trashed = false`;
+    let data;
+    try {
+      data = await driveSearch('inventario', q, { orderBy: 'createdTime desc', pageSize: 1 });
+    } catch (permErr) {
+      if (miToken !== _fotoModalToken) return;
+      spinnerTxt.textContent = '⚠️ ' + permErr.message;
       return;
     }
-    const data = res.ok ? await res.json() : { files: [] };
+    if (miToken !== _fotoModalToken) return; // se abrió otra foto mientras esperábamos esta respuesta
     if (data.files && data.files.length > 0) {
       const f = data.files[0];
       // Varias formas posibles de traer la imagen — se prueban en orden.
@@ -804,33 +798,25 @@ async function _findOrCreateFolderInv(item, parentId) {
   const terminos = [codigo, item.num].filter(Boolean).map(t => String(t));
   const condiciones = [...new Set(terminos)].map(t => `name contains '${t}'`).join(' or ');
 
-  const q = encodeURIComponent(`'${parentId}' in parents and (${condiciones}) and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-  if (res.ok) {
-    const data = await res.json();
-    const encontrada = data.files && data.files.find(f => f.name === nombreNuevo);
-    if (encontrada) return encontrada.id; // ya está con el nombre nuevo, nada que hacer
-    const vieja = data.files && data.files[0];
-    if (vieja) {
-      // Existe pero con otro nombre (formato viejo, o quedó con una
-      // descripción desactualizada) — se renombra en vez de duplicar.
-      await fetch(`https://www.googleapis.com/drive/v3/files/${vieja.id}`, {
-        method: 'PATCH',
-        headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nombreNuevo }),
-      });
-      return vieja.id;
-    }
+  const q = `'${parentId}' in parents and (${condiciones}) and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const data = await driveSearch('inventario', q);
+  const encontrada = data.files && data.files.find(f => f.name === nombreNuevo);
+  if (encontrada) return encontrada.id; // ya está con el nombre nuevo, nada que hacer
+  const vieja = data.files && data.files[0];
+  if (vieja) {
+    // Existe pero con otro nombre (formato viejo, o quedó con una
+    // descripción desactualizada) — se renombra en vez de duplicar.
+    await driveRename('inventario', vieja.id, nombreNuevo);
+    return vieja.id;
   }
   // No existe ninguna todavía → crear directo con el nombre nuevo
-  return findOrCreateFolder(nombreNuevo, parentId);
+  return findOrCreateFolder('inventario', nombreNuevo, parentId);
 }
 
 async function invAbrirCarpetaDrive() {
   if (!invItem) return;
   toast('Buscando carpeta en Drive...', 'loading');
   try {
-    await ensureToken();
     const codigo = invItem.codigo || invItem.numIdent || invItem.num || '';
     const sheetName = invItem._modulo === 'generadores' ? SHEET_GENERADORES
                     : invItem._modulo === 'maqmenor'    ? SHEET_MAQ_MENOR
@@ -838,9 +824,8 @@ async function invAbrirCarpetaDrive() {
                     : SHEET_HERRAMIENTAS;
 
     // Buscar carpeta de la hoja dentro de DRIVE_INV_FOLDER
-    const q1 = encodeURIComponent(`'${DRIVE_INV_FOLDER}' in parents and name='${sheetName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-    const r1  = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q1}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + accessToken } });
-    const d1  = await r1.json();
+    const q1 = `'${DRIVE_INV_FOLDER}' in parents and name='${sheetName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const d1 = await driveSearch('inventario', q1);
     if (!d1.files || !d1.files.length) {
       // Carpeta de hoja no existe aún → abrir carpeta raíz de inventario
       window.open(`https://drive.google.com/drive/folders/${DRIVE_INV_FOLDER}`, '_blank');
@@ -853,9 +838,8 @@ async function invAbrirCarpetaDrive() {
     // "contiene" en vez de nombre exacto, así encuentra tanto las carpetas
     // viejas (nombradas solo "DM-001") como las nuevas, que ahora llevan
     // también la descripción del equipo (ej: "DM-001 (DEMOLEDOR 5 KILOS)").
-    const q2 = encodeURIComponent(`'${sheetFolderId}' in parents and name contains '${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-    const r2  = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q2}&fields=files(id)`, { headers: { Authorization: 'Bearer ' + accessToken } });
-    const d2  = await r2.json();
+    const q2 = `'${sheetFolderId}' in parents and name contains '${codigo}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const d2 = await driveSearch('inventario', q2);
     if (d2.files && d2.files.length) {
       window.open(`https://drive.google.com/drive/folders/${d2.files[0].id}`, '_blank');
     } else {
@@ -1080,25 +1064,18 @@ async function invGuardar() {
       try {
         const nombreCarpetaVieja = numIdentAntes || String(invItem.num || row);
         const nombreCarpetaNueva = _nombreCarpetaInv({ ...invItem, numIdent: numIdentNuevo });
-        const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+        const sheetFolder = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
         // "contains" en vez de nombre exacto: encuentra la carpeta vieja
         // tanto si estaba nombrada solo con el N° anterior como si ya
         // tenía una descripción entre paréntesis de antes.
-        const qFolder = encodeURIComponent(`'${sheetFolder}' in parents and name contains '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-        const rFolder = await fetch(`https://www.googleapis.com/drive/v3/files?q=${qFolder}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-        if (rFolder.ok) {
-          const dFolder = await rFolder.json();
-          if (dFolder.files && dFolder.files.length) {
-            await fetch(`https://www.googleapis.com/drive/v3/files/${dFolder.files[0].id}`, {
-              method: 'PATCH',
-              headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: nombreCarpetaNueva }),
-            });
-          }
-          // Si no había carpeta vieja (nunca subió foto), no hay nada que
-          // renombrar — la próxima foto que suba ya va a crear la carpeta
-          // directo con el nombre nuevo (código + descripción).
+        const qFolder = `'${sheetFolder}' in parents and name contains '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        const dFolder = await driveSearch('inventario', qFolder);
+        if (dFolder.files && dFolder.files.length) {
+          await driveRename('inventario', dFolder.files[0].id, nombreCarpetaNueva);
         }
+        // Si no había carpeta vieja (nunca subió foto), no hay nada que
+        // renombrar — la próxima foto que suba ya va a crear la carpeta
+        // directo con el nombre nuevo (código + descripción).
       } catch(fe) {
         console.warn('[INV CARPETA] No se pudo renombrar la carpeta:', fe.message);
       }
@@ -1120,46 +1097,17 @@ async function invGuardar() {
         const codigo = invItem.codigo || numIdentNuevo || invItem.num || row;
         let folderId = DRIVE_INV_FOLDER;
         try {
-          const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+          const sheetFolder = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
           folderId = await _findOrCreateFolderInv(itemParaCarpeta, sheetFolder);
         } catch(fe) { console.warn('[INV FOTO] Carpeta fallback:', fe.message); }
 
         const ext      = _invFotoRef.name.split('.').pop() || 'jpg';
         const fileName = `REF_${codigo}_${sheetName.replace(/ /g,'_')}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
-        const boundary = 'lst_inv_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = [
-          '--' + boundary,
-          'Content-Type: application/json; charset=UTF-8',
-          '',
-          metadata,
-          '--' + boundary,
-          'Content-Type: ' + _invFotoRef.mimeType,
-          'Content-Transfer-Encoding: base64',
-          '',
-          _invFotoRef.b64,
-          '--' + boundary + '--'
-        ].join('\r\n');
 
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + accessToken,
-            'Content-Type': 'multipart/related; boundary=' + boundary,
-          },
-          body,
-        });
-
-        if (res.ok) {
-          const result = await res.json();
-          // Guardar nombre de archivo en la columna de foto
-          await writeSheet(`'${sheetName}'!${colFoto}${row}`, [[result.name]]);
-          toast('Foto subida ✓');
-        } else {
-          const err = await res.text();
-          console.error('[INV FOTO] Error:', err);
-          toast('Foto no se pudo subir: ' + res.status, 'error');
-        }
+        const result = await driveUpload('inventario', folderId, fileName, _invFotoRef.mimeType, _invFotoRef.b64, false);
+        // Guardar nombre de archivo en la columna de foto
+        await writeSheet(`'${sheetName}'!${colFoto}${row}`, [[result.name]]);
+        toast('Foto subida ✓');
       } catch(fe) {
         console.error('[INV FOTO] Error:', fe.message);
         toast('Error subiendo foto: ' + fe.message, 'error');
@@ -1263,7 +1211,7 @@ async function invGuardarEventoGen() {
     const fotosSubidas = [];
     if (_genEventoFotos.length > 0) {
       let folderId = DRIVE_INV_FOLDER;
-      try { folderId = await findOrCreateFolder('Generadores_Eventos', DRIVE_INV_FOLDER); } catch(e) {}
+      try { folderId = await findOrCreateFolder('inventario', 'Generadores_Eventos', DRIVE_INV_FOLDER); } catch(e) {}
 
       const fechaStr   = new Date().toLocaleDateString('es-CL').replace(/\//g,'-');
       const prefixBase = `EVT_GEN_${tipo.replace(/[\s\/]/g,'_')}`;
@@ -1275,13 +1223,8 @@ async function invGuardarEventoGen() {
           const ext      = foto.name.split('.').pop() || 'jpg';
           const suffix   = _genEventoFotos.length > 1 ? `_${i+1}` : '';
           const fileName = `${prefixBase}${suffix}_${codigo}_${fechaStr}.${ext}`;
-          const boundary = 'lst_gen_' + Date.now() + '_' + i;
-          const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-          const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+foto.mimeType,'Content-Transfer-Encoding: base64','',foto.b64,'--'+boundary+'--'].join('\r\n');
-          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method: 'POST', headers: { 'Authorization': 'Bearer '+accessToken, 'Content-Type': 'multipart/related; boundary='+boundary }, body,
-          });
-          if (res.ok) { const r = await res.json(); fotosSubidas.push(r.name || fileName); }
+          const r = await driveUpload('inventario', folderId, fileName, foto.mimeType, foto.b64, false);
+          fotosSubidas.push(r.name || fileName);
         } catch(fe) { console.error('[GEN EVT FOTO]', fe.message); }
       }
     }
@@ -1520,25 +1463,17 @@ async function contGuardar() {
       try {
         let folderId = DRIVE_INV_FOLDER;
         try {
-          const contFolder = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
-          folderId = await findOrCreateFolder(String(contItem.num || row), contFolder);
+          const contFolder = await findOrCreateFolder('containers', 'Containers', DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder('containers', String(contItem.num || row), contFolder);
         } catch(fe) {}
         const ext      = _contFoto.name.split('.').pop() || 'jpg';
         // Ya no hace falta que el nombre sea único a nivel global (cada
         // container tiene su propia carpeta ahora), pero se deja igual de
         // descriptivo por si se navega directo en Drive.
         const fileName = `CONT_${contItem.num}_${Date.now()}.${ext}`;
-        const boundary = 'lst_cont_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contFoto.mimeType,'Content-Transfer-Encoding: base64','',_contFoto.b64,'--'+boundary+'--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method:'POST', headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary}, body,
-        });
-        if (res.ok) {
-          const r = await res.json();
-          await writeSheet(`'${SHEET_CONTAINERS}'!C${row}`, [[r.name]]);
-          toast('Foto subida ✓');
-        }
+        const r = await driveUpload('containers', folderId, fileName, _contFoto.mimeType, _contFoto.b64, false);
+        await writeSheet(`'${SHEET_CONTAINERS}'!C${row}`, [[r.name]]);
+        toast('Foto subida ✓');
       } catch(fe) { toast('Error foto: '+fe.message, 'error'); }
     }
 
@@ -2243,26 +2178,16 @@ async function invGuardarNuevo() {
         const itemParaCarpeta = { codigo: mod === 'generadores' ? codigoFoto : '', numIdent: numIdentNuevo, num: numFinal, equipo, marca, modelo };
         let folderId = DRIVE_INV_FOLDER;
         try {
-          const sf = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+          const sf = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
           folderId = await _findOrCreateFolderInv(itemParaCarpeta, sf);
         } catch(fe) { console.warn('[NUEVO FOTO] carpeta fallback'); }
         const ext = _nuevoInvFoto.name.split('.').pop() || 'jpg';
         const fileName = `REF_${codigoFoto}_${sheetName.replace(/ /g,'_')}.${ext}`;
-        const boundary = 'lst_inv_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_nuevoInvFoto.mimeType,'Content-Transfer-Encoding: base64','',_nuevoInvFoto.b64,'--'+boundary+'--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-          body,
-        });
-        if (res.ok) {
-          const result = await res.json();
-          // Determinar columna de foto y fila real
-          const colFotoNuevo = mod === 'generadores' ? 'O' : 'C';
-          await writeSheet(`'${sheetName}'!${colFotoNuevo}${newRow}`, [[result.name]]);
-          toast('Foto subida ✓');
-        }
+        const result = await driveUpload('inventario', folderId, fileName, _nuevoInvFoto.mimeType, _nuevoInvFoto.b64, false);
+        // Determinar columna de foto y fila real
+        const colFotoNuevo = mod === 'generadores' ? 'O' : 'C';
+        await writeSheet(`'${sheetName}'!${colFotoNuevo}${newRow}`, [[result.name]]);
+        toast('Foto subida ✓');
       } catch(fe) { console.error('[NUEVO FOTO]', fe); }
       _nuevoInvFoto = null;
     }
@@ -2341,9 +2266,7 @@ async function contGuardarNuevo() {
     // estaba desactualizada — otro container agregado/borrado mientras
     // tenías el formulario abierto — adivinar la fila podía escribir la
     // foto encima de OTRO container ya existente).
-    const updatedRange = appendRes && appendRes.updates && appendRes.updates.updatedRange;
-    const mRow = updatedRange && updatedRange.match(/![A-Z]+(\d+)/);
-    const newRow = mRow ? parseInt(mRow[1], 10) : null;
+    const newRow = (appendRes && appendRes.row) || null;
 
     // Subir foto de referencia si se seleccionó
     if (_contNuevoFoto) {
@@ -2354,22 +2277,14 @@ async function contGuardarNuevo() {
       try {
         let folderId = DRIVE_INV_FOLDER;
         try {
-          const contFolder = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
-          folderId = await findOrCreateFolder(String(numFinal || newRow), contFolder);
+          const contFolder = await findOrCreateFolder('containers', 'Containers', DRIVE_INV_FOLDER);
+          folderId = await findOrCreateFolder('containers', String(numFinal || newRow), contFolder);
         } catch(fe) {}
         const ext      = _contNuevoFoto.name.split('.').pop() || 'jpg';
         const fileName = `CONT_${numFinal}_${Date.now()}.${ext}`;
-        const boundary = 'lst_cont_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_contNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_contNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method:'POST', headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'multipart/related; boundary='+boundary}, body,
-        });
-        if (res.ok) {
-          const r = await res.json();
-          await writeSheet(`'${SHEET_CONTAINERS}'!C${newRow}`, [[r.name]]);
-          toast('Foto subida ✓');
-        }
+        const r = await driveUpload('containers', folderId, fileName, _contNuevoFoto.mimeType, _contNuevoFoto.b64, false);
+        await writeSheet(`'${SHEET_CONTAINERS}'!C${newRow}`, [[r.name]]);
+        toast('Foto subida ✓');
       } catch(fe) { console.error('[CONT NUEVO FOTO]', fe); }
       }
       _contNuevoFoto = null;
@@ -2415,16 +2330,11 @@ async function contRepararFotos() {
 
   try {
     toast('Buscando carpeta "Containers" en Drive...', 'loading');
-    const folderId = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+    const folderId = await findOrCreateFolder('containers', 'Containers', DRIVE_INV_FOLDER);
 
     toast('Listando fotos...', 'loading');
-    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=1000`,
-      { headers: { 'Authorization': 'Bearer ' + accessToken } }
-    );
-    if (!res.ok) throw new Error('Error Drive ' + res.status);
-    const data = await res.json();
+    const q = `'${folderId}' in parents and trashed = false`;
+    const data = await driveSearch('containers', q, { pageSize: 1000 });
     const files = data.files || [];
 
     // Agrupa por número de container, quedándose con el archivo más reciente
@@ -2484,9 +2394,8 @@ async function invMigrarCarpetas(modulo) {
   if (!confirm(`Esto va a renombrar la carpeta de Drive de ${conNumIdent.length} ítem(s) de ${etiqueta} para que usen "N° de identificación (descripción)" en vez del N° normal solo. ¿Continuar?`)) return;
 
   try {
-    await ensureToken();
     toast('Buscando carpeta de ' + etiqueta + '...', 'loading');
-    const sheetFolder = await findOrCreateFolder(sheetName, DRIVE_INV_FOLDER);
+    const sheetFolder = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
 
     let ok = 0, saltados = 0, fallidos = 0;
     for (const item of conNumIdent) {
@@ -2496,19 +2405,12 @@ async function invMigrarCarpetas(modulo) {
         // estar nombrada con cualquiera de los dos, según si ya se había
         // renombrado antes (con el ajuste de "cambiar de carpeta al cambiar
         // el N° de identificación" que ya tenía la app) o no.
-        const q = encodeURIComponent(`'${sheetFolder}' in parents and (name contains '${String(item.num)}' or name contains '${item.numIdent}') and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-        if (!res.ok) throw new Error('Drive ' + res.status);
-        const data = await res.json();
+        const q = `'${sheetFolder}' in parents and (name contains '${String(item.num)}' or name contains '${item.numIdent}') and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        const data = await driveSearch('inventario', q);
         if (!data.files || !data.files.length) { saltados++; continue; } // no tenía carpeta previa (nunca subió foto)
         const folderId = data.files[0].id;
         if (data.files[0].name === nombreNuevo) { ok++; continue; } // ya estaba con el nombre correcto
-        const up = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}`, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: nombreNuevo }),
-        });
-        if (!up.ok) throw new Error('Drive ' + up.status);
+        await driveRename('inventario', folderId, nombreNuevo);
         ok++;
       } catch(e) {
         console.warn('[MIGRAR CARPETAS INV] N°' + item.num, e.message);
@@ -2534,26 +2436,19 @@ async function contMigrarCarpetas() {
   if (!confirm('Esto va a mover cada foto de container desde la carpeta plana "Containers" a una subcarpeta propia por cada container (según su N°). No se borra ni duplica nada, solo se reordena. ¿Continuar?')) return;
 
   try {
-    await ensureToken();
     toast('Buscando carpeta "Containers"...', 'loading');
-    const contFolderRoot = await findOrCreateFolder('Containers', DRIVE_INV_FOLDER);
+    const contFolderRoot = await findOrCreateFolder('containers', 'Containers', DRIVE_INV_FOLDER);
 
     let ok = 0, fallidos = 0, saltados = 0;
     for (const c of allContainers) {
       if (!c.foto) { saltados++; continue; }
       try {
-        const q = encodeURIComponent(`'${contFolderRoot}' in parents and name = '${c.foto}' and trashed = false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-        if (!res.ok) throw new Error('Drive ' + res.status);
-        const data = await res.json();
+        const q = `'${contFolderRoot}' in parents and name = '${c.foto}' and trashed = false`;
+        const data = await driveSearch('containers', q);
         if (!data.files || !data.files.length) { saltados++; continue; } // ya migrado o no está ahí
         const fileId = data.files[0].id;
-        const destFolder = await findOrCreateFolder(String(c.num || c.rowIndex), contFolderRoot);
-        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${destFolder}&removeParents=${contFolderRoot}`, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'Bearer ' + accessToken },
-        });
-        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        const destFolder = await findOrCreateFolder('containers', String(c.num || c.rowIndex), contFolderRoot);
+        await driveMove('containers', fileId, destFolder, contFolderRoot);
         ok++;
       } catch(e) {
         console.warn('[MIGRAR CONTAINERS] N°' + c.num, e.message);
@@ -3681,37 +3576,16 @@ async function movGuardarRecepcion() {
       try {
         let folderId = DRIVE_INV_FOLDER;
         try {
-          const recvFolder = await findOrCreateFolder('Recepciones_Movimientos', DRIVE_INV_FOLDER);
+          const recvFolder = await findOrCreateFolder('mover', 'Recepciones_Movimientos', DRIVE_INV_FOLDER);
           folderId = recvFolder;
         } catch(fe) { console.warn('[RECV FOTO] Carpeta fallback:', fe.message); }
 
         const ext      = _recvFotoRef.name.split('.').pop() || 'jpg';
         const fileName = `RECV_${movId || rowIndex}_${fecha.replace(/-/g,'')}.${ext}`;
-        const boundary = 'lst_recv_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = [
-          '--' + boundary, 'Content-Type: application/json; charset=UTF-8', '',
-          metadata,
-          '--' + boundary, 'Content-Type: ' + _recvFotoRef.mimeType,
-          'Content-Transfer-Encoding: base64', '',
-          _recvFotoRef.b64,
-          '--' + boundary + '--',
-        ].join('\r\n');
 
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary },
-          body,
-        });
-        if (res.ok) {
-          const result = await res.json();
-          fotoNombre = result.name;
-          if (statusEl) statusEl.textContent = 'Foto subida ✓';
-        } else {
-          const err = await res.text();
-          console.error('[RECV FOTO]', err);
-          toast('Foto no se pudo subir: ' + res.status, 'error');
-        }
+        const result = await driveUpload('mover', folderId, fileName, _recvFotoRef.mimeType, _recvFotoRef.b64, false);
+        fotoNombre = result.name;
+        if (statusEl) statusEl.textContent = 'Foto subida ✓';
       } catch(fe) {
         console.error('[RECV FOTO]', fe.message);
         toast('Error subiendo foto: ' + fe.message, 'error');
@@ -4094,26 +3968,19 @@ async function andMigrarCarpetas() {
   if (!confirm('Esto va a mover cada foto de Andamios desde la carpeta plana "Andamios" a una subcarpeta propia por tipo de pieza. No se borra ni duplica nada, solo se reordena. ¿Continuar?')) return;
 
   try {
-    await ensureToken();
     toast('Buscando carpeta "Andamios"...', 'loading');
-    const andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+    const andFolderRoot = await findOrCreateFolder('andamios', 'Andamios', DRIVE_INV_FOLDER);
 
     let ok = 0, fallidos = 0, saltados = 0;
     for (const it of allAndamios) {
       if (!it.foto) { saltados++; continue; }
       try {
-        const q = encodeURIComponent(`'${andFolderRoot}' in parents and name = '${it.foto}' and trashed = false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-        if (!res.ok) throw new Error('Drive ' + res.status);
-        const data = await res.json();
+        const q = `'${andFolderRoot}' in parents and name = '${it.foto}' and trashed = false`;
+        const data = await driveSearch('andamios', q);
         if (!data.files || !data.files.length) { saltados++; continue; }
         const fileId = data.files[0].id;
-        const destFolder = await findOrCreateFolder((it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || it.tipo, andFolderRoot);
-        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${destFolder}&removeParents=${andFolderRoot}`, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'Bearer ' + accessToken },
-        });
-        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        const destFolder = await findOrCreateFolder('andamios', (it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || it.tipo, andFolderRoot);
+        await driveMove('andamios', fileId, destFolder, andFolderRoot);
         ok++;
       } catch(e) {
         console.warn('[MIGRAR ANDAMIOS]', it.tipo, e.message);
@@ -4146,15 +4013,12 @@ async function andRepararFotos() {
   if (!confirm('Esto revisa la carpeta plana "Andamios" en Drive, intenta adivinar a qué pieza pertenece cada foto suelta por su nombre de archivo, la vincula en la hoja y la mueve a la subcarpeta de esa pieza. Solo actúa donde encuentra una coincidencia clara por nombre. ¿Continuar?')) return;
 
   try {
-    await ensureToken();
     toast('Buscando carpeta "Andamios"...', 'loading');
-    const andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
+    const andFolderRoot = await findOrCreateFolder('andamios', 'Andamios', DRIVE_INV_FOLDER);
 
     toast('Listando fotos sueltas...', 'loading');
-    const q = encodeURIComponent(`'${andFolderRoot}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&pageSize=1000`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
-    if (!res.ok) throw new Error('Drive ' + res.status);
-    const data = await res.json();
+    const q = `'${andFolderRoot}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`;
+    const data = await driveSearch('andamios', q, { pageSize: 1000 });
     const sueltos = data.files || [];
     if (!sueltos.length) { toast('No hay fotos sueltas en la carpeta plana — nada que reparar'); return; }
 
@@ -4173,12 +4037,8 @@ async function andRepararFotos() {
         // 1) Vincular en la hoja
         await _andEscrituraRemota('and_set_foto', { row: match.it.rowIndex, foto: file.name });
         // 2) Mover a la subcarpeta de esa pieza
-        const destFolder = await findOrCreateFolder((match.it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || match.it.tipo, andFolderRoot);
-        const mv = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?addParents=${destFolder}&removeParents=${andFolderRoot}`, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'Bearer ' + accessToken },
-        });
-        if (!mv.ok) throw new Error('Drive ' + mv.status);
+        const destFolder = await findOrCreateFolder('andamios', (match.it.tipo || '').replace(/[^a-zA-Z0-9 ]+/g,'').trim() || match.it.tipo, andFolderRoot);
+        await driveMove('andamios', file.id, destFolder, andFolderRoot);
         vinculadas++;
       } catch(e) {
         console.warn('[REPARAR ANDAMIOS]', file.name, e.message);
@@ -4590,7 +4450,7 @@ async function generarDocResumenGeneral() {
     if (btn) btn.textContent = 'Generando documento...';
     let carpetaResumenes = CONFIG.DRIVE_ROOT_FOLDER;
     try {
-      carpetaResumenes = await findOrCreateFolder('Resúmenes Generales', CONFIG.DRIVE_ROOT_FOLDER);
+      carpetaResumenes = await findOrCreateFolder('admin', 'Resúmenes Generales', CONFIG.DRIVE_ROOT_FOLDER);
     } catch (fe) {
       console.warn('No se pudo crear/ubicar la carpeta "Resúmenes Generales", se usa la carpeta raíz:', fe.message);
     }
@@ -4859,24 +4719,22 @@ async function _andResolverThumb(fileName) {
 
   const promesa = (async () => {
     try {
-      const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
-      const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,thumbnailLink)&pageSize=1`,
-        { headers: { 'Authorization': 'Bearer ' + accessToken } }
-      );
-      if (!res.ok) {
+      const q = `name = '${fileName}' and trashed = false`;
+      let data;
+      try {
+        data = await driveSearch('andamios', q, { pageSize: 1 });
+      } catch (permErr) {
         // No se avisa con un toast por cada foto (serían decenas de avisos), pero
         // queda clarísimo en consola, y si es específicamente un problema de
-        // permisos (403) se avisa UNA sola vez por sesión con un toast — es la
+        // permisos se avisa UNA sola vez por sesión con un toast — es la
         // causa más común de "no me salen las fotos" y antes quedaba invisible.
-        console.warn(`[ANDAMIOS] No se pudo cargar foto "${fileName}": ${_friendlyGoogleApiError(res.status, await res.text())}`);
-        if (res.status === 403 && !window._andAvisoPermisoFotos) {
+        console.warn(`[ANDAMIOS] No se pudo cargar foto "${fileName}": ${permErr.message}`);
+        if (!window._andAvisoPermisoFotos) {
           window._andAvisoPermisoFotos = true;
-          toast('No tienes acceso a la carpeta de fotos en Drive — pide que te la compartan', 'error');
+          toast('No se pudo acceder a las fotos: ' + permErr.message, 'error');
         }
         return null;
       }
-      const data = await res.json();
       if (!data.files || data.files.length === 0) {
         console.warn(`[ANDAMIOS] Foto "${fileName}" no encontrada en Drive (¿nombre distinto o archivo movido/borrado?)`);
         return null;
@@ -5057,21 +4915,12 @@ async function andGuardarNuevo() {
     if (_andNuevoFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
       try {
-        const andFolder = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
-        const folderId = await findOrCreateFolder(nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
+        const andFolder = await findOrCreateFolder('andamios', 'Andamios', DRIVE_INV_FOLDER);
+        const folderId = await findOrCreateFolder('andamios', nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
         const ext = _andNuevoFoto.name.split('.').pop() || 'jpg';
         const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
-        const boundary = 'lst_and_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_andNuevoFoto.mimeType,'Content-Transfer-Encoding: base64','',_andNuevoFoto.b64,'--'+boundary+'--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
-        });
-        if (res.ok) {
-          const r = await res.json(); fotoNombre = r.name;
-        } else {
-          throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-        }
+        const r = await driveUpload('andamios', folderId, fileName, _andNuevoFoto.mimeType, _andNuevoFoto.b64, false);
+        fotoNombre = r.name;
       } catch (fe) { toast('Tipo guardado, pero la foto falló: ' + fe.message, 'error'); }
     }
 
@@ -5161,22 +5010,12 @@ async function andGuardarEdit() {
     if (_andEditFoto) {
       if (btn) btn.textContent = 'Subiendo foto...';
       try {
-        const andFolder = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER);
-        const folderId = await findOrCreateFolder(nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
+        const andFolder = await findOrCreateFolder('andamios', 'Andamios', DRIVE_INV_FOLDER);
+        const folderId = await findOrCreateFolder('andamios', nombre.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || nombre, andFolder);
         const ext = _andEditFoto.name.split('.').pop() || 'jpg';
         const fileName = `AND_${nombre.replace(/[^a-zA-Z0-9]+/g,'_')}_${Date.now()}.${ext}`;
-        const boundary = 'lst_and_' + Date.now();
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--'+boundary,'Content-Type: application/json; charset=UTF-8','',metadata,'--'+boundary,'Content-Type: '+_andEditFoto.mimeType,'Content-Transfer-Encoding: base64','',_andEditFoto.b64,'--'+boundary+'--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
-        });
-        if (res.ok) {
-          const r = await res.json();
-          await _andEscrituraRemota('and_set_foto', { row, foto: r.name });
-        } else {
-          throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
-        }
+        const r = await driveUpload('andamios', folderId, fileName, _andEditFoto.mimeType, _andEditFoto.b64, false);
+        await _andEscrituraRemota('and_set_foto', { row, foto: r.name });
       } catch (fe) { toast('Guardado, pero la foto falló: ' + fe.message, 'error'); }
     }
 
@@ -5229,7 +5068,7 @@ async function andImportarSeed() {
 
   let folderId = DRIVE_INV_FOLDER;
   let andFolderRoot = DRIVE_INV_FOLDER;
-  try { andFolderRoot = await findOrCreateFolder('Andamios', DRIVE_INV_FOLDER); } catch (e) {}
+  try { andFolderRoot = await findOrCreateFolder('andamios', 'Andamios', DRIVE_INV_FOLDER); } catch (e) {}
 
   let ok = 0, fallidos = 0;
   for (let i = 0; i < ANDAMIOS_SEED.length; i++) {
@@ -5240,15 +5079,10 @@ async function andImportarSeed() {
     let fotoNombre = '';
     if (item.fotoB64) {
       try {
-        folderId = await findOrCreateFolder(item.tipo.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || item.tipo, andFolderRoot);
+        folderId = await findOrCreateFolder('andamios', item.tipo.replace(/[^a-zA-Z0-9 ]+/g,'').trim() || item.tipo, andFolderRoot);
         const fileName = `AND_${item.tipo.replace(/[^a-zA-Z0-9]+/g, '_')}.jpg`;
-        const boundary = 'lst_and_seed_' + Date.now() + '_' + i;
-        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
-        const body = ['--' + boundary, 'Content-Type: application/json; charset=UTF-8', '', metadata, '--' + boundary, 'Content-Type: image/jpeg', 'Content-Transfer-Encoding: base64', '', item.fotoB64, '--' + boundary + '--'].join('\r\n');
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-          method: 'POST', headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'multipart/related; boundary=' + boundary }, body,
-        });
-        if (res.ok) { const r = await res.json(); fotoNombre = r.name; }
+        const r = await driveUpload('andamios', folderId, fileName, 'image/jpeg', item.fotoB64, false);
+        fotoNombre = r.name;
       } catch (fe) { console.warn('[ANDAMIOS SEED] Foto falló para', item.tipo, fe.message); }
     }
 
