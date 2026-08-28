@@ -221,7 +221,7 @@ function bitRenderLista() {
         <div class="card-icon">${_BIT_ICONO_VEHICULO}</div>
         <div class="card-body">
           <div class="card-title">${nombre}</div>
-          <div class="card-sub">${eq.patente}</div>
+          <div class="card-sub card-sub--patente">${eq.patente}</div>
         </div>
         <div class="card-right">
           <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} ${t.unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</span>
