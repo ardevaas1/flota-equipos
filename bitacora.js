@@ -326,27 +326,74 @@ function bitRenderMetricasYHistorial() {
     return;
   }
 
+  // Km promedio de los viajes de ESTE vehículo — para poder marcar cuáles
+  // se salieron bastante de lo normal, sin tener que leer cada número del
+  // historial uno por uno buscando el que más recorrió.
+  const kmDeViajes = eventos.filter(e => e._tipo === 'viaje').map(v => Math.max(0, v.kmFinal - v.kmInicial));
+  const kmPromedioViajes = kmDeViajes.length ? kmDeViajes.reduce((a, b) => a + b, 0) / kmDeViajes.length : 0;
+
+  // Rendimiento de CADA carga puntual (contra la carga inmediatamente
+  // anterior, no contra el promedio del mes) — para poder ver de un
+  // vistazo si una carga en particular rindió mucho menos que las demás,
+  // no solo el promedio general. Mismo cálculo que usa
+  // _bitMetricasVehiculo(), pero guardando el resultado de CADA carga
+  // (ahí solo se usaba el acumulado del mes).
+  const cargasOrdenadas = allCombustible.filter(c => c.patente === patente && c.km > 0).sort((a, b) => a.km - b.km);
+  const rendimientoPorCarga = {}; // rowIndex -> { delta, rendimiento }
+  const rendimientosValidos = [];
+  cargasOrdenadas.forEach((c, i) => {
+    if (i === 0) return; // primera carga del historial: no hay una anterior con la que comparar
+    const anterior = cargasOrdenadas[i - 1];
+    const delta = c.km - anterior.km;
+    if (delta <= 0 || !c.litros) return; // odómetro cargado mal, se ignora
+    const rendimiento = delta / c.litros;
+    rendimientoPorCarga[c.rowIndex] = { delta, rendimiento };
+    rendimientosValidos.push(rendimiento);
+  });
+  const rendimientoPromedioGeneral = rendimientosValidos.length
+    ? rendimientosValidos.reduce((a, b) => a + b, 0) / rendimientosValidos.length
+    : 0;
+
   cont.innerHTML = eventos.map(ev => {
     if (ev._tipo === 'viaje') {
       const km = Math.max(0, ev.kmFinal - ev.kmInicial);
+      // "Bastante más largo que lo normal" = al menos 1.5x el promedio de
+      // ESTE vehículo, y al menos 30 km de diferencia (para que un
+      // vehículo con viajes cortos, tipo 5 km de promedio, no marque como
+      // "largo" cualquier viaje de 8 km — hace falta que la diferencia
+      // importe de verdad, no solo que el porcentaje dé alto).
+      const esLargo = kmPromedioViajes > 0 && km >= kmPromedioViajes * 1.5 && (km - kmPromedioViajes) >= 30;
       return `<div class="evento-card-mini">
         <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#6d28d9,#4c1d95)">
           <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16V7a1 1 0 0 1 1-1h8v10" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3.5 3.2V16H12" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="17" r="1.8" stroke="white" stroke-width="1.7"/><circle cx="17" cy="17" r="1.8" stroke="white" stroke-width="1.7"/></svg>
         </div>
         <div class="mant-body">
-          <div class="mant-title">Viaje a ${ev.destino || '—'}</div>
-          <div class="mant-meta">${ev.fecha} · ${ev.kmInicial.toLocaleString('es-CL')} → ${ev.kmFinal.toLocaleString('es-CL')} ${t.unidadCorta} (${km.toLocaleString('es-CL')} ${t.unidadCorta})</div>
+          <div class="mant-title">Viaje a ${ev.destino || '—'}
+            <span style="font-weight:800;color:${esLargo ? '#c0392b' : 'var(--accent-dark)'}">· ${km.toLocaleString('es-CL')} ${t.unidadCorta}</span>
+            ${esLargo ? `<span class="badge red" style="margin-left:6px;vertical-align:middle">Más largo de lo normal</span>` : ''}
+          </div>
+          <div class="mant-meta">${ev.fecha} · ${ev.kmInicial.toLocaleString('es-CL')} → ${ev.kmFinal.toLocaleString('es-CL')} ${t.unidadCorta}</div>
           ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
         </div>
       </div>`;
     }
+    // Rendimiento de ESTA carga puntual (contra la carga anterior) — si
+    // rindió bastante menos que el promedio del vehículo (70% o menos),
+    // se marca en rojo: es la señal más directa de "esta carga en
+    // particular salió cara" (más consumo del normal entre una parada y
+    // la otra), más que solo mirar el promedio del mes entero.
+    const rc = rendimientoPorCarga[ev.rowIndex];
+    const rindeMalEstaCarga = rc && rendimientoPromedioGeneral > 0 && rc.rendimiento <= rendimientoPromedioGeneral * 0.7;
     return `<div class="evento-card-mini">
       <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
         <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M6 21V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v14" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10h1.5a1 1 0 0 1 1 1v2.5a1.5 1.5 0 0 0 3 0V9.5L17 7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h12" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>
       </div>
       <div class="mant-body">
-        <div class="mant-title">Carga de combustible</div>
-        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L</div>
+        <div class="mant-title">Carga de combustible
+          ${rc ? `<span style="font-weight:800;color:${rindeMalEstaCarga ? '#c0392b' : 'var(--accent-dark)'}">· ${rc.rendimiento.toFixed(1)} ${t.unidadCorta}/L</span>` : ''}
+          ${rindeMalEstaCarga ? `<span class="badge red" style="margin-left:6px;vertical-align:middle">Rindió poco</span>` : ''}
+        </div>
+        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L${rc ? ` · ${rc.delta.toLocaleString('es-CL')} ${t.unidadCorta} desde la carga anterior` : ' · primera carga registrada, sin anterior con qué comparar'}</div>
         ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
       </div>
     </div>`;
