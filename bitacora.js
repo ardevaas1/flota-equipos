@@ -188,11 +188,38 @@ function _bitEsDelMes(fechaStr, mes) {
 
 function _bitMetricasVehiculo(patente, mes) {
   const viajes = allBitacora.filter(b => b.patente === patente && (!mes || _bitEsDelMes(b.fecha, mes)));
-  const cargas = allCombustible.filter(c => c.patente === patente && (!mes || _bitEsDelMes(c.fecha, mes)));
+  const cargasDelMes = allCombustible.filter(c => c.patente === patente && (!mes || _bitEsDelMes(c.fecha, mes)));
   const kmRecorridos = viajes.reduce((sum, v) => sum + Math.max(0, v.kmFinal - v.kmInicial), 0);
-  const litros = cargas.reduce((sum, c) => sum + c.litros, 0);
-  const rendimiento = litros > 0 ? (kmRecorridos / litros) : null;
-  return { kmRecorridos, litros, rendimiento, nViajes: viajes.length, nCargas: cargas.length };
+  const litros = cargasDelMes.reduce((sum, c) => sum + c.litros, 0);
+
+  // Rendimiento: SIEMPRE entre una carga de combustible y la siguiente
+  // (como la computadora de a bordo de un auto), nunca "km del mes ÷
+  // litros del mes" — un litro cargado el día 2 todavía no se gastó, así
+  // que ese cálculo por mes calendario daba "—" cada vez que el mes
+  // arrancaba con una carga y sin viajes cargados a mano todavía. Se
+  // compara el odómetro de cada carga contra la carga INMEDIATAMENTE
+  // anterior en todo el historial del vehículo (sin importar de qué mes
+  // sea esa anterior), y se suma todo ponderado en vez de promediar
+  // razones sueltas sin peso (más correcto: una carga de 5 litros no debería
+  // pesar lo mismo que una de 50 en el promedio).
+  const todasLasCargas = allCombustible
+    .filter(c => c.patente === patente && c.km > 0)
+    .sort((a, b) => a.km - b.km);
+
+  let kmEntreCargas = 0, litrosConDelta = 0;
+  todasLasCargas.forEach((c, i) => {
+    if (i === 0) return; // la primera carga del historial no tiene una "anterior" con la que compararse
+    const anterior = todasLasCargas[i - 1];
+    const delta = c.km - anterior.km;
+    if (delta <= 0) return; // odómetro cargado mal (no puede retroceder) — se ignora en vez de ensuciar el cálculo
+    if (!mes || _bitEsDelMes(c.fecha, mes)) {
+      kmEntreCargas += delta;
+      litrosConDelta += c.litros;
+    }
+  });
+  const rendimiento = litrosConDelta > 0 ? (kmEntreCargas / litrosConDelta) : null;
+
+  return { kmRecorridos, litros, rendimiento, nViajes: viajes.length, nCargas: cargasDelMes.length };
 }
 
 function bitRenderLista() {
