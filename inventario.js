@@ -958,24 +958,17 @@ function quitarInvFoto() {
 function onInvFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _invFotoRef = {
-      b64:        reader.result.split(',')[1],
-      name:       file.name,
-      mimeType:   file.type || 'image/jpeg',
-      previewUrl: reader.result,
-    };
+  _comprimirImagen(file).then(c => {
+    _invFotoRef = { b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl };
     _invFotoQuitar = false;
     const prevWrap = document.getElementById('inv-edit-foto-preview');
     const prevImg  = document.getElementById('inv-edit-foto-preview-img');
-    if (prevImg) prevImg.src = reader.result;
+    if (prevImg) prevImg.src = c.previewUrl;
     if (prevWrap) prevWrap.style.display = 'block';
     // Ocultar foto actual mientras hay nueva seleccionada
     const actWrap = document.getElementById('inv-edit-foto-actual');
     if (actWrap) actWrap.style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+  }).catch(e => { console.error('[INV FOTO] No se pudo procesar:', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -1090,9 +1083,11 @@ async function invGuardar() {
     }
 
     // Quitar foto si se marcó
+    let fotoNombreFinal = undefined; // undefined = sin cambios; '' = se quitó; string = subida nueva
     if (_invFotoQuitar) {
       await writeSheet(`'${sheetName}'!${colFoto}${row}`, [['']] );
       _invFotoQuitar = false;
+      fotoNombreFinal = '';
     }
 
     // Subir foto de referencia si hay una nueva
@@ -1115,6 +1110,7 @@ async function invGuardar() {
         const result = await driveUpload('inventario', folderId, fileName, _invFotoRef.mimeType, _invFotoRef.b64, false);
         // Guardar nombre de archivo en la columna de foto
         await writeSheet(`'${sheetName}'!${colFoto}${row}`, [[result.name]]);
+        fotoNombreFinal = result.name;
         toast('Foto subida ✓');
       } catch(fe) {
         console.error('[INV FOTO] Error:', fe.message);
@@ -1128,19 +1124,37 @@ async function invGuardar() {
     const idx1 = _panelStack.lastIndexOf('panel-inv-edit');
     if (idx1 !== -1) _panelStack.splice(idx1, 1);
 
-    // Recargar solo los datos de inventario
-    await loadInventario();
-
-    // Actualizar el ítem en memoria y volver a mostrar el detalle
-    const datosNew = _invDatos(modulo);
-    const updated = datosNew.find(i => i.rowIndex === row);
-    if (updated) {
-      invItem = { ...updated, _modulo: modulo };
+    // Actualizar el ítem en memoria CON LOS DATOS QUE YA SABEMOS que se
+    // guardaron (los mismos que se acaban de escribir arriba), en vez de
+    // esperar a que vuelva una recarga completa de las 5 hojas de
+    // inventario para recién ahí refrescar la pantalla — la ficha y la
+    // lista quedan al día al instante. La recarga real sigue pasando,
+    // pero DESPUÉS y sin bloquear nada, solo para que el resto de los
+    // datos (por si algo más cambió del lado del servidor mientras
+    // tanto) termine de coincidir.
+    const datosActuales = _invDatos(modulo);
+    const itemLocal = datosActuales.find(i => i.rowIndex === row);
+    if (itemLocal) {
+      itemLocal.estado = estado;
+      itemLocal.ubicacion = ubic;
+      itemLocal.color = color;
+      itemLocal.obs = obs;
+      if (modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico') itemLocal.numIdent = numIdentNuevo;
+      if (modulo === 'topografico') { itemLocal.proxCal = proxCalNuevo; itemLocal.ultCal = ultCalNuevo; }
+      if (fotoNombreFinal !== undefined) {
+        // El nombre del campo de foto cambia según el módulo (imagen/foto/registro)
+        const campoFoto = modulo === 'generadores' ? 'imagen' : modulo === 'maqmenor' ? 'foto' : 'registro';
+        itemLocal[campoFoto] = fotoNombreFinal;
+      }
+      invItem = { ...itemLocal, _modulo: modulo };
       invAbrirDetalle(modulo, row);
       const idxD = _panelStack.lastIndexOf('panel-inv-detalle');
       if (idxD !== -1) _panelStack.splice(idxD, 1);
     }
     renderInvLista();
+
+    // Recarga real de fondo — no bloquea nada de lo de arriba
+    loadInventario().catch(e => console.warn('[INV] Recarga de fondo falló:', e.message));
 
   } catch(err) {
     toast('Error: ' + err.message, 'error');
@@ -1173,16 +1187,10 @@ function invAbrirEventoGen() {
 function onGenEventoFotosSelected(input) {
   if (!input.files || !input.files.length) return;
   Array.from(input.files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      _genEventoFotos.push({
-        b64: reader.result.split(',')[1],
-        name: file.name, mimeType: file.type || 'image/jpeg',
-        previewUrl: reader.result,
-      });
+    _comprimirImagen(file).then(c => {
+      _genEventoFotos.push({ b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl });
       renderGenEventoFotos();
-    };
-    reader.readAsDataURL(file);
+    }).catch(e => console.error('[GEN EVT FOTO] No se pudo comprimir:', e.message));
   });
   input.value = '';
 }
@@ -1415,14 +1423,12 @@ function contAbrirEditar() {
 function onContFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _contFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg', previewUrl: reader.result };
+  _comprimirImagen(file).then(c => {
+    _contFoto = { b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl };
     const prev = document.getElementById('cont-edit-foto-preview');
     prev.style.display = 'block';
-    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
-  };
-  reader.readAsDataURL(file);
+    prev.innerHTML = `<img src="${c.previewUrl}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
+  }).catch(e => { console.error('[CONT FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -1431,14 +1437,12 @@ let _contNuevoFoto = null;
 function onContNuevoFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _contNuevoFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg', previewUrl: reader.result };
+  _comprimirImagen(file).then(c => {
+    _contNuevoFoto = { b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl };
     const prev = document.getElementById('cont-nuevo-foto-preview');
     prev.style.display = 'block';
-    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px">`;
-  };
-  reader.readAsDataURL(file);
+    prev.innerHTML = `<img src="${c.previewUrl}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px">`;
+  }).catch(e => { console.error('[CONT NUEVO FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -1455,6 +1459,7 @@ async function contGuardar() {
   if (btn) btnEstado(btn, 'cargando');
 
   try {
+    let fotoNombreFinal = undefined; // undefined = sin cambios; string = subida nueva
     // Containers: E=estado(5) F=color(6) G=ubicacion(7) I=equipamiento(9) J=obs(10) C=foto(3)
     toast('Guardando...', 'loading');
     await Promise.all([
@@ -1481,6 +1486,7 @@ async function contGuardar() {
         const fileName = `CONT_${contItem.num}_${Date.now()}.${ext}`;
         const r = await driveUpload('containers', folderId, fileName, _contFoto.mimeType, _contFoto.b64, false);
         await writeSheet(`'${SHEET_CONTAINERS}'!C${row}`, [[r.name]]);
+        fotoNombreFinal = r.name;
         toast('Foto subida ✓');
       } catch(fe) { toast('Error foto: '+fe.message, 'error'); }
     }
@@ -1490,10 +1496,22 @@ async function contGuardar() {
     _origClosePanel('panel-cont-edit'); 
     const idx = _panelStack.lastIndexOf('panel-cont-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
-    await loadInventario();
-    renderContainers();
+
+    // Mismo criterio que en Inventario: actualizar en memoria con lo que
+    // ya sabemos que se guardó, en vez de esperar una recarga completa
+    // antes de refrescar la pantalla.
     const c = allContainers.find(i => i.rowIndex === row);
-    if (c) { contItem = c; contAbrirDetalle(row); const idxD = _panelStack.lastIndexOf('panel-cont-detalle'); if (idxD !== -1) _panelStack.splice(idxD, 1); }
+    if (c) {
+      c.estado = estado; c.color = color; c.ubicacion = ubic; c.equipamiento = equip; c.obs = obs;
+      if (fotoNombreFinal !== undefined) c.foto = fotoNombreFinal;
+      contItem = c;
+      contAbrirDetalle(row);
+      const idxD = _panelStack.lastIndexOf('panel-cont-detalle');
+      if (idxD !== -1) _panelStack.splice(idxD, 1);
+    }
+    renderContainers();
+
+    loadInventario().catch(e => console.warn('[CONT] Recarga de fondo falló:', e.message));
 
   } catch(err) {
     toast('Error: ' + err.message, 'error');
@@ -1963,17 +1981,15 @@ let _nuevoInvFoto = null;
 function onNuevoInvFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _nuevoInvFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg', previewUrl: reader.result };
+  _comprimirImagen(file).then(c => {
+    _nuevoInvFoto = { b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl };
     const img  = document.getElementById('nuevo-foto-img');
     const prev = document.getElementById('nuevo-foto-preview');
     const rem  = document.getElementById('nuevo-foto-remove');
-    img.src = reader.result;
+    img.src = c.previewUrl;
     prev.style.display = 'block';
     rem.style.display  = 'block';
-  };
-  reader.readAsDataURL(file);
+  }).catch(e => { console.error('[NUEVO FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -3533,22 +3549,15 @@ function movAbrirRecepcionLote(batchKey) {
 function onRecvFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _recvFotoRef = {
-      b64: reader.result.split(',')[1],
-      name: file.name,
-      mimeType: file.type || 'image/jpeg',
-      previewUrl: reader.result,
-    };
+  _comprimirImagen(file).then(c => {
+    _recvFotoRef = { b64: c.b64, name: c.name, mimeType: c.mimeType, previewUrl: c.previewUrl };
     const prevWrap = document.getElementById('recv-foto-preview');
     const prevImg  = document.getElementById('recv-foto-preview-img');
     const lblFoto  = document.getElementById('recv-foto-label');
-    if (prevImg)  prevImg.src = reader.result;
+    if (prevImg)  prevImg.src = c.previewUrl;
     if (prevWrap) prevWrap.style.display = 'block';
-    if (lblFoto)  lblFoto.textContent = file.name;
-  };
-  reader.readAsDataURL(file);
+    if (lblFoto)  lblFoto.textContent = c.name;
+  }).catch(e => { console.error('[RECV FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -4891,14 +4900,12 @@ function andAbrirNuevo() {
 function onAndNuevoFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _andNuevoFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg' };
+  _comprimirImagen(file).then(c => {
+    _andNuevoFoto = { b64: c.b64, name: c.name, mimeType: c.mimeType };
     const prev = document.getElementById('and-nuevo-foto-preview');
     prev.style.display = 'block';
-    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
-  };
-  reader.readAsDataURL(file);
+    prev.innerHTML = `<img src="${c.previewUrl}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
+  }).catch(e => { console.error('[AND NUEVO FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -4981,14 +4988,12 @@ async function andAbrirEditar(rowIndex) {
 function onAndEditFotoSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    _andEditFoto = { b64: reader.result.split(',')[1], name: file.name, mimeType: file.type || 'image/jpeg' };
+  _comprimirImagen(file).then(c => {
+    _andEditFoto = { b64: c.b64, name: c.name, mimeType: c.mimeType };
     const prev = document.getElementById('and-edit-foto-preview');
     prev.style.display = 'block';
-    prev.innerHTML = `<img src="${reader.result}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
-  };
-  reader.readAsDataURL(file);
+    prev.innerHTML = `<img src="${c.previewUrl}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-top:8px">`;
+  }).catch(e => { console.error('[AND EDIT FOTO]', e.message); toast('No se pudo procesar la foto', 'error'); });
   input.value = '';
 }
 
@@ -5032,7 +5037,22 @@ async function andGuardarEdit() {
     _origClosePanel('panel-and-edit');
     const idx = _panelStack.lastIndexOf('panel-and-edit');
     if (idx !== -1) _panelStack.splice(idx, 1);
-    await andCargar();
+
+    // Actualización local optimista — igual que en Inventario/Containers.
+    // Ojo con "cantidad" puntualmente: el total real depende de que el
+    // servidor sume TODAS las ubicaciones de la pieza (no solo lo que se
+    // acaba de escribir), así que acá se muestra el valor tipeado como
+    // adelanto, y la recarga de fondo lo corrige solo si en realidad
+    // había stock repartido en otras obras que cambia el total real.
+    const itemLocal = allAndamios.find(i => i.rowIndex === row);
+    if (itemLocal) {
+      itemLocal.tipo = nombre; itemLocal.obs = obs; itemLocal.sistema = sistema; itemLocal.cantidad = cantidad;
+      if (_andEditFoto) itemLocal.foto = _andEditFoto.name; // nombre real puede diferir un toque (fecha), la recarga lo ajusta
+      andItemActual = itemLocal;
+    }
+    andRenderLista();
+
+    andCargar().catch(e => console.warn('[ANDAMIOS] Recarga de fondo falló:', e.message));
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {

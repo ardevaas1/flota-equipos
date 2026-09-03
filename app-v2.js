@@ -1086,8 +1086,74 @@ function _qEsc(s) {
   return (s == null ? '' : String(s)).replace(/'/g, "\\'");
 }
 
+// ── Comprimir imagen ANTES de subirla ─────────────────────────
+// Una foto de celular pesa 7-12 MB normalmente — convertida a base64 para
+// mandarla (que infla el tamaño otro 33% más) y pasando por el Apps
+// Script, ESE es el motivo real por el que "elegir una foto" se sentía
+// lento, no la app en sí. Achicar a un tamaño de pantalla razonable
+// (1600px de lado más largo — de sobra para verla nítida en cualquier
+// celular/tablet, no hace falta resolución de impresión) corta el peso
+// real a una fracción chica, sin que se note la diferencia de calidad en
+// la práctica. Se usa en TODOS los lugares de la app que suben fotos —
+// un solo lugar para optimizar en vez de repetir la lógica en cada uno.
+function _comprimirImagen(file, maxDim = 1600, calidad = 0.75) {
+  return new Promise((resolve, reject) => {
+    // Si no es una imagen (poco común hoy, pero por las dudas), se sube
+    // tal cual — no hay nada que un canvas pueda comprimir ahí.
+    if (!file.type || !file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        b64: reader.result.split(',')[1], mimeType: file.type || 'application/octet-stream',
+        name: file.name, previewUrl: reader.result, size: file.size,
+      });
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('No se pudo comprimir la imagen')); return; }
+        const reader = new FileReader();
+        reader.onload = () => resolve({
+          b64: reader.result.split(',')[1], mimeType: 'image/jpeg',
+          name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+          previewUrl: reader.result, size: blob.size,
+        });
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen comprimida'));
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', calidad);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('No se pudo abrir la imagen')); };
+    img.src = objUrl;
+  });
+}
+
+// Caché en memoria de carpetas ya encontradas/creadas — evita repetir la
+// misma búsqueda una y otra vez (ej. la carpeta "HERRAMIENTAS" dentro de
+// Inventario se pide de nuevo en CADA foto que se sube de esa categoría;
+// sin caché, eso es una ida y vuelta al servidor de más por cada una,
+// para encontrar siempre lo mismo). Dura mientras esté abierta la
+// pestaña — no hace falta que sobreviva a un refresh, las carpetas no
+// cambian de ID durante una sesión de uso normal.
+const _cacheCarpetas = {};
 async function findOrCreateFolder(modulo, name, parentId) {
+  const key = `${modulo}|${parentId}|${name}`;
+  if (_cacheCarpetas[key]) return _cacheCarpetas[key];
   const data = await _driveCall('drive_find_or_create_folder', modulo, { name, parentId });
+  _cacheCarpetas[key] = data.id;
   return data.id;
 }
 
@@ -1165,21 +1231,21 @@ async function uploadFile(file, patente, prefixName, subfolder = 'Eventos') {
     folderId = CONFIG.DRIVE_ROOT_FOLDER;
   }
 
-  const ext = file.name.split('.').pop();
+  toast('Comprimiendo foto...', 'loading');
+  const comprimida = await _comprimirImagen(file);
+  console.log('[UPLOAD] comprimida:', file.size, '→', comprimida.size, 'bytes');
+
+  // La extensión tiene que coincidir con el formato real después de
+  // comprimir (siempre queda en .jpg), no con la del archivo original
+  // (podía ser .png, .heic, etc.) — si no, queda un archivo .png que en
+  // realidad tiene bytes de JPEG adentro.
+  const ext = comprimida.name.split('.').pop();
   const fileName = `${prefixName}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}.${ext}`;
-  const mimeType = file.type || 'application/octet-stream';
 
-  const b64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  console.log('[UPLOAD] subiendo:', fileName, 'a carpeta:', folderId, 'b64 length:', b64.length);
+  console.log('[UPLOAD] subiendo:', fileName, 'a carpeta:', folderId);
   toast('Enviando a Drive...', 'loading');
 
-  const result = await driveUpload('flota', folderId, fileName, mimeType, b64, false);
+  const result = await driveUpload('flota', folderId, fileName, comprimida.mimeType, comprimida.b64, false);
   console.log('[UPLOAD] éxito:', result);
   toast(prefixName + ' subido ✓');
   return { id: result.id, name: result.name };
@@ -2468,19 +2534,19 @@ function onFotosSelected(input) {
   // Limpiar input para permitir seleccionar los mismos archivos de nuevo
   input.value = '';
 
-  nuevos.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      _eventoFotos.push({
-        b64:        reader.result.split(',')[1],
-        name:       file.name,
-        size:       file.size,
-        mimeType:   file.type || 'image/jpeg',
-        previewUrl: reader.result,   // data URL para miniatura
-      });
+  // Comprimir apenas se elige (no recién al guardar) — así la
+  // previsualización ya carga liviana y rápida, y cuando se toque
+  // "Guardar" el archivo pesado ya está listo, no hay que esperar de
+  // nuevo en ese momento.
+  nuevos.forEach(async file => {
+    try {
+      const c = await _comprimirImagen(file);
+      _eventoFotos.push({ b64: c.b64, name: c.name, size: c.size, mimeType: c.mimeType, previewUrl: c.previewUrl });
       renderFotoPreview();
-    };
-    reader.readAsDataURL(file);
+    } catch(e) {
+      console.error('[FOTOS] No se pudo comprimir', file.name, e.message);
+      toast('No se pudo procesar ' + file.name, 'error');
+    }
   });
 }
 
@@ -3074,29 +3140,36 @@ function openEditPanel() {
 // ── Foto de referencia de equipo (Drive) ─────────────────────
 // null = sin cambios, 'QUITAR' = borrar, File = nueva foto a subir
 let _editFotoRef = null;
-let _editFotoRefFile = null; // File object para subir a Drive
+let _editFotoRefFile = null; // resultado ya comprimido {b64,mimeType,name} — se calcula UNA vez, al elegir la foto, no de nuevo al guardar
 
 function onFotoRefSelected(input) {
   const file = input.files[0];
   if (!file) return;
-  _editFotoRefFile = file;
   _editFotoRef = 'NUEVA'; // marca que hay foto nueva pendiente de subir
+  input.value = '';
 
-  // Preview local inmediato
-  const reader = new FileReader();
-  reader.onload = ev => {
+  const infoEl = document.getElementById('edit-foto-ref-info');
+  if (infoEl) infoEl.textContent = 'Procesando foto...';
+
+  // Se comprime UNA sola vez acá (no de nuevo al guardar) — la
+  // previsualización ya sale de la versión chica, y al guardar el
+  // archivo ya está listo para subir sin tener que releerlo/comprimirlo
+  // de nuevo en ese momento.
+  _comprimirImagen(file).then(c => {
+    _editFotoRefFile = c;
     const prevImg   = document.getElementById('edit-foto-ref-img');
     const prevWrap  = document.getElementById('edit-foto-ref-preview');
     const removeBtn = document.getElementById('edit-foto-ref-remove');
-    const infoEl    = document.getElementById('edit-foto-ref-info');
-    prevImg.src = ev.target.result;
+    prevImg.src = c.previewUrl;
     prevWrap.style.display  = 'block';
     removeBtn.style.display = 'block';
-    const kb = Math.round(file.size / 1024);
-    infoEl.textContent = `Nueva foto · ${file.name} · ${kb} KB · se subirá a Drive al guardar`;
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
+    const kb = Math.round(c.size / 1024);
+    if (infoEl) infoEl.textContent = `Nueva foto · ${c.name} · ${kb} KB · se subirá a Drive al guardar`;
+  }).catch(e => {
+    console.error('[FOTOREF] No se pudo procesar la foto:', e.message);
+    toast('No se pudo procesar la foto', 'error');
+    _editFotoRef = null;
+  });
 }
 
 function quitarFotoRef() {
@@ -3223,21 +3296,12 @@ async function saveEquipo() {
     } else if (_editFotoRef === 'NUEVA' && _editFotoRefFile) {
       toast('Subiendo foto de referencia a Drive...', 'loading');
       try {
-        await ensureToken();
         const fotoFolderId = await getSubfolder(patente, 'FotoRef');
         const ext = _editFotoRefFile.name.split('.').pop();
         const fileName = `FOTOREF_${patente}.${ext}`;
-        const mimeType = _editFotoRefFile.type || 'image/jpeg';
-        const b64 = await new Promise((res, rej) => {
-          const rd = new FileReader();
-          rd.onload = () => res(rd.result.split(',')[1]);
-          rd.onerror = rej;
-          rd.readAsDataURL(_editFotoRefFile);
-        });
-        // driveUpload() ya deja el archivo compartido "cualquiera con el
-        // link puede ver" al subirlo — no hace falta un paso aparte de
-        // permisos como antes.
-        const fileData = await driveUpload('flota', fotoFolderId, fileName, mimeType, b64, false);
+        // Ya viene comprimida y en base64 desde onFotoRefSelected — no
+        // hace falta releer ni recomprimir nada acá.
+        const fileData = await driveUpload('flota', fotoFolderId, fileName, _editFotoRefFile.mimeType, _editFotoRefFile.b64, false);
         fotoRefVal = `https://drive.google.com/thumbnail?id=${fileData.id}&sz=w800`;
         console.log('[FOTOREF] Subida OK:', fotoRefVal);
       } catch(fe) {
@@ -3693,28 +3757,23 @@ function onDocFileSelected(input, labelId) {
     }
     label.classList.add('selected');
 
-    // Leer cada archivo a base64 AHORA, antes de cualquier await o navegación
+    // Comprimir cada archivo AHORA, antes de cualquier await o
+    // navegación — mismo motivo que antes (evita releer/comprimir de
+    // nuevo al guardar), aplicado también a las fotos de documentos.
     _capturedFiles[prefix] = [];
     let leidos = 0;
     files.forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
+      _comprimirImagen(file).then(c => {
         _capturedFiles[prefix][idx] = {
-          b64:      reader.result.split(',')[1],
-          name:     file.name,
-          size:     file.size,
-          mimeType: file.type || 'application/octet-stream',
-          prefix,
+          b64: c.b64, name: c.name, size: c.size, mimeType: c.mimeType, prefix,
           // Si hay más de un archivo con el mismo prefix, se numera en el
           // nombre del archivo en Drive para no pisarse entre sí (ver
           // saveEquipo). Con uno solo no lleva número, como antes.
           multiIdx: files.length > 1 ? (idx + 1) : null,
         };
         leidos++;
-        console.log('[CAPTURE] Guardado en memoria:', prefix, file.name, file.size, `(${leidos}/${files.length})`);
-      };
-      reader.onerror = (e) => console.error('[CAPTURE] Error leyendo archivo:', e);
-      reader.readAsDataURL(file);
+        console.log('[CAPTURE] Guardado en memoria:', prefix, c.name, c.size, `(${leidos}/${files.length})`);
+      }).catch(e => console.error('[CAPTURE] Error comprimiendo archivo:', e.message));
     });
   } else {
     label.classList.remove('selected');
