@@ -468,7 +468,16 @@ function manejarDriveGenerico(p) {
       // entiende el mismo lenguaje, así que no hace falta traducir nada de
       // las búsquedas que ya estaban armadas en cada módulo.
       case 'drive_search': {
-        const it = DriveApp.searchFiles(p.q);
+        if (!p.q) return _jsonOut({ success: false, error: 'Búsqueda de Drive sin criterio (q vacío)' });
+        let it;
+        try {
+          it = DriveApp.searchFiles(p.q);
+        } catch (qErr) {
+          // Si la búsqueda en sí está mal armada, el error de Google normalmente
+          // no dice CUÁL — acá se agrega la consulta exacta al mensaje para que
+          // sea diagnosticable de una sin tener que adivinar qué la rompió.
+          return _jsonOut({ success: false, error: 'Búsqueda de Drive inválida (' + qErr.message + ') — consulta: ' + p.q });
+        }
         const archivos = [];
         while (it.hasNext() && archivos.length < 1000) archivos.push(_archivoAObjeto(it.next()));
         if (p.orderBy === 'createdTime desc') {

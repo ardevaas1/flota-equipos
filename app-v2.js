@@ -1078,6 +1078,14 @@ async function _driveCall(accion, modulo, params) {
 
 // Busca (o crea si no existe) una carpeta. Antes hacía el multipart a
 // mano contra la API de Drive — ahora pasa por el Apps Script.
+// Escapa comillas simples para poder meter cualquier texto (nombre de
+// equipo, N° de identificación, etc.) adentro de una búsqueda de Drive
+// sin que una comilla suelta (ej. un apóstrofe en la descripción) rompa
+// la sintaxis de la consulta — Drive entiende \' como comilla literal.
+function _qEsc(s) {
+  return (s == null ? '' : String(s)).replace(/'/g, "\\'");
+}
+
 async function findOrCreateFolder(modulo, name, parentId) {
   const data = await _driveCall('drive_find_or_create_folder', modulo, { name, parentId });
   return data.id;
@@ -1638,7 +1646,7 @@ async function _actualizarLinkCarpetaFicha(docId, e) {
   const ETIQUETA = 'Abrir carpeta de fotos';
   let folderUrl = null;
   try {
-    const q = `mimeType='application/vnd.google-apps.folder' and name='${e.patente}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const q = `mimeType='application/vnd.google-apps.folder' and name='${_qEsc(e.patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
     const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       folderUrl = `https://drive.google.com/drive/folders/${data.files[0].id}`;
@@ -2884,7 +2892,7 @@ async function abrirCarpetaDrive(patente) {
   toast('Buscando carpeta en Drive...', 'loading');
   try {
     // Buscar carpeta con nombre igual a la patente dentro de DRIVE_ROOT_FOLDER
-    const q = `mimeType='application/vnd.google-apps.folder' and name='${patente}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const q = `mimeType='application/vnd.google-apps.folder' and name='${_qEsc(patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
     const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       const folderId = data.files[0].id;
@@ -2947,7 +2955,7 @@ async function openDocDrive(patente, prefix) {
     const unique = [...new Set(foldersToSearch)];
 
     for (const folder of unique) {
-      const q = `'${folder}' in parents and name contains '${prefix}_${patente}' and trashed=false`;
+      const q = `'${folder}' in parents and name contains '${_qEsc(prefix + '_' + patente)}' and trashed=false`;
       const data = await driveSearch('flota', q, { orderBy: 'createdTime desc' });
       if (data.files && data.files.length > 0) {
         toast('Abriendo ' + data.files[0].name + '...');
