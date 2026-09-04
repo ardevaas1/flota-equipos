@@ -3121,16 +3121,23 @@ async function guardarMovimientoMulti() {
     const idx = _panelStack.lastIndexOf('panel-mover-multi');
     if (idx !== -1) _panelStack.splice(idx, 1);
 
-    // Salir de modo selección y refrescar todo
+    // Salir de modo selección y refrescar todo — las recargas ahora
+    // corren en SEGUNDO PLANO en vez de bloquear acá: antes esto eran 3
+    // recargas completas SEGUIDAS (Inventario, Movimientos, Flota) antes
+    // de que el panel terminara de cerrarse de verdad — con equipos de
+    // varios módulos mezclados en un mismo lote, esa espera se sentía
+    // larga. Cada módulo se vuelve a dibujar solo apenas su propia
+    // recarga de fondo termina.
     invCancelarSeleccion();
     contCancelarSeleccion();
     movhCancelarSeleccion();
-    await loadInventario();
-    await loadMovimientos();
     renderContainers();
-    if (typeof loadData === 'function') await loadData(true);
     movhRenderLista();
     movhRenderHistorial();
+
+    loadInventario().then(() => { renderContainers(); }).catch(e => console.warn('[MULTI] Recarga Inventario falló:', e.message));
+    loadMovimientos().then(() => { movhRenderLista(); movhRenderHistorial(); }).catch(e => console.warn('[MULTI] Recarga Movimientos falló:', e.message));
+    if (typeof loadData === 'function') loadData(true).catch(e => console.warn('[MULTI] Recarga Flota falló:', e.message));
   } catch (err) {
     toast('Error: ' + err.message, 'error');
   } finally {
@@ -3742,7 +3749,17 @@ const _andThumbCache = {}; // { nombreArchivo: {imgUrl, fallbackUrl} } — evita
 // Carga (o recarga) los datos desde Sheets y renderiza
 async function andCargar() {
   try {
-    const rows = await fetchSheet(`'${SHEET_ANDAMIOS}'!A2:F500`);
+    // Las dos hojas se piden EN PARALELO — antes se esperaba a que
+    // terminara de traer ANDAMIOS entero para recién ahí empezar a pedir
+    // AND-UBICACIONES, aunque una no depende de la otra para nada.
+    const [rows, rowsUbic] = await Promise.all([
+      fetchSheet(`'${SHEET_ANDAMIOS}'!A2:F500`),
+      fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`).catch(e => {
+        console.warn('[ANDAMIOS] No se pudo traer AND-UBICACIONES, se usa la columna C tal cual:', e.message);
+        return null;
+      }),
+    ]);
+
     allAndamios = (rows || [])
       .map((r, i) => ({
         rowIndex: i + 2, // fila real en la hoja (offset por header en fila 1)
@@ -3763,11 +3780,10 @@ async function andCargar() {
     // números distintos en cada lado). Si una pieza todavía no tiene
     // ninguna fila de ubicación cargada (nunca se migró), se deja el valor
     // de la columna C como estaba, para no mostrarla de golpe en 0.
-    try {
-      const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+    if (rowsUbic) {
       const sumaPorFila = {};
       const tieneUbicaciones = {};
-      (rowsUbic || []).forEach(r => {
+      rowsUbic.forEach(r => {
         const fila = parseInt(r[0], 10);
         if (!fila) return;
         tieneUbicaciones[fila] = true;
@@ -3776,8 +3792,6 @@ async function andCargar() {
       allAndamios.forEach(it => {
         if (tieneUbicaciones[it.rowIndex]) it.cantidad = sumaPorFila[it.rowIndex] || 0;
       });
-    } catch (e) {
-      console.warn('[ANDAMIOS] No se pudo sumar AND-UBICACIONES, se usa la columna C tal cual:', e.message);
     }
   } catch (e) {
     console.warn('[ANDAMIOS] Hoja no encontrada aún, se creará al guardar el primer tipo', e.message);
@@ -4121,7 +4135,7 @@ async function andLimpiarDuplicadosUbicaciones() {
       'Valores encontrados': r.valores_encontrados.join(' → '),
       'Se va a quedar con': r.valor_que_queda,
     })));
-    console.log('Si esos valores finales se ven correctos, corré: andLimpiarDuplicadosUbicacionesConfirmar()  ← para aplicar el cambio de verdad.');
+    console.log('Si esos valores finales se ven correctos, corre: andLimpiarDuplicadosUbicacionesConfirmar()  ← para aplicar el cambio de verdad.');
 
     // Sin confirmar=true, se queda en modo vista previa nomás (no escribe nada)
   } catch (e) {
@@ -4150,7 +4164,7 @@ async function andLimpiarDuplicadosUbicacionesConfirmar() {
 // NO alcanzaba a detectar antes: una pieza CON ubicaciones cargadas,
 // pero donde la columna C quedó con un número viejo de antes de que
 // existiera bien el sistema de ubicaciones. Muestra vista previa
-// primero, no escribe nada hasta que confirmás.
+// primero, no escribe nada hasta que confirmas.
 // Llamar desde la consola: andRecalcularTodosTotales()
 async function andRecalcularTodosTotales() {
   try {
@@ -4170,8 +4184,8 @@ async function andRecalcularTodosTotales() {
       'Columna C (actual)': c.cantidad_columna_c,
       'Suma real de ubicaciones': c.cantidad_real_ubicaciones,
     })));
-    console.log('Ojo: esto asume que AND-UBICACIONES es la correcta y la columna C está atrasada — no siempre es así (puede ser al revés). Antes de confirmar, fijate que cada número tenga sentido según lo que sabés del stock real.');
-    console.log('Si esos valores se ven correctos, corré: andRecalcularTodosTotalesConfirmar()  ← para aplicar el cambio de verdad.');
+    console.log('Ojo: esto asume que AND-UBICACIONES es la correcta y la columna C está atrasada — no siempre es así (puede ser al revés). Antes de confirmar, fíjate que cada número tenga sentido según lo que sabes del stock real.');
+    console.log('Si esos valores se ven correctos, corre: andRecalcularTodosTotalesConfirmar()  ← para aplicar el cambio de verdad.');
   } catch (e) {
     console.error('[RECALCULAR TOTALES] Error:', e.message);
   }
@@ -4260,7 +4274,7 @@ async function andDiagnosticarTotales() {
     if (piezasSinUbicaciones.length) {
       console.log(`[DIAGNÓSTICO] ${piezasSinUbicaciones.length} pieza(s) SIN ninguna fila en AND-UBICACIONES todavía (usan la columna C como respaldo, y por eso no aparecen en el resumen por ubicación):`);
       console.table(piezasSinUbicaciones);
-      console.log('→ Para que estas queden incluidas en el resumen y ya no generen diferencia, corré: andMigrarUbicaciones()');
+      console.log('→ Para que estas queden incluidas en el resumen y ya no generen diferencia, corre: andMigrarUbicaciones()');
     }
     if (filasIgnoradasPorResumen.length) {
       console.log(`[DIAGNÓSTICO] ${filasIgnoradasPorResumen.length} fila(s) en AND-UBICACIONES con ubicación en blanco (suman en el total de arriba, pero el resumen no sabe bajo qué obra agruparlas):`);
@@ -4273,7 +4287,7 @@ async function andDiagnosticarTotales() {
       console.log('→ Corré: andRecalcularTodosTotales() para corregirlas.');
     }
     if (!piezasSinUbicaciones.length && !filasIgnoradasPorResumen.length && !piezasColumnaDesactualizada.length) {
-      console.log('[DIAGNÓSTICO] No se encontró ninguna causa conocida — si igual hay diferencia, avisame el número exacto para revisar más a fondo.');
+      console.log('[DIAGNÓSTICO] No se encontró ninguna causa conocida — si igual hay diferencia, avísame el número exacto para revisar más a fondo.');
     }
   } catch (e) {
     console.error('[DIAGNÓSTICO] Error:', e.message);
@@ -4595,40 +4609,36 @@ async function andConfirmarMoverVarios() {
   toast(`Trasladando ${aTrasladar.length} tipo(s) de pieza...`, 'loading');
   try {
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
-    const registradoPor = (typeof userEmail !== 'undefined' && userEmail) ? userEmail : '';
-    let ok = 0;
-    const conError = [];
 
-    // Una por una: cada traslado es su propia operación en el Apps Script
-    // (valida stock del lado del servidor) — si una falla, se sigue con
-    // las demás en vez de cortar todo el lote.
-    for (const item of aTrasladar) {
-      try {
-        await _andEscrituraRemota('and_mover_ubicacion', { row: item.rowIndex, origen, destino, cantidad: item.cantidad });
-        const idMov = 'MOV-' + Date.now() + '-' + item.rowIndex;
-        await appendSheet(`'${SHEET_MOVIMIENTOS}'!A:M`, [[
-          idMov, fechaFmt, 'Andamios', item.tipo, `${item.cantidad} x ${item.tipo}`,
-          origen, destino, autoriza, traslada, obs,
-          registradoPor, guia, 'recibido',
-        ]]);
-        ok++;
-      } catch (e) {
-        conError.push(`${item.tipo}: ${e.message}`);
-      }
-    }
+    // Una sola llamada al servidor con TODAS las piezas juntas — antes
+    // eran varias idas y vueltas en paralelo (una tanda de "mover" +
+    // otra de "anotar en el historial"); ahora el servidor hace las dos
+    // cosas en una sola ejecución, así que es una sola espera de red en
+    // vez de varias, sin importar cuántos tipos de pieza se muevan.
+    const resultado = await _andEscrituraRemota('and_mover_varias', {
+      origen, destino, fecha: fechaFmt, guia, autoriza, traslada, obs,
+      items: JSON.stringify(aTrasladar.map(item => ({ row: item.rowIndex, tipo: item.tipo, cantidad: item.cantidad }))),
+    });
+
+    const ok = resultado.ok || 0;
+    const conError = resultado.errores || [];
 
     if (conError.length) {
-      toast(`${ok} traslado(s) OK, ${conError.length} con error — revisá la consola`, 'error');
+      toast(`${ok} traslado(s) OK, ${conError.length} con error — revisa la consola`, 'error');
       console.error('[MOVER VARIOS ANDAMIOS] Con error:', conError);
     } else {
       toast(`✓ Se trasladaron ${ok} tipo(s) de pieza a ${destino}`);
     }
 
-    await andCargar();
-    await loadMovimientos();
     _origClosePanel('panel-and-mover-varios');
     const idx = _panelStack.lastIndexOf('panel-and-mover-varios');
     if (idx !== -1) _panelStack.splice(idx, 1);
+
+    // Recargar en segundo plano, SIN bloquear el cierre del panel — la
+    // persona ya ve la confirmación y puede seguir usando la app mientras
+    // esto termina de actualizarse solo.
+    andCargar().catch(e => console.warn('[ANDAMIOS] Recarga de fondo falló:', e.message));
+    loadMovimientos().catch(e => console.warn('[MOVIMIENTOS] Recarga de fondo falló:', e.message));
   } catch (e) {
     toast('No se pudo completar el traslado: ' + e.message, 'error');
   }

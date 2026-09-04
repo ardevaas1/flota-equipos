@@ -2249,7 +2249,7 @@ function _estadoMant1000h(eq) {
 // hoja DATOS. La columna G (REAJUSTE) es la que de verdad mueve la aguja
 // (TOTAL = F+G, y ese TOTAL alimenta la columna L de MAQUINARIA) — antes
 // había que calcular G a mano con calculadora cada vez que se revisaba una
-// máquina en persona. Este panel lo hace por vos: escribís el valor real
+// máquina en persona. Este panel lo hace por ti: escribes el valor real
 // que ves en la máquina, y calcula y guarda solo el reajuste que
 // corresponde (valor real − lo último que dijo el GPS).
 async function abrirAjusteGPS(patente) {
