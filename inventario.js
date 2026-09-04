@@ -4370,61 +4370,150 @@ function andRenderResumenUbicaciones() {
 // Containers y Andamios) agrupados por ubicación, para un resumen general
 // de toda la flota — no solo Andamios. Si algún módulo todavía no está
 // cargado en esta sesión, lo carga antes de armar el documento.
-async function generarDocResumenGeneral() {
+// Nombre de cada módulo tal cual aparece como clave dentro de porUbicacion,
+// en el orden en que se quiere mostrar tanto en el checklist del panel
+// como en el encabezado del documento.
+const MODULOS_RESUMEN = ['Flota', 'Generadores', 'Maquinaria Menor', 'Herramientas', 'Containers', 'Andamios'];
+
+// Recolecta y agrupa TODOS los datos (sin filtrar) — { ubicacion: { NombreModulo: [...] } }.
+// Se separa de la generación del documento para poder reusar la misma
+// recolección tanto para poblar el panel de filtros (ubicaciones disponibles)
+// como para armar el documento final ya filtrado.
+async function _recolectarDatosResumen(forzarRecarga) {
+  const cargas = [];
+  if ((forzarRecarga || !allEquipos.length) && typeof loadData === 'function') cargas.push(loadData(true));
+  if (forzarRecarga || (!allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allContainers.length)) {
+    cargas.push(loadInventario());
+  }
+  if (cargas.length) await Promise.all(cargas);
+
+  const porUbicacion = {};
+  const agregar = (ubicacion, modulo, texto) => {
+    const u = (ubicacion || '').toString().trim() || 'Sin ubicación';
+    if (!porUbicacion[u]) porUbicacion[u] = {};
+    if (!porUbicacion[u][modulo]) porUbicacion[u][modulo] = [];
+    porUbicacion[u][modulo].push(texto);
+  };
+
+  allEquipos.forEach(e => agregar(e.ubicacion, 'Flota', `${e.equipo || 'Vehículo'} — ${e.marca || ''} ${e.modelo || ''} (${e.patente || 's/patente'})`.replace(/\s+/g,' ')));
+  allGeneradores.forEach(g => agregar(g.ubicacion, 'Generadores', `${g.equipo} — ${g.marca || ''} ${g.modelo || ''}${g.codigo ? ' (' + g.codigo + ')' : ''}`.replace(/\s+/g,' ')));
+  allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}`.replace(/\s+/g,' ')));
+  allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}`.replace(/\s+/g,' ')));
+  allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
+
+  // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos).
+  const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
+  (rowsUbic || []).forEach(r => {
+    const tipo = (r[1] || '').toString().trim();
+    const cantidad = parseInt(r[3], 10) || 0;
+    if (tipo && cantidad > 0) agregar(r[2], 'Andamios', { tipo, cantidad });
+  });
+
+  return porUbicacion;
+}
+
+// ── Panel "Resumen personalizado" — elegir ubicación y tipo(s) de maquinaria ──
+async function abrirPanelResumenPersonalizado() {
   const btn = document.getElementById('home-resumen-btn-doc');
   if (btn) { btn.disabled = true; btn.textContent = 'Cargando datos...'; }
-
   try {
-    const cargas = [];
-    if (!allEquipos.length && typeof loadData === 'function') cargas.push(loadData(true));
-    if (!allGeneradores.length && !allMaqMenor.length && !allHerramientas.length && !allContainers.length) {
-      cargas.push(loadInventario());
-    }
-    if (cargas.length) await Promise.all(cargas);
-
-    const escapar = (s) => (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-    // Estructura: { ubicacion: { NombreModulo: [ 'texto de cada ítem', ... ] } }
-    const porUbicacion = {};
-    const agregar = (ubicacion, modulo, texto) => {
-      const u = (ubicacion || '').toString().trim() || 'Sin ubicación';
-      if (!porUbicacion[u]) porUbicacion[u] = {};
-      if (!porUbicacion[u][modulo]) porUbicacion[u][modulo] = [];
-      porUbicacion[u][modulo].push(texto);
-    };
-
-    allEquipos.forEach(e => agregar(e.ubicacion, 'Flota', `${e.equipo || 'Vehículo'} — ${e.marca || ''} ${e.modelo || ''} (${e.patente || 's/patente'})`.replace(/\s+/g,' ')));
-    allGeneradores.forEach(g => agregar(g.ubicacion, 'Generadores', `${g.equipo} — ${g.marca || ''} ${g.modelo || ''}${g.codigo ? ' (' + g.codigo + ')' : ''}`.replace(/\s+/g,' ')));
-    allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}`.replace(/\s+/g,' ')));
-    allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}`.replace(/\s+/g,' ')));
-    allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
-
-    // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos).
-    // Se guarda como {tipo, cantidad} en vez de texto plano para poder mostrar
-    // la cantidad en su propia columna, bien visible, en vez de escondida en una frase.
-    const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
-    (rowsUbic || []).forEach(r => {
-      const tipo = (r[1] || '').toString().trim();
-      const cantidad = parseInt(r[3], 10) || 0;
-      if (tipo && cantidad > 0) agregar(r[2], 'Andamios', { tipo, cantidad });
-    });
+    const porUbicacion = await _recolectarDatosResumen(false);
+    _resumenPersonalizadoCache = porUbicacion;
 
     const ubicaciones = Object.keys(porUbicacion).sort((a, b) => a.localeCompare(b, 'es'));
-    if (!ubicaciones.length) { toast('No se encontró ningún dato cargado para armar el resumen', 'error'); return; }
+    const selectUbic = document.getElementById('rp-ubicacion');
+    if (selectUbic) {
+      selectUbic.innerHTML = '<option value="">Todas las ubicaciones</option>' +
+        ubicaciones.map(u => `<option value="${u.replace(/"/g,'&quot;')}">${u}</option>`).join('');
+    }
+
+    // Solo se ofrecen como checkbox los módulos que efectivamente tienen
+    // datos cargados — no tiene sentido dejar tildar "Containers" si no hay
+    // ni un container en toda la app.
+    const modulosConDatos = MODULOS_RESUMEN.filter(mod =>
+      ubicaciones.some(u => porUbicacion[u][mod] && porUbicacion[u][mod].length));
+    const cont = document.getElementById('rp-modulos-lista');
+    if (cont) {
+      cont.innerHTML = modulosConDatos.map(mod =>
+        `<label class="checklist-1000h-item"><input type="checkbox" class="rp-chk-modulo" value="${mod}" checked><span>${mod}</span></label>`
+      ).join('') || '<div class="nota">No hay datos cargados todavía.</div>';
+    }
+
+    if (!ubicaciones.length) {
+      toast('No se encontró ningún dato cargado para armar el resumen', 'error');
+      return;
+    }
+    openPanel('panel-resumen-personalizado');
+  } catch (e) {
+    toast('No se pudieron cargar los datos: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen'; }
+  }
+}
+let _resumenPersonalizadoCache = null;
+
+// Botón "Seleccionar todas / Ninguna" del checklist de tipos de maquinaria.
+function rpToggleTodosModulos() {
+  const chks = document.querySelectorAll('.rp-chk-modulo');
+  const algunaSinTildar = [...chks].some(c => !c.checked);
+  chks.forEach(c => c.checked = algunaSinTildar);
+}
+
+// Lee lo elegido en el panel y dispara la generación del documento filtrado.
+async function confirmarResumenPersonalizado() {
+  const ubicacion = (document.getElementById('rp-ubicacion') || {}).value || '';
+  const modulos = [...document.querySelectorAll('.rp-chk-modulo:checked')].map(c => c.value);
+  if (!modulos.length) { toast('Elige al menos un tipo de maquinaria', 'error'); return; }
+  await generarDocResumenGeneral({ ubicacion, modulos });
+}
+
+// Genera y abre el documento de resumen, opcionalmente filtrado por
+// ubicación y/o por tipo(s) de maquinaria (módulos).
+// opciones.ubicacion: '' o ausente = todas las ubicaciones.
+// opciones.modulos: array de nombres de MODULOS_RESUMEN, o ausente = todos.
+async function generarDocResumenGeneral(opciones) {
+  opciones = opciones || {};
+  const filtroUbicacion = (opciones.ubicacion || '').trim();
+  const filtroModulos = Array.isArray(opciones.modulos) && opciones.modulos.length ? opciones.modulos : null;
+
+  const btn = document.getElementById('rp-generar-btn') || document.getElementById('home-resumen-btn-doc');
+  const textoOriginal = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando documento...'; }
+
+  try {
+    const escapar = (s) => (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    const porUbicacion = _resumenPersonalizadoCache || await _recolectarDatosResumen(false);
+
+    let ubicaciones = Object.keys(porUbicacion).sort((a, b) => a.localeCompare(b, 'es'));
+    if (filtroUbicacion) ubicaciones = ubicaciones.filter(u => u === filtroUbicacion);
+    // Descarta ubicaciones que, tras aplicar el filtro de módulos, se quedan sin nada que mostrar.
+    ubicaciones = ubicaciones.filter(u =>
+      Object.keys(porUbicacion[u]).some(mod => !filtroModulos || filtroModulos.includes(mod)));
+
+    if (!ubicaciones.length) {
+      toast(filtroUbicacion
+        ? `No se encontraron datos para "${filtroUbicacion}" con los tipos elegidos`
+        : 'No se encontró ningún dato para los filtros elegidos', 'error');
+      return;
+    }
 
     const totalItems = ubicaciones.reduce((sum, u) =>
-      sum + Object.keys(porUbicacion[u]).reduce((s2, mod) => {
-        if (mod === 'Andamios') return s2 + porUbicacion[u][mod].reduce((s3, it) => s3 + it.cantidad, 0);
-        return s2 + porUbicacion[u][mod].length;
-      }, 0), 0);
+      sum + Object.keys(porUbicacion[u])
+        .filter(mod => !filtroModulos || filtroModulos.includes(mod))
+        .reduce((s2, mod) => {
+          if (mod === 'Andamios') return s2 + porUbicacion[u][mod].reduce((s3, it) => s3 + it.cantidad, 0);
+          return s2 + porUbicacion[u][mod].length;
+        }, 0), 0);
 
     const secciones = ubicaciones.map(u => {
       const modulos = porUbicacion[u];
-      const cantidadEnUbic = Object.keys(modulos).reduce((s, mod) => {
+      const clavesModulo = Object.keys(modulos).filter(mod => !filtroModulos || filtroModulos.includes(mod)).sort();
+      const cantidadEnUbic = clavesModulo.reduce((s, mod) => {
         if (mod === 'Andamios') return s + modulos[mod].reduce((s2, it) => s2 + it.cantidad, 0);
         return s + modulos[mod].length;
       }, 0);
-      const bloquesModulo = Object.keys(modulos).sort().map(mod => {
+      const bloquesModulo = clavesModulo.map(mod => {
         const esAndamios = mod === 'Andamios';
         const filas = esAndamios
           ? modulos[mod]
@@ -4447,6 +4536,11 @@ async function generarDocResumenGeneral() {
 
     const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const hora = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+    const modulosParaTitulo = filtroModulos || MODULOS_RESUMEN;
+    const subtituloHeader = modulosParaTitulo.map(m => m.toUpperCase()).join(' · ');
+    const tituloDoc = filtroUbicacion ? `RESUMEN — ${filtroUbicacion.toUpperCase()}` : 'RESUMEN GENERAL POR UBICACIÓN';
+    const nombreArchivo = filtroUbicacion ? `Resumen — ${filtroUbicacion} — ${fecha}` : `Resumen General — ${fecha}`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
       @page { margin: 0.4in 0.6in; }
@@ -4471,28 +4565,28 @@ async function generarDocResumenGeneral() {
     </style></head><body>
       <table class="header-tabla"><tr><td>
         <div class="empresa">CONSTRUCTORA LST</div>
-        <div class="titulo">RESUMEN GENERAL POR UBICACIÓN</div>
-        <div class="subtitulo">FLOTA · GENERADORES · MAQUINARIA MENOR · HERRAMIENTAS · CONTAINERS · ANDAMIOS</div>
+        <div class="titulo">${escapar(tituloDoc)}</div>
+        <div class="subtitulo">${escapar(subtituloHeader)}</div>
       </td></tr></table>
       <div class="fecha-gen">Generado el ${fecha} a las ${hora} — ${totalItems} ítem(s) en ${ubicaciones.length} ubicación(es)</div>
       ${secciones}
     </body></html>`;
 
-    if (btn) btn.textContent = 'Generando documento...';
     let carpetaResumenes = CONFIG.DRIVE_ROOT_FOLDER;
     try {
       carpetaResumenes = await findOrCreateFolder('admin', 'Resúmenes Generales', CONFIG.DRIVE_ROOT_FOLDER);
     } catch (fe) {
       console.warn('No se pudo crear/ubicar la carpeta "Resúmenes Generales", se usa la carpeta raíz:', fe.message);
     }
-    const archivo = await _crearDocDesdeHtml(`Resumen General — ${fecha}`, html, carpetaResumenes);
+    const archivo = await _crearDocDesdeHtml(nombreArchivo, html, carpetaResumenes);
     const url = `https://docs.google.com/document/d/${archivo.id}/edit`;
     toast('✓ Documento generado');
     window.open(url, '_blank');
+    if (document.getElementById('panel-resumen-personalizado')) closePanel('panel-resumen-personalizado');
   } catch (e) {
     toast('No se pudo generar el documento: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = textoOriginal; }
   }
 }
 

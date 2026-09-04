@@ -969,7 +969,7 @@
     </div>
 
     <div class="modulos-resumen-wrap modulo-otro">
-      <button class="modulos-resumen-btn" id="home-resumen-btn-doc" onclick="generarDocResumenGeneral()">
+      <button class="modulos-resumen-btn" id="home-resumen-btn-doc" onclick="abrirPanelResumenPersonalizado()">
         <svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Generar resumen
       </button>
     </div>
@@ -1894,6 +1894,29 @@
       </div>
 
       <button class="action-btn" style="background:var(--accent);color:#fff;border:none" onclick="andConfirmarMoverVarios()">Confirmar traslado</button>
+    </div>
+  </div>
+
+  <!-- ── Panel: Resumen personalizado (elegir ubicación y tipo de maquinaria) ── -->
+  <div id="panel-resumen-personalizado" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-resumen-personalizado')">‹ Cerrar</button>
+      <span class="pnl-title">Resumen personalizado</span>
+    </div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Ubicación</label>
+        <select id="rp-ubicacion"></select>
+      </div>
+
+      <div class="form-sec">Tipo de maquinaria</div>
+      <div class="nota" style="margin-bottom:8px">Elige qué incluir en el resumen — puedes marcar una, varias, o todas.</div>
+      <div style="text-align:right;margin-bottom:6px">
+        <button type="button" class="link-btn" onclick="rpToggleTodosModulos()">Seleccionar / quitar todas</button>
+      </div>
+      <div id="rp-modulos-lista"></div>
+
+      <button class="action-btn" id="rp-generar-btn" style="background:var(--accent);color:#fff;border:none;margin-top:18px" onclick="confirmarResumenPersonalizado()">Generar resumen</button>
     </div>
   </div>
 

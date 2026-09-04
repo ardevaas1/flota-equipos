@@ -430,13 +430,22 @@ function _archivoAObjeto(file) {
   };
 }
 
+// Acciones de SOLO LECTURA — no modifican nada en Drive, solo permiten
+// mostrar fotos/archivos ya existentes (ej. abrir la ficha de un equipo).
+// Cualquier persona autenticada puede hacerlas, sin importar su rol de
+// módulo — igual que "viewer" puede ver todo en modo solo lectura del
+// lado de las hojas. Solo las acciones que CREAN/BORRAN/MUEVEN algo piden
+// el permiso de módulo correspondiente.
+const ACCIONES_DRIVE_SOLO_LECTURA = ['drive_search', 'drive_get_parents'];
+
 function manejarDriveGenerico(p) {
   try {
     const email = _emailVerificadoDesdeToken(p.accessToken);
     if (!email) {
       return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
     }
-    if (!_tienePermisoParaModulo(email, p.modulo)) {
+    const esSoloLectura = ACCIONES_DRIVE_SOLO_LECTURA.includes(p.accion);
+    if (!esSoloLectura && !_tienePermisoParaModulo(email, p.modulo)) {
       return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar archivos de "' + (p.modulo || '') + '".' });
     }
 
