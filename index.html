@@ -35,7 +35,7 @@
     body.viewer-mode .header-sub::after {
       content: ' · Solo lectura';
       color: rgba(255,255,255,0.8);
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* Botones marcados para ocultarse en modo solo-lectura (viewer y mover) */
@@ -61,7 +61,7 @@
     body.mover-mode .header-sub::after {
       content: ' · Solo lectura (puede registrar movimientos)';
       color: rgba(255,255,255,0.8);
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* ── Rol 'andamios': solo lectura en toda la app, pero acceso total
@@ -91,7 +91,7 @@
     body.andamios-mode #mod-andamios .header-sub::after,
     body.andamios-mode #mod-andamios .inv-desktop-sidebar-sub::after {
       content: ' · Solo lectura (puede modificar Andamios)';
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* ── Rol 'inventario': acceso total dentro de Generadores/Maq. Menor/
@@ -116,7 +116,7 @@
     body.inventario-mode #mod-inventario .header-sub::after,
     body.inventario-mode #mod-inventario .inv-desktop-sidebar-sub::after {
       content: ' · Solo lectura (puede modificar Inventario)';
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* ── Rol 'containers': acceso total dentro de Containers. Mismo
@@ -138,7 +138,7 @@
     body.containers-mode #mod-containers .header-sub::after,
     body.containers-mode #mod-containers .inv-desktop-sidebar-sub::after {
       content: ' · Solo lectura (puede modificar Containers)';
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* ── Rol 'flota': solo lectura en toda la app, pero acceso total dentro
@@ -173,7 +173,7 @@
     body.flota-mode .header-sub::after,
     body.flota-mode .desktop-sidebar-sub::after {
       content: ' · Solo lectura (puede modificar Flota)';
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     /* ── Modo Chofer: reactiva edición dentro de Bitácora & Combustible.
@@ -214,7 +214,7 @@
     body.arriendos-mode #mod-arriendos .header-sub::after,
     body.arriendos-mode #mod-arriendos .inv-desktop-sidebar-sub::after {
       content: ' · Solo lectura (puede modificar Arriendos)';
-      font-size: 10px;
+      font-size: 11.5px;
     }
 
     body.chofer-mode .header-sub::after {
@@ -232,8 +232,8 @@
       gap: 32px; padding: 24px;
     }
     #pin-screen.hidden { display: none; }
-    .pin-title { color: #f1f5f9; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-    .pin-hint  { color: #64748b; font-size: 14px; min-height: 20px; transition: color 0.2s; }
+    .pin-title { color: #f1f5f9; font-size: 23px; font-weight: 700; letter-spacing: -0.5px; }
+    .pin-hint  { color: #64748b; font-size: 15.5px; min-height: 20px; transition: color 0.2s; }
     .pin-dots  { display: flex; gap: 16px; }
     .pin-dot   { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #334155; background: transparent; transition: all 0.15s; }
     .pin-dot.filled { background: var(--accent); border-color: var(--accent); transform: scale(1.1); box-shadow: 0 0 8px rgba(74,143,193,0.7); }
@@ -246,7 +246,7 @@
       display: flex; align-items: center; justify-content: center;
     }
     .pin-btn:active { background: var(--accent); transform: scale(0.95); }
-    .pin-btn.del    { font-size: 20px; color: #64748b; }
+    .pin-btn.del    { font-size: 21px; color: #64748b; }
     .pin-btn.empty  { background: transparent; border: none; cursor: default; }
 
     /* ── Evento cards ── */
@@ -261,12 +261,12 @@
       padding: 10px 12px; margin-bottom: 6px;
     }
     .evento-card .mant-title,
-    .evento-card-mini .mant-title { color: #f1f5f9 !important; font-size: 14px; font-weight: 600; }
+    .evento-card-mini .mant-title { color: #f1f5f9 !important; font-size: 15.5px; font-weight: 600; }
     .evento-card .mant-meta,
-    .evento-card-mini .mant-meta  { color: #94a3b8 !important; font-size: 12px; margin-top: 2px; }
-    .evento-tipo-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    .evento-card-mini .mant-meta  { color: #94a3b8 !important; font-size: 13.5px; margin-top: 2px; }
+    .evento-tipo-icon { font-size: 23px; flex-shrink: 0; margin-top: 1px; }
     .evento-desc {
-      font-size: 12px; color: #cbd5e1; margin-top: 3px;
+      font-size: 13.5px; color: #cbd5e1; margin-top: 3px;
       white-space: pre-wrap; line-height: 1.4;
     }
 
@@ -278,12 +278,12 @@
       display: inline-flex; align-items: center; gap: 6px;
       background: #1e293b; color: #94a3b8;
       border: 1.5px dashed #334155; border-radius: 10px;
-      padding: 10px 14px; font-size: 13px; cursor: pointer;
+      padding: 10px 14px; font-size: 14.5px; cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
     .foto-add-btn:active { background: #334155; color: #f1f5f9; }
     .fotos-count {
-      font-size: 12px; color: #3b82f6; margin-top: 6px; min-height: 18px;
+      font-size: 13.5px; color: #3b82f6; margin-top: 6px; min-height: 18px;
     }
     .fotos-preview {
       display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
@@ -299,7 +299,7 @@
       position: absolute; top: -6px; right: -6px;
       width: 20px; height: 20px; border-radius: 50%;
       background: #ef4444; color: #fff; border: none;
-      font-size: 10px; cursor: pointer;
+      font-size: 11.5px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       line-height: 1;
     }
@@ -648,18 +648,18 @@
           <option value="KM">Kilómetros</option>
           <option value="HORAS">Horas (horómetro)</option>
         </select>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">Afecta cómo se muestra este equipo en Bitácora (Km inicial/final vs. Horas inicial/final).</div>
+        <div style="font-size: 13px;color:var(--ink-soft);margin-top:5px">Afecta cómo se muestra este equipo en Bitácora (Km inicial/final vs. Horas inicial/final).</div>
       </div>
       <div class="form-group">
         <label>Cada cuánto se hace la mantención (h/km)</label>
         <input type="number" id="edit-mantcada" placeholder="Ej: 300">
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">Con esto, "Próxima mantención" se calcula sola al registrar un evento de mantención — no hace falta escribirla a mano.</div>
+        <div style="font-size: 13px;color:var(--ink-soft);margin-top:5px">Con esto, "Próxima mantención" se calcula sola al registrar un evento de mantención — no hace falta escribirla a mano.</div>
       </div>
       <div class="form-group">
         <label>Kilometraje / Horómetro actual</label>
         <input type="number" id="edit-horometro" placeholder="—" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
-        <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
+        <div style="font-size: 13px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
           <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           Se actualiza directamente en el Sheets.
         </div>
@@ -668,7 +668,7 @@
         <label>Próxima mantención (en)</label>
         <input type="number" id="edit-proxima" placeholder="—" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
-        <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
+        <div style="font-size: 13px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
           <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           Se calcula sola al registrar una mantención (horómetro + intervalo). No se edita a mano.
         </div>
@@ -745,7 +745,7 @@
         <div id="edit-foto-ref-preview" style="display:none;margin-bottom:8px">
           <img id="edit-foto-ref-img" src="" alt="Foto de referencia" style="width:100%;border-radius:10px;max-height:220px;object-fit:cover;">
         </div>
-        <div id="edit-foto-ref-info" style="font-size:12px;color:#888;margin-bottom:8px"></div>
+        <div id="edit-foto-ref-info" style="font-size: 13.5px;color:#888;margin-bottom:8px"></div>
         <div class="foto-add-row">
           <label class="foto-add-btn">
             <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><rect x="3" y="4" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 16l5-5 3 3 4-4 6 6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg> Elegir de galería
@@ -756,7 +756,7 @@
             <input type="file" accept="image/*" capture="environment" onchange="onFotoRefSelected(this)" style="display:none">
           </label>
         </div>
-        <button id="edit-foto-ref-remove" onclick="quitarFotoRef()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto</button>
+        <button id="edit-foto-ref-remove" onclick="quitarFotoRef()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size: 14.5px;cursor:pointer;width:100%">✕ Quitar foto</button>
       </div>
 
       <div class="form-sec">Diagnóstico</div>
@@ -777,8 +777,8 @@
     <div class="panel-body">
       <input type="hidden" id="ajuste-gps-row">
       <input type="hidden" id="ajuste-gps-f">
-      <div id="ajuste-gps-vehiculo" style="font-weight:700;font-size:15px;margin-bottom:4px"></div>
-      <div id="ajuste-gps-gps" style="font-size:12px;color:var(--ink-soft);margin-bottom:14px"></div>
+      <div id="ajuste-gps-vehiculo" style="font-weight:700;font-size: 16.5px;margin-bottom:4px"></div>
+      <div id="ajuste-gps-gps" style="font-size: 13.5px;color:var(--ink-soft);margin-bottom:14px"></div>
       <div class="form-group">
         <label>Valor real (lo que ves en la máquina)</label>
         <input type="number" id="ajuste-gps-valor" step="0.01" placeholder="Ej: 246422" oninput="_recalcularAjusteGPS()">
@@ -787,7 +787,7 @@
         <div class="ficha-sec-title">Reajuste que se va a guardar</div>
         <div id="ajuste-gps-preview" style="font-size:26px;font-weight:800;color:var(--ink)">—</div>
       </div>
-      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">Esto reemplaza el valor de "Reajuste" en la hoja DATOS por la diferencia entre lo que escribas acá y el último dato del GPS — se calcula solo, sin calculadora.</div>
+      <div style="font-size: 13px;color:var(--ink-soft);margin-top:10px">Esto reemplaza el valor de "Reajuste" en la hoja DATOS por la diferencia entre lo que escribas acá y el último dato del GPS — se calcula solo, sin calculadora.</div>
     </div>
   </div>
 
@@ -827,12 +827,12 @@
         <label>Próxima mantención (h/km)</label>
         <input type="number" id="evento-proxima" placeholder="Se calcula sola" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
-        <div style="font-size:11.5px;color:#94a3b8;margin-top:5px">Horómetro/odómetro de este evento + intervalo del equipo. Si el equipo no tiene un intervalo cargado ("Cada"), corrígelo desde Editar vehículo.</div>
+        <div style="font-size: 13px;color:#94a3b8;margin-top:5px">Horómetro/odómetro de este evento + intervalo del equipo. Si el equipo no tiene un intervalo cargado ("Cada"), corrígelo desde Editar vehículo.</div>
       </div>
       <div class="form-group" id="evento-checklist-1000h-group" style="display:none">
         <label>Checklist — Mantención de 1000 horas</label>
         <div id="evento-checklist-1000h" style="background:var(--neutral-soft);border-radius:10px;padding:6px 12px"></div>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px">Los ítems que marques se agregan solos a la descripción de abajo.</div>
+        <div style="font-size: 13px;color:var(--ink-soft);margin-top:6px">Los ítems que marques se agregan solos a la descripción de abajo.</div>
       </div>
       <div class="form-group">
         <label>Descripción</label>
@@ -890,7 +890,11 @@
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
         <input type="text" id="busqueda-global-input" placeholder="Buscar por código, patente, marca..."
           oninput="_deb('busq-global', () => buscarGlobal(document.getElementById('busqueda-global-input').value))"
-          style="flex:1;border:none;outline:none;font-size:14px">
+          onfocus="_reabrirBusquedaGlobalSiCorresponde()"
+          style="flex:1;border:none;outline:none;font-size: 15.5px">
+        <button type="button" id="busqueda-global-clear" class="busqueda-global-clear hidden" onclick="limpiarBusquedaGlobal()" aria-label="Limpiar búsqueda">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div id="busqueda-global-resultados" class="busqueda-global-resultados hidden"></div>
     </div>
@@ -1050,7 +1054,7 @@
 
     <!-- LAYOUT MÓVIL (oculto en desktop) -->
     <header class="header header--inv" id="inv-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title" id="inv-titulo">Inventario</div>
@@ -1074,7 +1078,7 @@
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="inv-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv-mob', () => renderInvLista())" style="flex:1;border:none;outline:none;font-size:14px">
+        <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv-mob', () => renderInvLista())" style="flex:1;border:none;outline:none;font-size: 15.5px">
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
@@ -1112,7 +1116,7 @@
         </div>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
-        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
+        <div style="padding:0 20px;font-size: 12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
         <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Todos los containers</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
@@ -1137,7 +1141,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header header--cont" id="cont-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title">Containers</div>
@@ -1153,7 +1157,7 @@
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="cont-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size:14px">
+        <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size: 15.5px">
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
@@ -1178,7 +1182,7 @@
       </div>
       <div class="inv-desktop-tabs">
         <button class="inv-desktop-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Registrar</button>
-        <button class="inv-desktop-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-dt-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px"></span></button>
+        <button class="inv-desktop-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-dt-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 6px;font-size: 11.5px;font-weight:700;margin-left:4px"></span></button>
         <button class="inv-desktop-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Historial</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
@@ -1225,7 +1229,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header header--mov" id="movh-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title">Movimientos</div>
@@ -1235,7 +1239,7 @@
     </header>
     <div class="inv-tabs" id="movh-mobile-tabs">
       <button class="inv-tab active movh-tab" data-tab="registrar" onclick="movhSetTab('registrar')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 11h18M8 7v4M16 7v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Registrar</button>
-      <button class="inv-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-mob-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 5px;font-size:10px;font-weight:700;margin-left:2px"></span></button>
+      <button class="inv-tab movh-tab" data-tab="pendientes" onclick="movhSetTab('pendientes')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Pendientes <span id="movh-mob-badge-pend" style="display:none;background:#f59e0b;color:#fff;border-radius:99px;padding:1px 5px;font-size: 11.5px;font-weight:700;margin-left:2px"></span></button>
       <button class="inv-tab movh-tab" data-tab="historial" onclick="movhSetTab('historial')"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> Historial</button>
     </div>
 
@@ -1252,7 +1256,7 @@
       <div style="padding:10px 14px 8px;flex-shrink:0">
         <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
           <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh', () => movhRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
+          <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh', () => movhRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px">
         </div>
       </div>
       <div class="pages" style="padding:0 14px 80px">
@@ -1306,7 +1310,7 @@
         <button class="desktop-refresh-btn" style="margin-top:6px;background:var(--accent);color:#fff" onclick="andAbrirMoverVarios()"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 16V7a1 1 0 0 1 1-1h8v10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3.5 3.2V16H12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="17" r="1.8" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="17" r="1.8" stroke="currentColor" stroke-width="1.7"/></svg> Trasladar varias piezas</button>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
-        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
+        <div style="padding:0 20px;font-size: 12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulos</div>
         <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M4 4v16M20 4v16M4 9h16M4 15h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Conteo de piezas</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
@@ -1343,7 +1347,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header header--and" id="and-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title">Andamios</div>
@@ -1368,7 +1372,7 @@
     <div style="padding:0 14px 8px" id="and-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="and-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and', () => andRenderLista())" style="width:100%;border:none;outline:none;font-size:14px">
+        <input type="text" id="and-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and', () => andRenderLista())" style="width:100%;border:none;outline:none;font-size: 15.5px">
       </div>
     </div>
 
@@ -1402,11 +1406,11 @@
         </div>
       </div>
       <div style="padding:14px 20px 0">
-        <label style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px">Mes</label>
-        <select id="bit-dt-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-top:6px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);font-size:13px;font-family:inherit;background:#fff"></select>
+        <label style="font-size: 12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px">Mes</label>
+        <select id="bit-dt-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-top:6px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);font-size: 14.5px;font-family:inherit;background:#fff"></select>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
-        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulo</div>
+        <div style="padding:0 20px;font-size: 12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Módulo</div>
         <button class="inv-desktop-tab active" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" style="width:14px;height:14px;vertical-align:-2px"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 16h6M9 8h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Todos los vehículos</button>
       </div>
       <div class="inv-desktop-sidebar-footer">
@@ -1431,7 +1435,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header header--bit" id="bit-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title">Bitácora y Combustible</div>
@@ -1441,10 +1445,10 @@
     </header>
 
     <div id="bit-mobile-search" style="padding:14px 14px 0">
-      <select id="bit-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-family:inherit;background:#fff"></select>
+      <select id="bit-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid var(--line);font-size: 14.5px;font-family:inherit;background:#fff"></select>
       <div class="searchbox">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="_deb('bit-mob', () => bitRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
+        <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="_deb('bit-mob', () => bitRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px">
       </div>
     </div>
     <div class="pages" style="padding:10px 14px 80px" id="bit-mobile-list">
@@ -1483,7 +1487,7 @@
     </div>
     <div class="panel-body">
       <input type="hidden" id="bit-viaje-patente">
-      <div id="bit-viaje-vehiculo" style="font-weight:700;font-size:15px;margin-bottom:14px"></div>
+      <div id="bit-viaje-vehiculo" style="font-weight:700;font-size: 16.5px;margin-bottom:14px"></div>
       <div class="form-group">
         <label>Fecha</label>
         <input type="date" id="bit-viaje-fecha">
@@ -1516,7 +1520,7 @@
     </div>
     <div class="panel-body">
       <input type="hidden" id="bit-comb-patente">
-      <div id="bit-comb-vehiculo" style="font-weight:700;font-size:15px;margin-bottom:14px"></div>
+      <div id="bit-comb-vehiculo" style="font-weight:700;font-size: 16.5px;margin-bottom:14px"></div>
       <div class="form-group">
         <label>Fecha</label>
         <input type="date" id="bit-comb-fecha">
@@ -1551,7 +1555,7 @@
         </div>
       </div>
       <div class="inv-desktop-tabs" style="justify-content:flex-start;padding-top:16px">
-        <div style="padding:0 20px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Filtrar</div>
+        <div style="padding:0 20px;font-size: 12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Filtrar</div>
         <button class="inv-desktop-tab active" id="arr-dt-filtro-todos"      onclick="arrSetFiltro('todos')">Todos</button>
         <button class="inv-desktop-tab"        id="arr-dt-filtro-activos"    onclick="arrSetFiltro('activos')">Activos</button>
         <button class="inv-desktop-tab"        id="arr-dt-filtro-porvencer"  onclick="arrSetFiltro('porvencer')">Por vencer</button>
@@ -1581,7 +1585,7 @@
 
     <!-- LAYOUT MÓVIL -->
     <header class="header header--arr" id="arr-mobile-header">
-      <button class="header-btn" onclick="volverAInicio()" style="font-size:20px">‹</button>
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
       <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
       <div class="header-center">
         <div class="header-title">Arriendos</div>
@@ -1599,7 +1603,7 @@
     <div style="padding:0 14px" id="arr-mobile-search">
       <div class="searchbox">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size:14px">
+        <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px">
       </div>
       <div class="chips-wrap" style="margin:10px 0" id="arr-mobile-chips"><div class="chips">
         <button class="chip active" id="arr-filtro-todos"     onclick="arrSetFiltro('todos')">Todos</button>
@@ -1787,7 +1791,7 @@
       <div class="form-group">
         <label>Cantidad</label>
         <input type="number" id="and-edit-cantidad" min="0">
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px">Si esta pieza tiene stock repartido en más de una obra, este número ajusta específicamente lo que hay en COLIMA — el total de arriba en la lista sigue siendo la suma de todas las ubicaciones. Para ver/editar el resto, usa <a href="javascript:void(0)" onclick="andVerUbicaciones(parseInt(document.getElementById('and-edit-row').value))" style="color:var(--accent)">Ver ubicaciones</a>.</div>
+        <div style="font-size: 13px;color:var(--ink-soft);margin-top:4px">Si esta pieza tiene stock repartido en más de una obra, este número ajusta específicamente lo que hay en COLIMA — el total de arriba en la lista sigue siendo la suma de todas las ubicaciones. Para ver/editar el resto, usa <a href="javascript:void(0)" onclick="andVerUbicaciones(parseInt(document.getElementById('and-edit-row').value))" style="color:var(--accent)">Ver ubicaciones</a>.</div>
       </div>
       <div class="form-group">
         <label>Observaciones</label>
@@ -2008,11 +2012,11 @@
       <div class="form-group">
         <div id="inv-edit-foto-actual" style="display:none;margin-bottom:8px">
           <img id="inv-edit-foto-actual-img" src="" alt="Foto actual" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
-          <div id="inv-edit-foto-actual-info" style="font-size:12px;color:#888;margin-top:4px"></div>
+          <div id="inv-edit-foto-actual-info" style="font-size: 13.5px;color:#888;margin-top:4px"></div>
         </div>
         <div id="inv-edit-foto-preview" style="display:none;margin-bottom:8px">
           <img id="inv-edit-foto-preview-img" src="" alt="Nueva foto" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
-          <div style="font-size:12px;color:#888;margin-top:4px">Nueva foto · se subirá al guardar</div>
+          <div style="font-size: 13.5px;color:#888;margin-top:4px">Nueva foto · se subirá al guardar</div>
         </div>
         <div class="foto-add-row">
           <label class="foto-add-btn">
@@ -2024,7 +2028,7 @@
             <input type="file" accept="image/*" capture="environment" onchange="onInvFotoSelected(this)" style="display:none">
           </label>
         </div>
-        <button id="inv-edit-foto-remove" onclick="quitarInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto actual</button>
+        <button id="inv-edit-foto-remove" onclick="quitarInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size: 14.5px;cursor:pointer;width:100%">✕ Quitar foto actual</button>
       </div>
     </div>
   </div>
@@ -2042,7 +2046,7 @@
       <input type="hidden" id="mov-row-index">
       <div class="form-group">
         <label>Equipo</label>
-        <div id="mov-nombre-equipo" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
+        <div id="mov-nombre-equipo" style="font-size: 15.5px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Origen</label>
@@ -2134,7 +2138,7 @@
     <div class="panel-body">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:12px">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="agregarmulti-search" placeholder="Buscar equipo, código, ubicación..." oninput="agregarItemsMultiRenderLista()" style="flex:1;border:none;outline:none;font-size:14px">
+        <input type="text" id="agregarmulti-search" placeholder="Buscar equipo, código, ubicación..." oninput="agregarItemsMultiRenderLista()" style="flex:1;border:none;outline:none;font-size: 15.5px">
       </div>
       <div id="agregarmulti-lista"></div>
     </div>
@@ -2151,7 +2155,7 @@
       <input type="hidden" id="movmi-idx">
       <div class="form-group">
         <label>Equipo</label>
-        <div id="movmi-nombre" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
+        <div id="movmi-nombre" style="font-size: 15.5px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Destino (deja vacío para usar el de todos)</label>
@@ -2182,8 +2186,8 @@
       <input type="hidden" id="recv-lote-ids">
       <!-- Resumen del movimiento (solo lectura) -->
       <div id="recv-resumen" style="background:var(--surface-soft,#f1f5f9);border-radius:12px;padding:12px 14px;margin-bottom:16px">
-        <div id="recv-resumen-equipo" style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px"></div>
-        <div id="recv-resumen-meta" style="font-size:12px;color:var(--ink-soft)"></div>
+        <div id="recv-resumen-equipo" style="font-size: 15.5px;font-weight:700;color:var(--ink);margin-bottom:4px"></div>
+        <div id="recv-resumen-meta" style="font-size: 13.5px;color:var(--ink-soft)"></div>
       </div>
       <div class="form-group">
         <label>Fecha de recepción <span style="color:#dc2626">*</span></label>
@@ -2203,12 +2207,12 @@
         <div id="recv-foto-preview" style="display:none;margin-bottom:8px;background:#1e293b;border-radius:10px;overflow:hidden;max-height:180px">
           <img id="recv-foto-preview-img" src="" alt="Previsualización" style="width:100%;height:180px;object-fit:cover;object-position:center top">
         </div>
-        <label style="display:flex;align-items:center;gap:8px;background:var(--surface-soft,#f1f5f9);border:1.5px dashed var(--line,#e2e8f0);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:13px;color:var(--ink-soft)">
+        <label style="display:flex;align-items:center;gap:8px;background:var(--surface-soft,#f1f5f9);border:1.5px dashed var(--line,#e2e8f0);border-radius:10px;padding:12px 14px;cursor:pointer;font-size: 14.5px;color:var(--ink-soft)">
           <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;flex-shrink:0"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
           <span id="recv-foto-label">Seleccionar foto…</span>
           <input type="file" accept="image/*" style="display:none" onchange="onRecvFotoSelected(this)">
         </label>
-        <div id="recv-foto-status" style="font-size:11px;color:#94a3b8;margin-top:4px;display:none"></div>
+        <div id="recv-foto-status" style="font-size: 12.5px;color:#94a3b8;margin-top:4px;display:none"></div>
       </div>
     </div>
   </div>
@@ -2225,7 +2229,7 @@
       <input type="hidden" id="gen-evento-codigo">
       <div class="form-group">
         <label>Generador</label>
-        <div id="gen-evento-nombre" style="font-size:14px;font-weight:600;color:var(--ink);padding:8px 0"></div>
+        <div id="gen-evento-nombre" style="font-size: 15.5px;font-weight:600;color:var(--ink);padding:8px 0"></div>
       </div>
       <div class="form-group">
         <label>Tipo de evento</label>
@@ -2387,7 +2391,7 @@
             <input type="file" accept="image/*" capture="environment" onchange="onNuevoInvFotoSelected(this)" style="display:none">
           </label>
         </div>
-        <button id="nuevo-foto-remove" onclick="quitarNuevoInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">✕ Quitar foto</button>
+        <button id="nuevo-foto-remove" onclick="quitarNuevoInvFoto()" style="display:none;margin-top:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:8px 14px;font-size: 14.5px;cursor:pointer;width:100%">✕ Quitar foto</button>
       </div>
 
       <div class="form-sec">Descripción</div>
@@ -2670,9 +2674,9 @@ function dtRenderEquipos() {
       <td class="dt-icon"><div class="dt-icon-badge">${iconoEquipo(e.equipo)}</div></td>
       <td><div class="dt-name">${e.marca} ${e.modelo}</div><div class="dt-sub">${e.equipo} · ${e.anio||'—'}</div></td>
       <td><span class="dt-plate">${e.patente}</span></td>
-      <td><span class="badge ${cls}" style="font-size:10px">${e.estadoRaw?.split(' ')[0] || '—'}</span></td>
-      <td style="font-size:12px;color:#555">${e.ubicacion||'—'}</td>
-      <td style="font-size:12px;color:#555">${formatNum(e.horometro)||'—'}</td>
+      <td><span class="badge ${cls}" style="font-size: 11.5px">${e.estadoRaw?.split(' ')[0] || '—'}</span></td>
+      <td style="font-size: 13.5px;color:#555">${e.ubicacion||'—'}</td>
+      <td style="font-size: 13.5px;color:#555">${formatNum(e.horometro)||'—'}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" style="text-align:center;color:#bbb;padding:32px">Sin equipos</td></tr>`;
 }

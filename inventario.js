@@ -424,7 +424,7 @@ function renderInvLista() {
       ? docBadge(diasRestantes(item.proxCal)) : '';
     return `<div class="card ${invEstadoBorder(item.estado)}" onclick="${onclickAttr}">
       ${_invModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
-      <div class="card-icon" style="font-size:22px">${icon}</div>
+      <div class="card-icon" style="font-size: 23px">${icon}</div>
       <div class="card-body">
         <div class="card-title">${titulo}</div>
         <div class="card-sub">${sub}</div>
@@ -432,7 +432,7 @@ function renderInvLista() {
       <div class="card-right">
         <span class="badge ${cls}">${item.estado||'Sin estado'}</span>
         ${calBadge}
-        <span style="font-size:11px;color:#aaa">${item.ubicacion||'—'}</span>
+        <span style="font-size: 12.5px;color:#aaa">${item.ubicacion||'—'}</span>
         ${_invModoSeleccion ? '' : ''}
       </div>
     </div>`;
@@ -548,7 +548,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
            onclick="invAbrirFotoModal('${imgSrc.replace(/'/g,"\\'")}')">
         <div id="inv-foto-thumb-${rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative">
           <div style="min-height:60px;display:flex;align-items:center;justify-content:center">
-            <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
+            <span style="color:#64748b;font-size: 14.5px;padding:12px">⏳ Cargando foto...</span>
           </div>
         </div>
       </div>
@@ -559,7 +559,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
     ${modulo === 'topografico' ? '' : _renderHistorialMovimientos(item.codigo || item.numIdent || String(item.num || item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
-    <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size:14px;font-weight:500;text-decoration:none">
+    <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size: 15.5px;font-weight:500;text-decoration:none">
       <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver fotos en Drive
     </a>
   `;
@@ -592,7 +592,7 @@ async function invCargarMiniatura(fileName, thumbId) {
       style="width:100%;height:220px;object-fit:cover;object-position:center top;display:block;pointer-events:none;-webkit-user-drag:none"
       draggable="false"
       onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}'}">
-      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size: 12.5px;color:#fff;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
     el._driveImgUrl = imgUrl;
     el._driveFileId = fileId;
     return;
@@ -602,7 +602,7 @@ async function invCargarMiniatura(fileName, thumbId) {
     const q = `title = '${_qEsc(fileName)}' and trashed = false`;
     const data = await driveSearch('inventario', q, { pageSize: 1 });
     if (!data.files || data.files.length === 0) {
-      el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
+      el.innerHTML = `<span style="color:#64748b;font-size: 13.5px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
       return;
     }
         const file = data.files[0];
@@ -615,12 +615,12 @@ async function invCargarMiniatura(fileName, thumbId) {
     el.innerHTML = `<img src="${imgUrl}" alt="Foto referencia"
       style="width:100%;height:220px;object-fit:cover;object-position:center top;display:block;cursor:pointer"
       onclick="invAbrirFotoModal('${fileName}')"
-      onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';return};this.parentElement.innerHTML='<span style=color:#64748b;font-size:12px;padding:12px>Sin imagen</span>'">
-      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size:11px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
+      onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';return};this.parentElement.innerHTML='<span style=color:#64748b;font-size: 13.5px;padding:12px>Sin imagen</span>'">
+      <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);border-radius:6px;padding:3px 7px;font-size: 12.5px;color:#fff"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:12px;height:12px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Ver</div>`;
     el._driveFileId = file.id;
   } catch(e) {
     console.warn('[FOTO THUMB]', e.message);
-    el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
+    el.innerHTML = `<span style="color:#64748b;font-size: 13.5px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
   }
 }
 
@@ -632,7 +632,7 @@ function invAbrirFotoModalUrl(imgUrl) {
     modal.id = 'foto-modal-overlay';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
     modal.innerHTML = `
-      <button onclick="invCerrarFotoModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;border-radius:50%;width:40px;height:40px;font-size:22px;color:#fff;cursor:pointer">✕</button>
+      <button onclick="invCerrarFotoModal()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;border-radius:50%;width:40px;height:40px;font-size: 23px;color:#fff;cursor:pointer">✕</button>
       <img id="foto-modal-img" src="" alt="Foto" style="max-width:100%;max-height:88vh;object-fit:contain;border-radius:12px">
     `;
     modal.addEventListener('click', e => { if (e.target === modal) invCerrarFotoModal(); });
@@ -683,16 +683,16 @@ async function invAbrirFotoModal(fileName) {
       <button id="foto-modal-close" onclick="invCerrarFotoModal()" style="
         position:absolute;top:16px;right:16px;
         background:rgba(255,255,255,.15);border:none;border-radius:50%;
-        width:40px;height:40px;font-size:22px;color:#fff;cursor:pointer;
+        width:40px;height:40px;font-size: 23px;color:#fff;cursor:pointer;
         display:flex;align-items:center;justify-content:center;line-height:1
       ">✕</button>
       <div id="foto-modal-spinner" style="display:flex;flex-direction:column;align-items:center;gap:12px">
         <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;animation:loginSpin 0.7s linear infinite"></div>
-        <span id="foto-modal-spinner-txt" style="color:#94a3b8;font-size:13px">Cargando imagen...</span>
+        <span id="foto-modal-spinner-txt" style="color:#94a3b8;font-size: 14.5px">Cargando imagen...</span>
       </div>
       <img id="foto-modal-img" src="" alt="Foto"
         style="max-width:100%;max-height:88vh;object-fit:contain;border-radius:12px;display:none">
-      <div id="foto-modal-name" style="color:#94a3b8;font-size:11px;margin-top:10px;text-align:center;word-break:break-all"></div>
+      <div id="foto-modal-name" style="color:#94a3b8;font-size: 12.5px;margin-top:10px;text-align:center;word-break:break-all"></div>
     `;
     modal.addEventListener('click', function(e) {
       if (e.target === modal) invCerrarFotoModal();
@@ -1321,7 +1321,7 @@ function renderContainers() {
       : `contAbrirDetalle(${c.rowIndex})`;
     return `<div class="card ${borderCls}" onclick="${onclickAttr}">
       ${_contModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
-      <div class="card-icon" style="font-size:22px">${icon}</div>
+      <div class="card-icon" style="font-size: 23px">${icon}</div>
       <div class="card-body">
         <div class="card-title">N° ${c.num} · ${c.tipo}</div>
         <div class="card-sub">${c.medidas}${c.equipamiento&&c.equipamiento!=='-'?' · '+c.equipamiento:''}</div>
@@ -1332,7 +1332,7 @@ function renderContainers() {
       </div>
       <div class="card-right">
         <span class="badge ${cls}">${c.estado||'Sin estado'}</span>
-        <span style="font-size:11px;color:#aaa">${c.ubicacion||'—'}</span>
+        <span style="font-size: 12.5px;color:#aaa">${c.ubicacion||'—'}</span>
       </div>
     </div>`;
   }).join('') || emptyState('Sin resultados','Prueba con otro filtro o búsqueda');
@@ -1385,7 +1385,7 @@ function contAbrirDetalle(rowIndex) {
       <div class="ficha-sec-title">Foto de referencia</div>
       <div style="padding:8px 0" onclick="invAbrirFotoModal('${c.foto.replace(/'/g,"\\'")}')">
         <div id="cont-foto-thumb-${c.rowIndex}" style="background:#1e293b;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;min-height:60px;display:flex;align-items:center;justify-content:center">
-          <span style="color:#64748b;font-size:13px;padding:12px">⏳ Cargando foto...</span>
+          <span style="color:#64748b;font-size: 14.5px;padding:12px">⏳ Cargando foto...</span>
         </div>
       </div>
     </div>`:''}
@@ -1716,7 +1716,7 @@ function irAModulo(modulo) {
       const backBtn = document.createElement('button');
       backBtn.id = 'flota-back-btn';
       backBtn.className = 'header-btn';
-      backBtn.style.cssText = 'font-size:20px;color:#fff;order:-1';
+      backBtn.style.cssText = 'font-size: 21px;color:#fff;order:-1';
       backBtn.onclick = () => volverAInicio();
       backBtn.textContent = '‹';
       hdr.insertBefore(backBtn, hdr.firstChild);
@@ -2522,8 +2522,8 @@ function _renderHistorialMovimientos(codigoEquipo, tipoEquipo) {
       ${hist.map(m => {
         const recibido = m.estado === 'recibido';
         const badge = recibido
-          ? `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700">Recibido</span>`
-          : `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700">En tránsito</span>`;
+          ? `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:1px 7px;font-size: 11.5px;font-weight:700">Recibido</span>`
+          : `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:1px 7px;font-size: 11.5px;font-weight:700">En tránsito</span>`;
         return `
         <div class="evento-card-mini">
           <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
@@ -2966,7 +2966,7 @@ function agregarItemsMultiRenderLista() {
         <div class="card-sub">${item.tipoEquipo} · ${item.codigoEquipo}</div>
       </div>
       <div class="card-right">
-        <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
+        <span style="font-size: 12.5px;color:#aaa">${item.ubicacionActual || '—'}</span>
       </div>
     </div>`;
   }).join('') || emptyState('Sin resultados', yaElegidos.size > 0 ? 'Ya agregaste todo lo que coincide con la búsqueda' : 'Prueba con otro filtro o búsqueda');
@@ -3322,7 +3322,7 @@ function movhRenderLista() {
         <div class="card-sub">${item.tipoEquipo} · ${item.codigoEquipo}</div>
       </div>
       <div class="card-right">
-        <span style="font-size:11px;color:#aaa">${item.ubicacionActual || '—'}</span>
+        <span style="font-size: 12.5px;color:#aaa">${item.ubicacionActual || '—'}</span>
         <button type="button" class="btn-detalle-mini" title="Ver detalles y fotos" onclick="event.stopPropagation();movhVerDetalle('${item.modulo}',${item.rowIndex})">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
         </button>
@@ -3456,7 +3456,7 @@ function movhRenderPendientes() {
         <div class="mant-body" style="flex:1">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <div class="mant-title">${titulo}</div>
-            <span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>
+            <span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size: 11.5px;font-weight:700;white-space:nowrap">En tránsito</span>
           </div>
           ${esLote ? `<div class="evento-desc" style="color:var(--ink-soft)">${g.items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</div>` : ''}
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
@@ -3540,7 +3540,7 @@ function movAbrirRecepcionLote(batchKey) {
 
   const m0 = items[0];
   document.getElementById('recv-resumen-equipo').innerHTML =
-    `${items.length} ítems<br><span style="font-weight:400;font-size:12px">${items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</span>`;
+    `${items.length} ítems<br><span style="font-weight:400;font-size: 13.5px">${items.map(x => x.nombreEquipo || x.tipoEquipo).join(' · ')}</span>`;
   const metaParts = [
     m0.fechaSalida,
     m0.origen && m0.destino ? `${m0.origen} → ${m0.destino}` : (m0.destino || ''),
@@ -3681,11 +3681,11 @@ function movhRenderHistorial() {
       const recibido = todosRecibidos;
       let badge;
       if (todosRecibidos) {
-        badge = `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Recibido</span>`;
+        badge = `<span style="background:#dcfce7;color:#15803d;border-radius:99px;padding:2px 8px;font-size: 11.5px;font-weight:700;white-space:nowrap">Recibido</span>`;
       } else if (esLote && algunoRecibido) {
-        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">Parcial: ${g.items.filter(x=>x.estado==='recibido').length}/${g.items.length} recibidos</span>`;
+        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size: 11.5px;font-weight:700;white-space:nowrap">Parcial: ${g.items.filter(x=>x.estado==='recibido').length}/${g.items.length} recibidos</span>`;
       } else {
-        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">En tránsito</span>`;
+        badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size: 11.5px;font-weight:700;white-space:nowrap">En tránsito</span>`;
       }
       const titulo = esLote ? `${g.items.length} ítems` : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
       return `
@@ -4477,24 +4477,47 @@ async function generarDocResumenGeneral(opciones) {
   const filtroModulos = Array.isArray(opciones.modulos) && opciones.modulos.length ? opciones.modulos : null;
 
   const btn = document.getElementById('rp-generar-btn') || document.getElementById('home-resumen-btn-doc');
+  const porUbicacion = _resumenPersonalizadoCache || await _recolectarDatosResumen(false);
+
+  const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const modulosParaTitulo = filtroModulos || MODULOS_RESUMEN;
+  await _construirYAbrirDocResumen(porUbicacion, {
+    btn,
+    filtroUbicacion,
+    filtroModulos,
+    tituloDoc: filtroUbicacion ? `RESUMEN — ${filtroUbicacion.toUpperCase()}` : 'RESUMEN GENERAL POR UBICACIÓN',
+    subtituloHeader: modulosParaTitulo.map(m => m.toUpperCase()).join(' · '),
+    nombreArchivo: filtroUbicacion ? `Resumen — ${filtroUbicacion} — ${fecha}` : `Resumen General — ${fecha}`,
+    mensajeSinDatos: filtroUbicacion
+      ? `No se encontraron datos para "${filtroUbicacion}" con los tipos elegidos`
+      : 'No se encontró ningún dato para los filtros elegidos',
+    alTerminar: () => { if (document.getElementById('panel-resumen-personalizado')) closePanel('panel-resumen-personalizado'); },
+  });
+}
+
+// ── Núcleo compartido: arma el HTML del resumen a partir de una estructura
+// { ubicacion: { NombreModulo: [items] } } ya agrupada, y crea el Google
+// Doc. Lo usan tanto "Generar resumen" (todos los datos, con filtros de
+// ubicación/módulo) como el resumen acotado a lo que arroja el buscador
+// global (ver generarResumenDeBusquedaGlobal) — mismo formato de documento
+// en los dos casos, solo cambia qué datos entran.
+async function _construirYAbrirDocResumen(porUbicacion, cfg) {
+  const btn = cfg.btn;
   const textoOriginal = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Generando documento...'; }
 
   try {
     const escapar = (s) => (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-    const porUbicacion = _resumenPersonalizadoCache || await _recolectarDatosResumen(false);
+    const filtroModulos = cfg.filtroModulos || null;
 
     let ubicaciones = Object.keys(porUbicacion).sort((a, b) => a.localeCompare(b, 'es'));
-    if (filtroUbicacion) ubicaciones = ubicaciones.filter(u => u === filtroUbicacion);
+    if (cfg.filtroUbicacion) ubicaciones = ubicaciones.filter(u => u === cfg.filtroUbicacion);
     // Descarta ubicaciones que, tras aplicar el filtro de módulos, se quedan sin nada que mostrar.
     ubicaciones = ubicaciones.filter(u =>
       Object.keys(porUbicacion[u]).some(mod => !filtroModulos || filtroModulos.includes(mod)));
 
     if (!ubicaciones.length) {
-      toast(filtroUbicacion
-        ? `No se encontraron datos para "${filtroUbicacion}" con los tipos elegidos`
-        : 'No se encontró ningún dato para los filtros elegidos', 'error');
+      toast(cfg.mensajeSinDatos || 'No se encontró ningún dato para armar el resumen', 'error');
       return;
     }
 
@@ -4537,36 +4560,31 @@ async function generarDocResumenGeneral(opciones) {
     const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const hora = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
-    const modulosParaTitulo = filtroModulos || MODULOS_RESUMEN;
-    const subtituloHeader = modulosParaTitulo.map(m => m.toUpperCase()).join(' · ');
-    const tituloDoc = filtroUbicacion ? `RESUMEN — ${filtroUbicacion.toUpperCase()}` : 'RESUMEN GENERAL POR UBICACIÓN';
-    const nombreArchivo = filtroUbicacion ? `Resumen — ${filtroUbicacion} — ${fecha}` : `Resumen General — ${fecha}`;
-
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
       @page { margin: 0.4in 0.6in; }
-      body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 12.5px; line-height: 1.4; }
+      body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 14px; line-height: 1.4; }
       p, div { margin: 0; padding: 0; }
       td p, th p { margin: 0; }
       table.header-tabla { width: 100%; border-collapse: collapse; }
       table.header-tabla td { background: #0f3d66; color: #fff; text-align: center; padding: 16px 20px; border: none; }
-      .empresa { font-size: 11px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
-      .titulo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
-      .subtitulo { font-size: 11px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
-      .fecha-gen { text-align: center; color: #8697a8; font-size: 10.5px; font-style: italic; margin: 10px 0 4px; }
+      .empresa { font-size: 12.5px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
+      .titulo { font-size: 19px; font-weight: bold; letter-spacing: 1px; }
+      .subtitulo { font-size: 12.5px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
+      .fecha-gen { text-align: center; color: #8697a8; font-size: 12px; font-style: italic; margin: 10px 0 4px; }
       .seccion { margin-top: 16px; margin-bottom: 2px; border-bottom: 2px solid #0f3d66; padding-bottom: 0px; }
-      .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }
-      .seccion .total-grupo { color: #6f8aa3; font-weight: bold; font-size: 11.5px; }
-      .subtitulo-modulo { color: #6f8aa3; font-weight: bold; font-size: 10.5px; letter-spacing: 0.8px; margin: 6px 0 1px; }
+      .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 16.5px; letter-spacing: 0.3px; }
+      .seccion .total-grupo { color: #6f8aa3; font-weight: bold; font-size: 13px; }
+      .subtitulo-modulo { color: #6f8aa3; font-weight: bold; font-size: 12px; letter-spacing: 0.8px; margin: 6px 0 1px; }
       table.grilla { width: 100%; border-collapse: collapse; }
-      table.grilla td { border: 1px solid #e3ebf3; padding: 4px 11px; font-size: 12px; }
+      table.grilla td { border: 1px solid #e3ebf3; padding: 4px 11px; font-size: 13.5px; }
       table.grilla tr:nth-child(even) td { background: #f7fafd; }
-      .col-cantidad { text-align: right; font-weight: 800; color: #0f3d66; font-size: 14px; width: 90px; }
+      .col-cantidad { text-align: right; font-weight: 800; color: #0f3d66; font-size: 15.5px; width: 90px; }
       table.grilla th.col-cantidad { color: #fff; text-align: right; }
     </style></head><body>
       <table class="header-tabla"><tr><td>
         <div class="empresa">CONSTRUCTORA LST</div>
-        <div class="titulo">${escapar(tituloDoc)}</div>
-        <div class="subtitulo">${escapar(subtituloHeader)}</div>
+        <div class="titulo">${escapar(cfg.tituloDoc)}</div>
+        <div class="subtitulo">${escapar(cfg.subtituloHeader)}</div>
       </td></tr></table>
       <div class="fecha-gen">Generado el ${fecha} a las ${hora} — ${totalItems} ítem(s) en ${ubicaciones.length} ubicación(es)</div>
       ${secciones}
@@ -4578,11 +4596,11 @@ async function generarDocResumenGeneral(opciones) {
     } catch (fe) {
       console.warn('No se pudo crear/ubicar la carpeta "Resúmenes Generales", se usa la carpeta raíz:', fe.message);
     }
-    const archivo = await _crearDocDesdeHtml(nombreArchivo, html, carpetaResumenes);
+    const archivo = await _crearDocDesdeHtml(cfg.nombreArchivo, html, carpetaResumenes);
     const url = `https://docs.google.com/document/d/${archivo.id}/edit`;
     toast('✓ Documento generado');
     window.open(url, '_blank');
-    if (document.getElementById('panel-resumen-personalizado')) closePanel('panel-resumen-personalizado');
+    if (cfg.alTerminar) cfg.alTerminar();
   } catch (e) {
     toast('No se pudo generar el documento: ' + e.message, 'error');
   } finally {
@@ -4660,7 +4678,7 @@ async function andCargarPiezasOrigenMover() {
 
     cont.innerHTML = _andMoverVariosPiezas.map(p => `
       <div class="and-ubic-row">
-        <span class="and-ubic-nombre">${p.tipo}<div style="font-size:11px;color:var(--ink-soft);font-weight:400">Disponible: ${p.disponible}</div></span>
+        <span class="and-ubic-nombre">${p.tipo}<div style="font-size: 12.5px;color:var(--ink-soft);font-weight:400">Disponible: ${p.disponible}</div></span>
         <input type="number" min="0" max="${p.disponible}" class="andmv-cantidad-input"
                data-row="${p.rowIndex}" data-tipo="${p.tipo.replace(/"/g, '&quot;')}" data-disponible="${p.disponible}"
                placeholder="0" style="width:64px;text-align:center;flex-shrink:0">

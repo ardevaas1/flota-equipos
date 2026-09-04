@@ -2031,41 +2031,41 @@ function _armarHtmlFichaTecnica(d) {
     : `<tr><td class="etiqueta">&nbsp;</td><td>&nbsp;</td></tr>`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-  body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 12.5px; line-height: 1.4; }
+  body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 14px; line-height: 1.4; }
   p, div { margin: 0; padding: 0; }
   td p, th p { margin: 0; }
   table.header-tabla { width: 100%; border-collapse: collapse; }
   table.header-tabla td { background: #0f3d66; color: #ffffff; text-align: center; padding: 16px 20px; border: none; }
-  .header-tabla .empresa { font-size: 11px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
-  .header-tabla .titulo { font-size: 18px; font-weight: bold; letter-spacing: 1px; }
-  .header-tabla .subtitulo { font-size: 11px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
+  .header-tabla .empresa { font-size: 12.5px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
+  .header-tabla .titulo { font-size: 19px; font-weight: bold; letter-spacing: 1px; }
+  .header-tabla .subtitulo { font-size: 12.5px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
   .datos-tabla { width: 100%; border-collapse: collapse; border: 1px solid #d7e2ec; }
-  .datos-tabla td { border: 1px solid #e3ebf3; padding: 8px 12px; font-size: 12px; }
+  .datos-tabla td { border: 1px solid #e3ebf3; padding: 8px 12px; font-size: 13.5px; }
   .datos-tabla .etiqueta { background: #eef5fc; font-weight: bold; color: #0f3d66; width: 38%; letter-spacing: 0.3px; }
   .datos-tabla .valor { background: #ffffff; color: #1f2d3a; font-weight: bold; }
   .foto-caja { border: 1px solid #d7e2ec; background: #f7fafd; border-radius: 6px; padding: 12px; text-align: center; }
-  .foto-caja .rotulo { font-size: 10px; color: #6f8aa3; letter-spacing: 1.2px; font-weight: bold; margin-bottom: 6px; }
-  .foto-marcador { color: #b8641a; font-style: italic; font-size: 11.5px; }
+  .foto-caja .rotulo { font-size: 11.5px; color: #6f8aa3; letter-spacing: 1.2px; font-weight: bold; margin-bottom: 6px; }
+  .foto-marcador { color: #b8641a; font-style: italic; font-size: 13px; }
   .seccion { margin-top: 22px; margin-bottom: 9px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; }
-  .seccion .num { color: #6f8aa3; font-weight: bold; font-size: 12px; margin-right: 6px; }
-  .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 13px; letter-spacing: 0.5px; }
+  .seccion .num { color: #6f8aa3; font-weight: bold; font-size: 13.5px; margin-right: 6px; }
+  .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 14.5px; letter-spacing: 0.5px; }
   table.grilla { width: 100%; border-collapse: collapse; }
-  table.grilla th { background: #0f3d66; color: #fff; font-size: 10.5px; letter-spacing: 0.4px; text-align: left; padding: 8px 11px; }
-  table.grilla td { border: 1px solid #e3ebf3; padding: 8px 11px; font-size: 12px; }
+  table.grilla th { background: #0f3d66; color: #fff; font-size: 12px; letter-spacing: 0.4px; text-align: left; padding: 8px 11px; }
+  table.grilla td { border: 1px solid #e3ebf3; padding: 8px 11px; font-size: 13.5px; }
   table.grilla tr:nth-child(even) td { background: #f7fafd; }
-  .marcador { color: #b8641a; font-style: italic; font-size: 11.5px; }
+  .marcador { color: #b8641a; font-style: italic; font-size: 13px; }
   .fallas-grid { width: 100%; border-collapse: collapse; }
   .fallas-grid td { border: none; width: 50%; vertical-align: top; padding: 0; }
-  .falla-caja { border-radius: 6px; padding: 11px 13px; font-size: 12px; }
+  .falla-caja { border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
   .falla-caja.operativa { background: #fff2e2; border: 1px solid #f3d3a8; margin-right: 8px; }
   .falla-caja.estetica  { background: #eef5fc; border: 1px solid #cfe0f0; margin-left: 8px; }
-  .falla-caja .rotulo { font-weight: bold; font-size: 10px; letter-spacing: 1px; margin-bottom: 5px; display: block; }
+  .falla-caja .rotulo { font-weight: bold; font-size: 11.5px; letter-spacing: 1px; margin-bottom: 5px; display: block; }
   .falla-caja.operativa .rotulo { color: #a05a10; }
   .falla-caja.estetica .rotulo { color: #1a4d8f; }
-  .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 12px; }
+  .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
   .link-caja a { color: #0f3d66; font-weight: bold; text-decoration: underline; }
-  .nota { font-size: 10.5px; color: #8697a8; margin-top: 5px; font-style: italic; }
-  .specs-caja { border: 1.5px dashed #9fb3d1; border-radius: 6px; padding: 14px; min-height: 60px; color: #6f8aa3; font-size: 11.5px; }
+  .nota { font-size: 12px; color: #8697a8; margin-top: 5px; font-style: italic; }
+  .specs-caja { border: 1.5px dashed #9fb3d1; border-radius: 6px; padding: 14px; min-height: 60px; color: #6f8aa3; font-size: 13px; }
   </style></head><body>
   <table class="header-tabla"><tr><td>
     <div class="empresa">CONSTRUCTORA LST</div>
@@ -2739,7 +2739,7 @@ function renderDashboard() {
       </div>
       <div class="card-right">
         <span class="badge ${cls}">${txt}</span>
-        <span style="font-size:11px;color:#aaa">${lbl}</span>
+        <span style="font-size: 12.5px;color:#aaa">${lbl}</span>
       </div>
     </div>`;
   }).join('') || emptyState('Todo al día','No hay alertas urgentes pendientes',`<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>`);
@@ -2805,7 +2805,7 @@ function renderEquipos() {
       </div>
       <div class="card-right">
         <span class="badge ${ESTADO_COLOR[e.estado]||'gray'}">${ESTADO_LABEL[e.estado]||e.estado}</span>
-        <span style="font-size:11px;color:#aaa">${e.ubicacion}</span>
+        <span style="font-size: 12.5px;color:#aaa">${e.ubicacion}</span>
       </div>
     </div>`).join('') || emptyState('Sin resultados', 'Prueba con otro filtro o búsqueda',
       `<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
@@ -2887,20 +2887,20 @@ function openFicha(patente, soloLectura) {
       ${field('Última mantención', formatNum(e.ultMant))}
       ${e.obs ? `<div class="ficha-obs"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M12 3 3 19h18Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor"/></svg> ${e.obs}</div>` : ''}
       <button class="action-btn" onclick="openEventoPanel('${e.patente}')">+ Registrar evento</button>
-      ${userRole === 'admin' ? `<button class="admin-only-btn" onclick="abrirAjusteGPS('${e.patente}')" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1.5px solid #0891b2;color:#0891b2;font-size:13px;font-weight:600;background:none">Ajustar valor real (GPS) — solo admin</button>` : ''}
+      ${userRole === 'admin' ? `<button class="admin-only-btn" onclick="abrirAjusteGPS('${e.patente}')" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1.5px solid #0891b2;color:#0891b2;font-size: 14.5px;font-weight:600;background:none">Ajustar valor real (GPS) — solo admin</button>` : ''}
     </div>
 
     ${_esRetroexcavadora(e.equipo) ? (() => {
       const est = _estadoMant1000h(e);
       const badge = est.diff < 0
-        ? `<span style="background:#fee2e2;color:#b91c1c;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700">ATRASADA hace ${formatNum(Math.abs(est.diff))}</span>`
-        : `<span style="background:${est.diff < 150 ? '#fef3c7' : '#dcfce7'};color:${est.diff < 150 ? '#b45309' : '#15803d'};border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700">Faltan ${formatNum(est.diff)}</span>`;
+        ? `<span style="background:#fee2e2;color:#b91c1c;border-radius:99px;padding:3px 10px;font-size: 12.5px;font-weight:700">ATRASADA hace ${formatNum(Math.abs(est.diff))}</span>`
+        : `<span style="background:${est.diff < 150 ? '#fef3c7' : '#dcfce7'};color:${est.diff < 150 ? '#b45309' : '#15803d'};border-radius:99px;padding:3px 10px;font-size: 12.5px;font-weight:700">Faltan ${formatNum(est.diff)}</span>`;
       return `
       <div class="ficha-section">
         <div class="ficha-sec-title">Mantención de 1000 horas</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
           ${badge}
-          ${est.nuncaHecha ? '<span style="font-size:11px;color:var(--ink-soft)">Todavía no se registró ninguna</span>' : ''}
+          ${est.nuncaHecha ? '<span style="font-size: 12.5px;color:var(--ink-soft)">Todavía no se registró ninguna</span>' : ''}
         </div>
         ${field('Última mantención de 1000h', est.ultimo ? formatNum(est.ultimo.horometro) + ' · ' + (est.ultimo.fechaEvento || '') : '—')}
         ${field('Próxima mantención de 1000h', formatNum(est.proxima))}
@@ -3191,7 +3191,7 @@ function abrirFotoRefModal(patente) {
     modal.id = 'foto-ref-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
     modal.innerHTML = `
-      <button onclick="document.getElementById('foto-ref-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
+      <button onclick="document.getElementById('foto-ref-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size: 23px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
       <img id="foto-ref-modal-img" src="" style="max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px">
     `;
     modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
@@ -3913,7 +3913,10 @@ function _sinTildes(s) {
 async function buscarGlobal(query) {
   const txt = _sinTildes((query || '').trim());
   const cont = document.getElementById('busqueda-global-resultados');
+  const btnLimpiar = document.getElementById('busqueda-global-clear');
   if (!cont) return;
+
+  if (btnLimpiar) btnLimpiar.classList.toggle('hidden', !(query || '').length);
 
   if (txt.length < 2) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
 
@@ -3937,6 +3940,7 @@ async function buscarGlobal(query) {
         icono: (typeof iconoEquipo === 'function' ? iconoEquipo(e.equipo) : ''),
         titulo: [e.marca, e.modelo].filter(Boolean).join(' ') || e.equipo,
         sub: e.patente || '',
+        ubicacion: e.ubicacion || '',
         ir: () => {
           // Antes esto solo cambiaba de pestaña DENTRO de Flota (showPage/
           // dtShowPage), pero nunca navegaba primero de la pantalla de
@@ -3977,6 +3981,7 @@ async function buscarGlobal(query) {
           icono: (typeof invIcono === 'function' ? invIcono(i.equipo) : ''),
           titulo: [i.marca, i.modelo].filter(Boolean).join(' ') || i.equipo,
           sub: i.codigo || i.numIdent || '',
+          ubicacion: i.ubicacion || '',
           ir: () => {
             irAModulo('inventario');
             setTimeout(() => { invSetModulo(mod); invAbrirDetalle(mod, i.rowIndex); }, 340);
@@ -3994,6 +3999,7 @@ async function buscarGlobal(query) {
         cat: 'Container',
         icono: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M9 7v12M15 7v12" stroke="white" stroke-width="1.4"/></svg>',
         titulo: c.tipo, sub: 'N° ' + c.num,
+        ubicacion: c.ubicacion || '',
         ir: () => { irAModulo('containers'); setTimeout(() => contAbrirDetalle(c.rowIndex), 340); },
       });
     });
@@ -4007,6 +4013,7 @@ async function buscarGlobal(query) {
         cat: 'Andamios',
         icono: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 21V3M20 21V3M4 8h16M4 16h16" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>',
         titulo: p.tipo, sub: (p.cantidad || 0) + ' piezas',
+        cantidad: p.cantidad || 0, // Andamios se cuenta en piezas totales, no hay ubicación por pieza acá
         ir: () => { irAModulo('andamios'); setTimeout(() => andAbrirEditar(p.rowIndex), 340); },
       });
     });
@@ -4020,6 +4027,7 @@ async function buscarGlobal(query) {
         cat: 'Arriendos',
         icono: '<svg viewBox="0 0 24 24" fill="white"><path d="M11 6H14L17.29 2.7A1 1 0 0 1 18.71 2.7L21.29 5.29A1 1 0 0 1 21.29 6.7L19 9H11V11A1 1 0 0 1 10 12A1 1 0 0 1 9 11V8A2 2 0 0 1 11 6M5 11V15L2.71 17.29A1 1 0 0 0 2.71 18.7L5.29 21.29A1 1 0 0 0 6.71 21.29L11 17H15A1 1 0 0 0 16 16V15H17A1 1 0 0 0 18 14V13H19A1 1 0 0 0 20 12V11H13V12A2 2 0 0 1 11 14H9A2 2 0 0 1 7 12V9Z"/></svg>',
         titulo: a.equipo, sub: a.proveedor || '',
+        ubicacion: a.obra || '',
         ir: () => { irAModulo('arriendos'); setTimeout(() => arrAbrirDetalle(a.rowIndex), 340); },
       });
     });
@@ -4031,7 +4039,13 @@ async function buscarGlobal(query) {
   }
 
   window._resultadosBusquedaGlobal = resultados;
-  cont.innerHTML = resultados.slice(0, 30).map((r, idx) => `
+  window._textoBusquedaGlobal = query;
+  const encabezadoResumen = `
+    <button type="button" class="busqueda-global-resumen-btn" onclick="generarResumenDeBusquedaGlobal()">
+      <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Generar resumen de estos ${resultados.length} resultado(s)
+    </button>`;
+  cont.innerHTML = encabezadoResumen + resultados.slice(0, 30).map((r, idx) => `
     <div class="busqueda-global-item" onclick="_irAResultadoGlobal(${idx})">
       <div class="busqueda-global-icon">${r.icono || ''}</div>
       <div class="busqueda-global-item-body">
@@ -4043,13 +4057,88 @@ async function buscarGlobal(query) {
     </div>`).join('');
 }
 
+// Limpia el buscador global (texto + resultados) de una sola vez — sin
+// tener que seleccionar y borrar a mano lo que se había escrito.
+function limpiarBusquedaGlobal() {
+  const input = document.getElementById('busqueda-global-input');
+  const cont = document.getElementById('busqueda-global-resultados');
+  const btnLimpiar = document.getElementById('busqueda-global-clear');
+  if (input) { input.value = ''; input.focus(); }
+  if (cont) { cont.classList.add('hidden'); cont.innerHTML = ''; }
+  if (btnLimpiar) btnLimpiar.classList.add('hidden');
+}
+
+// Al volver a tocar el campo (ej. después de haber mirado otra parte de la
+// pantalla de inicio), si ya había una búsqueda con resultados, la vuelve
+// a mostrar tal cual estaba — no hace falta borrar y volver a escribir lo
+// mismo para "recuperar" el filtro.
+function _reabrirBusquedaGlobalSiCorresponde() {
+  const input = document.getElementById('busqueda-global-input');
+  const cont = document.getElementById('busqueda-global-resultados');
+  if (!input || !cont || !input.value.trim()) return;
+  if (window._resultadosBusquedaGlobal && window._resultadosBusquedaGlobal.length && window._textoBusquedaGlobal === input.value) {
+    cont.classList.remove('hidden');
+  } else {
+    buscarGlobal(input.value);
+  }
+}
+
+// Genera el mismo tipo de documento de "Generar resumen" pero acotado a lo
+// que arrojó la búsqueda global — ej: buscar "demoledores" y generar de
+// una el conteo por ubicación de solo esos resultados, sin tener que
+// contarlos a mano ni pasar por el panel de filtros general.
+async function generarResumenDeBusquedaGlobal() {
+  const resultados = window._resultadosBusquedaGlobal || [];
+  if (!resultados.length) return;
+
+  // Reagrupa los resultados ya encontrados en la misma forma que usa
+  // _construirYAbrirDocResumen: { ubicacion: { categoría: [items] } }.
+  const porUbicacion = {};
+  resultados.forEach(r => {
+    const u = (r.ubicacion || '').toString().trim() || 'Sin ubicación';
+    if (!porUbicacion[u]) porUbicacion[u] = {};
+    if (!porUbicacion[u][r.cat]) porUbicacion[u][r.cat] = [];
+    if (r.cat === 'Andamios') {
+      porUbicacion[u][r.cat].push({ tipo: r.titulo, cantidad: r.cantidad || 0 });
+    } else {
+      porUbicacion[u][r.cat].push([r.titulo, r.sub].filter(Boolean).join(' — '));
+    }
+  });
+
+  const query = (window._textoBusquedaGlobal || '').trim();
+  const fecha = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const categorias = [...new Set(resultados.map(r => r.cat))];
+
+  await _construirYAbrirDocResumen(porUbicacion, {
+    btn: document.querySelector('.busqueda-global-resumen-btn'),
+    filtroUbicacion: '',
+    filtroModulos: null, // ya viene pre-filtrado por la búsqueda, no hace falta filtrar módulo de nuevo
+    tituloDoc: `RESUMEN DE BÚSQUEDA — "${query.toUpperCase()}"`,
+    subtituloHeader: categorias.map(c => c.toUpperCase()).join(' · '),
+    nombreArchivo: `Resumen — ${query} — ${fecha}`,
+    mensajeSinDatos: 'No se encontró ubicación para armar el resumen de esta búsqueda',
+  });
+}
+
 function _irAResultadoGlobal(idx) {
   const r = (window._resultadosBusquedaGlobal || [])[idx];
   if (!r) return;
   document.getElementById('busqueda-global-resultados').classList.add('hidden');
   document.getElementById('busqueda-global-input').value = '';
+  document.getElementById('busqueda-global-clear')?.classList.add('hidden');
   r.ir();
 }
+
+// Cierra (oculta) la lista de resultados si se toca cualquier otro lugar de
+// la pantalla — pero SIN borrar lo que la persona escribió, así al volver
+// a tocar el buscador (ver _reabrirBusquedaGlobalSiCorresponde) el filtro
+// sigue ahí tal cual quedó, en vez de tener que volver a escribirlo.
+document.addEventListener('click', (ev) => {
+  const wrap = document.querySelector('.busqueda-global-wrap');
+  const cont = document.getElementById('busqueda-global-resultados');
+  if (!wrap || !cont || cont.classList.contains('hidden')) return;
+  if (!wrap.contains(ev.target)) cont.classList.add('hidden');
+});
 
 // ── Interceptar refresh para no perder sesión ─────────────────
 // En móvil: bloquea el gesto pull-to-refresh del navegador.
