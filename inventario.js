@@ -451,6 +451,7 @@ function renderInvLista() {
   ['inv-stat-op','inv-dt-stat-op'].forEach(id   => { if (el(id)) animarContador(el(id), op); });
   ['inv-stat-rev','inv-dt-stat-rev'].forEach(id  => { if (el(id)) animarContador(el(id), rev); });
   ['inv-stat-mal','inv-dt-stat-mal'].forEach(id  => { if (el(id)) animarContador(el(id), mal); });
+  _actualizarContadorBuscador(['inv-search', 'inv-dt-search'], filtrados.length);
 }
 
 // ── Detalle ítem inventario ───────────────────────────────────
@@ -1350,6 +1351,7 @@ function renderContainers() {
   ['cont-stat-total','cont-dt-stat-total'].forEach(id     => { if (el(id)) animarContador(el(id), total); });
   ['cont-stat-bodega','cont-dt-stat-bodega'].forEach(id   => { if (el(id)) animarContador(el(id), bodegas); });
   ['cont-stat-oficina','cont-dt-stat-oficina'].forEach(id => { if (el(id)) animarContador(el(id), oficinas); });
+  _actualizarContadorBuscador(['cont-search', 'cont-dt-search'], filtrados.length);
 }
 
 function contAbrirDetalle(rowIndex) {
@@ -2973,6 +2975,7 @@ function agregarItemsMultiRenderLista() {
 
   const cont = document.getElementById('agregarmulti-lista');
   if (cont) cont.innerHTML = html;
+  _actualizarContadorBuscador('agregarmulti-search', items.length);
 }
 
 function agregarItemsMultiConfirmar() {
@@ -3336,6 +3339,7 @@ function movhRenderLista() {
   if (lista) lista.innerHTML = html;
   if (listaDt) listaDt.innerHTML = html;
   _movhActualizarBarra();
+  _actualizarContadorBuscador(['movh-search', 'movh-dt-search'], items.length);
 }
 
 // Abre la ficha completa (datos + fotos) de un equipo/ítem desde el módulo de Movimientos,
@@ -3921,6 +3925,7 @@ function andRenderLista() {
   if (totalDtEl) animarContador(totalDtEl, total);
   const totalLabelEls = document.querySelectorAll('.and-total-label');
   totalLabelEls.forEach(el => { el.textContent = modoBaja ? 'Total dadas de baja' : 'Total de piezas contadas'; });
+  _actualizarContadorBuscador(['and-search', 'and-dt-search'], filtrados.length);
 }
 
 // ── Historial de cambios de cantidad (por pieza) ─────────────────────────
@@ -4346,6 +4351,7 @@ function andRenderResumenUbicaciones() {
 
   if (!grupos.length) {
     cont.innerHTML = emptyState('Sin resultados', 'No hay stock que coincida con la búsqueda.');
+    _actualizarContadorBuscador('and-resumen-buscar', 0);
     return;
   }
 
@@ -4361,6 +4367,7 @@ function andRenderResumenUbicaciones() {
         <span class="and-resumen-badge">${it.cantidad}</span>
       </div>`).join('')}
   `).join('');
+  _actualizarContadorBuscador('and-resumen-buscar', grupos.reduce((s, g) => s + g.items.length, 0));
 }
 
 // Genera un Google Doc con el resumen completo (todas las ubicaciones,

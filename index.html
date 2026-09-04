@@ -370,7 +370,7 @@
         <div class="desktop-main-title">Equipos</div>
         <div class="desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="dt-search" placeholder="Buscar marca, modelo, patente..." oninput="_deb('flota', () => dtRenderEquipos())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="dt-search" placeholder="Buscar marca, modelo, patente..." oninput="_deb('flota', () => dtRenderEquipos())"><span id="dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
         <div class="desktop-chips">
           <button class="chip active" onclick="dtSetFilter('todos',this)">Todos</button>
@@ -534,7 +534,7 @@
         <div class="search-area">
           <div class="searchbox">
             <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-            <input type="text" id="search-input" placeholder="Buscar marca, modelo, patente..." oninput="_deb('flota-mob', () => renderEquipos())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('search-input')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+            <input type="text" id="search-input" placeholder="Buscar marca, modelo, patente..." oninput="_deb('flota-mob', () => renderEquipos())"><span id="search-input-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('search-input')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
           </div>
           <div class="chips-wrap"><div class="chips">
             <button class="chip active" onclick="setFilter('todos',this)">Todos</button>
@@ -892,6 +892,7 @@
           oninput="_deb('busq-global', () => buscarGlobal(document.getElementById('busqueda-global-input').value))"
           onfocus="_reabrirBusquedaGlobalSiCorresponde()"
           style="flex:1;border:none;outline:none;font-size: 15.5px">
+        <span id="busqueda-global-input-contador" class="searchbox-contador hidden"></span>
         <button type="button" id="busqueda-global-clear" class="searchbox-clear busqueda-global-clear hidden" onclick="limpiarBusquedaGlobal()" aria-label="Limpiar búsqueda">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
@@ -1044,7 +1045,7 @@
         <div class="inv-desktop-content-title" id="inv-dt-titulo">Generadores</div>
         <div class="inv-desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="inv-dt-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv', () => invSyncSearch())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('inv-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="inv-dt-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv', () => invSyncSearch())"><span id="inv-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('inv-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="inv-desktop-list">
@@ -1078,7 +1079,7 @@
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="inv-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv-mob', () => renderInvLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('inv-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="inv-search" placeholder="Buscar equipo, marca, ubicación..." oninput="_deb('inv-mob', () => renderInvLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="inv-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('inv-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
@@ -1131,7 +1132,7 @@
         <div class="inv-desktop-content-title">Containers</div>
         <div class="inv-desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="cont-dt-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont', () => contSyncSearch())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="cont-dt-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont', () => contSyncSearch())"><span id="cont-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="inv-desktop-list">
@@ -1157,7 +1158,7 @@
     <div style="padding:0 14px 8px;display:flex;gap:8px;align-items:center" id="cont-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="cont-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
@@ -1197,7 +1198,7 @@
         <div class="inv-desktop-content-title" id="movh-dt-titulo">Registrar movimiento</div>
         <div class="inv-desktop-search" id="movh-dt-search-wrap">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="movh-dt-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh-dt', () => movhSyncSearch())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('movh-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="movh-dt-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh-dt', () => movhSyncSearch())"><span id="movh-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('movh-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
         <div class="chips-wrap" style="margin-top:12px"><div class="chips" id="movh-dt-chips">
           <button class="chip active movh-chip" data-tipo="todos" onclick="movhSetFiltroTipo('todos')"><svg viewBox="0 0 24 24" fill="none" class="chip-ic"><rect x="4" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.3" stroke="currentColor" stroke-width="1.6"/></svg> Todos</button>
@@ -1256,7 +1257,7 @@
       <div style="padding:10px 14px 8px;flex-shrink:0">
         <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
           <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh', () => movhRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('movh-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="movh-search" placeholder="Buscar equipo, código, ubicación..." oninput="_deb('movh', () => movhRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="movh-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('movh-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="pages" style="padding:0 14px 80px">
@@ -1325,7 +1326,7 @@
         <div class="inv-desktop-content-title">Andamios</div>
         <div class="inv-desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="and-dt-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and-dt', () => andSyncSearch())"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('and-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="and-dt-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and-dt', () => andSyncSearch())"><span id="and-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('and-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="chips-wrap" style="padding:0 24px 10px">
@@ -1372,7 +1373,7 @@
     <div style="padding:0 14px 8px" id="and-mobile-search">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="and-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and', () => andRenderLista())" style="flex:1;min-width:0;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('and-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="and-search" placeholder="Buscar tipo de pieza..." oninput="_deb('and', () => andRenderLista())" style="flex:1;min-width:0;border:none;outline:none;font-size: 15.5px"><span id="and-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('and-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>
 
@@ -1425,7 +1426,7 @@
         <div class="inv-desktop-content-title">Bitácora y Combustible</div>
         <div class="inv-desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="bit-dt-search" placeholder="Buscar patente, marca, modelo..." oninput="bitSyncSearch()"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('bit-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="bit-dt-search" placeholder="Buscar patente, marca, modelo..." oninput="bitSyncSearch()"><span id="bit-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('bit-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="inv-desktop-list">
@@ -1448,7 +1449,7 @@
       <select id="bit-mes-select" onchange="bitCambiarMes(this.value)" style="width:100%;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid var(--line);font-size: 14.5px;font-family:inherit;background:#fff"></select>
       <div class="searchbox">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="_deb('bit-mob', () => bitRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('bit-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="bit-search" placeholder="Buscar patente, marca, modelo..." oninput="_deb('bit-mob', () => bitRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="bit-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('bit-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>
     <div class="pages" style="padding:10px 14px 80px" id="bit-mobile-list">
@@ -1575,7 +1576,7 @@
         <div class="inv-desktop-content-title">Arriendos</div>
         <div class="inv-desktop-search">
           <span><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <input type="text" id="arr-dt-search" placeholder="Buscar equipo, proveedor, obra..." oninput="arrSyncSearch()"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('arr-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <input type="text" id="arr-dt-search" placeholder="Buscar equipo, proveedor, obra..." oninput="arrSyncSearch()"><span id="arr-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('arr-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="inv-desktop-list">
@@ -1603,7 +1604,7 @@
     <div style="padding:0 14px" id="arr-mobile-search">
       <div class="searchbox">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('arr-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="arr-search" placeholder="Buscar equipo, proveedor, obra..." oninput="_deb('arr-mob', () => arrRenderLista())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="arr-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('arr-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div class="chips-wrap" style="margin:10px 0" id="arr-mobile-chips"><div class="chips">
         <button class="chip active" id="arr-filtro-todos"     onclick="arrSetFiltro('todos')">Todos</button>
@@ -1848,7 +1849,7 @@
     </div>
     <div class="panel-body">
       <div class="form-group" style="position:relative">
-        <input type="text" id="and-resumen-buscar" placeholder="Buscar ubicación o pieza..." oninput="andRenderResumenUbicaciones()" style="padding-right:40px"><button type="button" class="searchbox-clear searchbox-clear--absoluto hidden" onclick="limpiarBuscador('and-resumen-buscar')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="and-resumen-buscar" placeholder="Buscar ubicación o pieza..." oninput="andRenderResumenUbicaciones()" style="padding-right:70px"><span id="and-resumen-buscar-contador" class="searchbox-contador searchbox-contador--absoluto hidden" title=""></span><button type="button" class="searchbox-clear searchbox-clear--absoluto hidden" onclick="limpiarBuscador('and-resumen-buscar')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div id="and-resumen-ubic-lista"></div>
     </div>
@@ -2138,7 +2139,7 @@
     <div class="panel-body">
       <div class="searchbox" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:12px">
         <span class="search-ic"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M19.5 19.5l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <input type="text" id="agregarmulti-search" placeholder="Buscar equipo, código, ubicación..." oninput="agregarItemsMultiRenderLista()" style="flex:1;border:none;outline:none;font-size: 15.5px"><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('agregarmulti-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <input type="text" id="agregarmulti-search" placeholder="Buscar equipo, código, ubicación..." oninput="agregarItemsMultiRenderLista()" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="agregarmulti-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('agregarmulti-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div id="agregarmulti-lista"></div>
     </div>
@@ -2679,6 +2680,7 @@ function dtRenderEquipos() {
       <td style="font-size: 13.5px;color:#555">${formatNum(e.horometro)||'—'}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" style="text-align:center;color:#bbb;padding:32px">Sin equipos</td></tr>`;
+  _actualizarContadorBuscador('dt-search', filtered.length);
 }
 
 // Seleccionar equipo → resalta la fila y muestra la ficha completa.

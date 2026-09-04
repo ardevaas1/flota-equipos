@@ -168,14 +168,14 @@ function arrRenderLista() {
 
   const html = filtrados.map(({ a, info }) => `
     <div class="card" onclick="arrAbrirDetalle(${a.rowIndex})">
-      <div class="card-icon" style="font-size:22px">${_arrIcono(a.categoria)}</div>
+      <div class="card-icon" style="font-size: 23px">${_arrIcono(a.categoria)}</div>
       <div class="card-body">
         <div class="card-title">${a.equipo || 'Equipo sin nombre'}</div>
         <div class="card-sub">${a.proveedor || 'Sin proveedor'}${a.obra ? ' · ' + a.obra : ''}</div>
       </div>
       <div class="card-right">
         ${info.badge}
-        <span style="font-size:11px;color:#aaa">${a.fechaTermino ? 'Hasta ' + a.fechaTermino : ''}</span>
+        <span style="font-size: 12.5px;color:#aaa">${a.fechaTermino ? 'Hasta ' + a.fechaTermino : ''}</span>
       </div>
     </div>`).join('') || emptyState('Sin arriendos', 'No hay arriendos que coincidan con este filtro');
 
@@ -192,6 +192,7 @@ function arrRenderLista() {
   if (el('arr-stat-activos'))   animarContador(el('arr-stat-activos'),   activos + porVencer);
   if (el('arr-stat-porvencer')) animarContador(el('arr-stat-porvencer'), porVencer);
   if (el('arr-stat-vencidos'))  animarContador(el('arr-stat-vencidos'),  vencidos);
+  _actualizarContadorBuscador(['arr-search', 'arr-dt-search'], filtrados.length);
 }
 
 // ── Detalle ────────────────────────────────────────────────

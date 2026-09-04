@@ -2809,6 +2809,7 @@ function renderEquipos() {
       </div>
     </div>`).join('') || emptyState('Sin resultados', 'Prueba con otro filtro o búsqueda',
       `<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`);
+  _actualizarContadorBuscador('search-input', filtered.length);
 }
 
 function setFilter(f, btn) {
@@ -3918,7 +3919,7 @@ async function buscarGlobal(query) {
 
   if (btnLimpiar) btnLimpiar.classList.toggle('hidden', !(query || '').length);
 
-  if (txt.length < 2) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+  if (txt.length < 2) { cont.classList.add('hidden'); cont.innerHTML = ''; _actualizarContadorBuscador('busqueda-global-input', 0); return; }
 
   cont.classList.remove('hidden');
   cont.innerHTML = '<div class="busqueda-global-msg">Buscando en toda la app...</div>';
@@ -4035,6 +4036,7 @@ async function buscarGlobal(query) {
 
   if (!resultados.length) {
     cont.innerHTML = `<div class="busqueda-global-msg">Sin resultados para "${query}"</div>`;
+    _actualizarContadorBuscador('busqueda-global-input', 0);
     return;
   }
 
@@ -4055,6 +4057,26 @@ async function buscarGlobal(query) {
       </div>
       <svg class="busqueda-global-item-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>`).join('');
+  _actualizarContadorBuscador('busqueda-global-input', resultados.length);
+}
+
+// ── Contador "N resultados" junto a cada buscador ────────────────────────
+// Cada función que renderiza una lista filtrada llama a esto al final,
+// pasándole el/los id(s) del campo de búsqueda correspondiente (a veces
+// hay dos: la versión de escritorio y la de celular comparten el mismo
+// contador) y cuántos ítems quedaron después de filtrar. Solo se muestra
+// mientras haya algo escrito — si el campo está vacío no tiene sentido
+// mostrar "38 resultados" cuando en realidad son todos los que hay.
+function _actualizarContadorBuscador(inputIds, cantidad) {
+  const ids = Array.isArray(inputIds) ? inputIds : [inputIds];
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    const contador = document.getElementById(id + '-contador');
+    if (!contador) return;
+    const tieneTexto = !!(input && input.value.length);
+    contador.classList.toggle('hidden', !tieneTexto);
+    contador.textContent = cantidad === 1 ? '1 resultado' : `${cantidad} resultados`;
+  });
 }
 
 // ── Botón "×" para limpiar cualquier buscador de la app ─────────────────

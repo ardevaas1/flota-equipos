@@ -1643,6 +1643,12 @@ body.is-offline #app { padding-top: 30px; }
 .searchbox-clear svg { width: 14px; height: 14px; }
 .searchbox-clear:active { background: #e0e3e8; color: var(--ink); }
 .searchbox-clear--absoluto { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+.searchbox-contador {
+  flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--ink-soft);
+  background: var(--neutral-soft); border-radius: 999px; padding: 3px 9px;
+  white-space: nowrap;
+}
+.searchbox-contador--absoluto { position: absolute; right: 38px; top: 50%; transform: translateY(-50%); }
 .busqueda-global-clear { width: 26px; height: 26px; }
 .busqueda-global-clear svg { width: 16px; height: 16px; }
 .busqueda-global-resumen-btn {

@@ -251,13 +251,14 @@ function bitRenderLista() {
           <div class="card-sub card-sub--patente">${eq.patente}</div>
         </div>
         <div class="card-right">
-          <span style="font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} ${t.unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</span>
+          <span style="font-size: 13.5px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.kmRecorridos.toLocaleString('es-CL')} ${t.unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</span>
         </div>
       </div>`;
     }).join('');
   }
   if (cont)   cont.innerHTML   = html;
   if (contDt) contDt.innerHTML = html;
+  _actualizarContadorBuscador(['bit-search', 'bit-dt-search'], vehiculos.length);
 }
 
 function bitAbrirFicha(patente) {
@@ -272,10 +273,10 @@ function bitAbrirFicha(patente) {
       <img src="${eq.fotoRef}" alt="Foto de referencia" style="width:100%;height:190px;object-fit:cover;display:block;border-radius:14px">
     </div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-size:18px;font-weight:800;color:var(--ink)">${nombre}</div>
-      ${esHoras ? `<span style="background:var(--accent-soft);color:var(--accent-dark);border-radius:99px;padding:2px 9px;font-size:10.5px;font-weight:700">Se mide en horas</span>` : ''}
+      <div style="font-size: 19px;font-weight:800;color:var(--ink)">${nombre}</div>
+      ${esHoras ? `<span style="background:var(--accent-soft);color:var(--accent-dark);border-radius:99px;padding:2px 9px;font-size: 12px;font-weight:700">Se mide en horas</span>` : ''}
     </div>
-    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">${patente}</div>
+    <div style="font-size: 14.5px;color:var(--ink-soft);margin-bottom:4px">${patente}</div>
   `;
 
   const selFicha = document.getElementById('bit-ficha-mes-select');
@@ -300,16 +301,16 @@ function bitRenderMetricasYHistorial() {
       <div class="ficha-sec-title">${nombreMes}</div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">${t.recorridoLabel}</div>
+          <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>
+          <div style="font-size: 12.5px;color:var(--ink-soft)">${t.recorridoLabel}</div>
         </div>
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.litros.toLocaleString('es-CL')}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">litros cargados</div>
+          <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.litros.toLocaleString('es-CL')}</div>
+          <div style="font-size: 12.5px;color:var(--ink-soft)">litros cargados</div>
         </div>
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
-          <div style="font-size:21px;font-weight:800;color:var(--accent-dark)">${m.rendimiento ? m.rendimiento.toFixed(1) : '—'}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">${t.rendimiento}</div>
+          <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.rendimiento ? m.rendimiento.toFixed(1) : '—'}</div>
+          <div style="font-size: 12.5px;color:var(--ink-soft)">${t.rendimiento}</div>
         </div>
       </div>
     </div>
