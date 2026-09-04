@@ -599,7 +599,7 @@ async function invCargarMiniatura(fileName, thumbId) {
   }
 
   try {
-    const q = `name = '${_qEsc(fileName)}' and trashed = false`;
+    const q = `title = '${_qEsc(fileName)}' and trashed = false`;
     const data = await driveSearch('inventario', q, { pageSize: 1 });
     if (!data.files || data.files.length === 0) {
       el.innerHTML = `<span style="color:#64748b;font-size:12px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
@@ -713,7 +713,7 @@ async function invAbrirFotoModal(fileName) {
   document.body.style.overflow = 'hidden';
 
   try {
-    const q = `name = '${_qEsc(fileName)}' and trashed = false`;
+    const q = `title = '${_qEsc(fileName)}' and trashed = false`;
     let data;
     try {
       data = await driveSearch('inventario', q, { orderBy: 'createdTime desc', pageSize: 1 });
@@ -796,7 +796,7 @@ async function _findOrCreateFolderInv(item, parentId) {
   // el que corresponda) Y también por el N° normal aparte, por si la
   // carpeta quedó nombrada con ese en vez del que se está usando ahora.
   const terminos = [codigo, item.num].filter(Boolean).map(t => String(t));
-  const condiciones = [...new Set(terminos)].map(t => `name contains '${_qEsc(t)}'`).join(' or ');
+  const condiciones = [...new Set(terminos)].map(t => `title contains '${_qEsc(t)}'`).join(' or ');
 
   if (!condiciones) {
     // Sin código, N° de identificación NI N° normal (caso raro, pero
@@ -832,7 +832,7 @@ async function invAbrirCarpetaDrive() {
                     : SHEET_HERRAMIENTAS;
 
     // Buscar carpeta de la hoja dentro de DRIVE_INV_FOLDER
-    const q1 = `'${DRIVE_INV_FOLDER}' in parents and name='${_qEsc(sheetName)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const q1 = `'${DRIVE_INV_FOLDER}' in parents and title = '${_qEsc(sheetName)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
     const d1 = await driveSearch('inventario', q1);
     if (!d1.files || !d1.files.length) {
       // Carpeta de hoja no existe aún → abrir carpeta raíz de inventario
@@ -846,7 +846,7 @@ async function invAbrirCarpetaDrive() {
     // "contiene" en vez de nombre exacto, así encuentra tanto las carpetas
     // viejas (nombradas solo "DM-001") como las nuevas, que ahora llevan
     // también la descripción del equipo (ej: "DM-001 (DEMOLEDOR 5 KILOS)").
-    const q2 = `'${sheetFolderId}' in parents and name contains '${_qEsc(codigo)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const q2 = `'${sheetFolderId}' in parents and title contains '${_qEsc(codigo)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
     const d2 = await driveSearch('inventario', q2);
     if (d2.files && d2.files.length) {
       window.open(`https://drive.google.com/drive/folders/${d2.files[0].id}`, '_blank');
@@ -1069,7 +1069,7 @@ async function invGuardar() {
         // "contains" en vez de nombre exacto: encuentra la carpeta vieja
         // tanto si estaba nombrada solo con el N° anterior como si ya
         // tenía una descripción entre paréntesis de antes.
-        const qFolder = `'${sheetFolder}' in parents and name contains '${nombreCarpetaVieja}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        const qFolder = `'${sheetFolder}' in parents and title contains '${_qEsc(nombreCarpetaVieja)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
         const dFolder = await driveSearch('inventario', qFolder);
         if (dFolder.files && dFolder.files.length) {
           await driveRename('inventario', dFolder.files[0].id, nombreCarpetaNueva);
@@ -2429,7 +2429,7 @@ async function invMigrarCarpetas(modulo) {
         // estar nombrada con cualquiera de los dos, según si ya se había
         // renombrado antes (con el ajuste de "cambiar de carpeta al cambiar
         // el N° de identificación" que ya tenía la app) o no.
-        const q = `'${sheetFolder}' in parents and (name contains '${_qEsc(item.num)}' or name contains '${_qEsc(item.numIdent)}') and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        const q = `'${sheetFolder}' in parents and (title contains '${_qEsc(item.num)}' or title contains '${_qEsc(item.numIdent)}') and mimeType='application/vnd.google-apps.folder' and trashed=false`;
         const data = await driveSearch('inventario', q);
         if (!data.files || !data.files.length) { saltados++; continue; } // no tenía carpeta previa (nunca subió foto)
         const folderId = data.files[0].id;
@@ -2467,7 +2467,7 @@ async function contMigrarCarpetas() {
     for (const c of allContainers) {
       if (!c.foto) { saltados++; continue; }
       try {
-        const q = `'${contFolderRoot}' in parents and name = '${_qEsc(c.foto)}' and trashed = false`;
+        const q = `'${contFolderRoot}' in parents and title = '${_qEsc(c.foto)}' and trashed = false`;
         const data = await driveSearch('containers', q);
         if (!data.files || !data.files.length) { saltados++; continue; } // ya migrado o no está ahí
         const fileId = data.files[0].id;
@@ -3992,7 +3992,7 @@ async function andMigrarCarpetas() {
     for (const it of allAndamios) {
       if (!it.foto) { saltados++; continue; }
       try {
-        const q = `'${andFolderRoot}' in parents and name = '${_qEsc(it.foto)}' and trashed = false`;
+        const q = `'${andFolderRoot}' in parents and title = '${_qEsc(it.foto)}' and trashed = false`;
         const data = await driveSearch('andamios', q);
         if (!data.files || !data.files.length) { saltados++; continue; }
         const fileId = data.files[0].id;
@@ -4736,7 +4736,7 @@ async function _andResolverThumb(fileName) {
 
   const promesa = (async () => {
     try {
-      const q = `name = '${_qEsc(fileName)}' and trashed = false`;
+      const q = `title = '${_qEsc(fileName)}' and trashed = false`;
       let data;
       try {
         data = await driveSearch('andamios', q, { pageSize: 1 });

@@ -1170,7 +1170,7 @@ async function driveUpload(modulo, folderId, fileName, mimeType, fileDataBase64,
 }
 
 // Busca archivos con la MISMA sintaxis de "q" que ya se usaba con la API
-// de Drive directo (ej. "'ID' in parents and name contains 'algo'") —
+// de Drive directo (ej. "'ID' in parents and title contains 'algo'") —
 // no hace falta traducir las búsquedas que ya estaban armadas.
 async function driveSearch(modulo, q, opciones) {
   opciones = opciones || {};
@@ -1712,7 +1712,7 @@ async function _actualizarLinkCarpetaFicha(docId, e) {
   const ETIQUETA = 'Abrir carpeta de fotos';
   let folderUrl = null;
   try {
-    const q = `mimeType='application/vnd.google-apps.folder' and name='${_qEsc(e.patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const q = `mimeType='application/vnd.google-apps.folder' and title = '${_qEsc(e.patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
     const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       folderUrl = `https://drive.google.com/drive/folders/${data.files[0].id}`;
@@ -2958,7 +2958,7 @@ async function abrirCarpetaDrive(patente) {
   toast('Buscando carpeta en Drive...', 'loading');
   try {
     // Buscar carpeta con nombre igual a la patente dentro de DRIVE_ROOT_FOLDER
-    const q = `mimeType='application/vnd.google-apps.folder' and name='${_qEsc(patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const q = `mimeType='application/vnd.google-apps.folder' and title = '${_qEsc(patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
     const data = await driveSearch('flota', q, { pageSize: 1 });
     if (data.files && data.files.length > 0) {
       const folderId = data.files[0].id;
@@ -3021,7 +3021,7 @@ async function openDocDrive(patente, prefix) {
     const unique = [...new Set(foldersToSearch)];
 
     for (const folder of unique) {
-      const q = `'${folder}' in parents and name contains '${_qEsc(prefix + '_' + patente)}' and trashed=false`;
+      const q = `'${folder}' in parents and title contains '${_qEsc(prefix + '_' + patente)}' and trashed=false`;
       const data = await driveSearch('flota', q, { orderBy: 'createdTime desc' });
       if (data.files && data.files.length > 0) {
         toast('Abriendo ' + data.files[0].name + '...');
