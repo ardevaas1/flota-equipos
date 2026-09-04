@@ -1633,12 +1633,18 @@ body.is-offline #app { padding-top: 30px; }
 .busqueda-global-item-titulo { font-size: 15.5px; font-weight: 600; color: var(--ink); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .busqueda-global-item-sub { font-size: 13.5px; color: #8a8f9e; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .busqueda-global-item-arrow { flex-shrink: 0; opacity: 0.35; }
-.busqueda-global-clear {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+/* Botón "×" para limpiar cualquier buscador de la app (buscador global +
+   los 16 buscadores de listas por módulo) — mismo aspecto en todos. */
+.searchbox-clear {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: #9aa1ac; background: #eef0f3;
 }
-.busqueda-global-clear:active { background: #e0e3e8; color: var(--ink); }
+.searchbox-clear svg { width: 14px; height: 14px; }
+.searchbox-clear:active { background: #e0e3e8; color: var(--ink); }
+.searchbox-clear--absoluto { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+.busqueda-global-clear { width: 26px; height: 26px; }
+.busqueda-global-clear svg { width: 16px; height: 16px; }
 .busqueda-global-resumen-btn {
   width: calc(100% - 24px); margin: 12px; display: flex; align-items: center; justify-content: center; gap: 7px;
   background: var(--accent-soft); color: var(--accent-dark); border: 1.5px dashed var(--accent);

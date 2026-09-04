@@ -4057,15 +4057,45 @@ async function buscarGlobal(query) {
     </div>`).join('');
 }
 
-// Limpia el buscador global (texto + resultados) de una sola vez — sin
-// tener que seleccionar y borrar a mano lo que se había escrito.
+// ── Botón "×" para limpiar cualquier buscador de la app ─────────────────
+// Genérico: sirve para el buscador global de inicio Y para los buscadores
+// de listas de cada módulo (Flota, Inventario, Containers, Movimientos,
+// Andamios, Bitácora, Arriendos) — todos comparten el mismo comportamiento:
+// un botón visible mientras haya texto escrito que lo borra de una sola
+// vez, sin tener que seleccionarlo y apretar borrar a mano.
+function limpiarBuscador(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = '';
+  // Dispara el mismo evento 'input' que ya dispara cada buscador al
+  // escribir, así se reusa tal cual el oninput que ya tenía cada uno
+  // (re-renderiza su lista sin filtro, o vacía los resultados globales)
+  // sin tener que duplicar esa lógica acá.
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+}
+
+// Muestra/oculta el botón "×" de cada buscador según tenga texto o no —
+// delegado en un único listener (en vez de repetirlo en cada oninput) para
+// que alcance por igual a los 16+ buscadores de la app.
+document.addEventListener('input', (ev) => {
+  const input = ev.target;
+  if (!input || input.tagName !== 'INPUT' || input.type !== 'text') return;
+  const wrap = input.closest('.searchbox, .desktop-search, .inv-desktop-search, .form-group');
+  if (!wrap) return;
+  const btn = wrap.querySelector('.searchbox-clear');
+  if (btn) btn.classList.toggle('hidden', !input.value.length);
+});
+
+// Limpia el buscador global (texto + resultados) de una sola vez — además
+// de lo genérico de arriba, acá también hay que ocultar el panel flotante
+// de resultados y limpiar la caché de la última búsqueda.
 function limpiarBusquedaGlobal() {
-  const input = document.getElementById('busqueda-global-input');
+  limpiarBuscador('busqueda-global-input');
   const cont = document.getElementById('busqueda-global-resultados');
-  const btnLimpiar = document.getElementById('busqueda-global-clear');
-  if (input) { input.value = ''; input.focus(); }
   if (cont) { cont.classList.add('hidden'); cont.innerHTML = ''; }
-  if (btnLimpiar) btnLimpiar.classList.add('hidden');
+  window._resultadosBusquedaGlobal = [];
+  window._textoBusquedaGlobal = '';
 }
 
 // Al volver a tocar el campo (ej. después de haber mirado otra parte de la
