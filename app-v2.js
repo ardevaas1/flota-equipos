@@ -268,12 +268,25 @@ function initOAuth() {
     },
   });
 
-  // Renueva silenciosamente el token 10 min antes de que expire
-  // Usa login_hint con el email guardado para que GIS no muestre popup
-  setInterval(() => {
+  // Renueva silenciosamente el token 10 min antes de que expire.
+  // OJO: aunque se pide "silencioso" (prompt:''), Google Identity Services
+  // de todas formas abre y cierra solo una ventanita real para renovarlo
+  // (use_fedcm_for_prompt de arriba debería evitarlo, pero depende de que
+  // el navegador tenga FedCM habilitado — en Chrome de escritorio/Android
+  // viene desactivado por defecto para mucha gente, así que el flash se
+  // sigue viendo igual). Como no se puede evitar el flash en sí, se evita
+  // al menos que se vea: si la persona tiene la pestaña/app abierta y a la
+  // vista, se pospone la renovación hasta que la pestaña quede en segundo
+  // plano (cambia de app, bloquea el celular, minimiza, etc.) — ahí el
+  // flash pasa sin que nadie lo vea. Solo si quedan menos de 60s para que
+  // el token expire de verdad se fuerza la renovación aunque siga a la
+  // vista, para no romper la sesión por priorizar no molestar.
+  function _intentarRenovacionSilenciosa() {
     if (isRenewing) return;
     if (!accessToken) return;
-    if (tokenExpiry - Date.now() > 10 * 60 * 1000) return;
+    const faltan = tokenExpiry - Date.now();
+    if (faltan > 10 * 60 * 1000) return; // todavía falta demasiado, ni vale la pena mirar
+    if (document.visibilityState === 'visible' && faltan > 60 * 1000) return; // a la vista y no es urgente: esperar a que se oculte
 
     isRenewing = true;
     const prevCb = tokenClient.callback;
@@ -301,7 +314,16 @@ function initOAuth() {
     };
     const hint = localStorage.getItem(EMAIL_KEY) || '';
     tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-  }, 30 * 1000);
+  }
+
+  setInterval(_intentarRenovacionSilenciosa, 30 * 1000);
+  // En cuanto la pestaña/app pasa a segundo plano, se aprovecha ESE
+  // instante para renovar de una — es la mejor oportunidad de que el
+  // flash de la ventanita pase completamente inadvertido, en vez de
+  // esperar hasta el próximo chequeo cada 30s.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) _intentarRenovacionSilenciosa();
+  });
 }
 
 function signIn() {
