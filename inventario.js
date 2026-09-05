@@ -3672,10 +3672,20 @@ function movhRenderHistorial() {
   const cont = document.getElementById('movh-historial-lista');
   const contDt = document.getElementById('movh-dt-historial-lista');
 
+  // Busca por pieza/equipo, código, ubicación, guía de despacho, quién
+  // traslada/autoriza/recibe — todo lo que suele identificar un traslado.
+  const searchEl = document.getElementById('movh-hist-search');
+  const txt = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
   // Agrupar por lote (mismo criterio que en Pendientes) — un traslado
   // múltiple se ve como una sola entrada con todos sus ítems adentro, en
   // vez de una fila repetida por cada cosa que se movió.
-  const todos = (allMovimientos || []).slice();
+  const todosSinFiltrar = (allMovimientos || []).slice();
+  const todos = !txt ? todosSinFiltrar : todosSinFiltrar.filter(m => (
+    (m.nombreEquipo || '') + (m.tipoEquipo || '') + (m.codigoEquipo || '') +
+    (m.origen || '') + (m.destino || '') + (m.guiaDespacho || '') +
+    (m.traslada || '') + (m.autoriza || '') + (m.recibe || '')
+  ).toLowerCase().includes(txt));
   const gruposMap = new Map(); // key -> [m,...]
   const sueltos = [];
   todos.forEach(m => {
@@ -3693,7 +3703,9 @@ function movhRenderHistorial() {
 
   let html;
   if (hist.length === 0) {
-    html = emptyState('Sin movimientos','No hay traslados registrados');
+    html = txt
+      ? emptyState('Sin resultados', 'Prueba con otro filtro o búsqueda')
+      : emptyState('Sin movimientos', 'No hay traslados registrados');
   } else {
     html = hist.map(g => {
       const esLote = g.items.length > 1;
@@ -3732,6 +3744,16 @@ function movhRenderHistorial() {
   }
   if (cont) cont.innerHTML = html;
   if (contDt) contDt.innerHTML = html;
+  _actualizarContadorBuscador(['movh-hist-search', 'movh-hist-dt-search'], todos.length);
+}
+
+// Sincronizar búsqueda desktop → móvil para el historial de movimientos
+// (movhRenderHistorial lee movh-hist-search)
+function movhHistSyncSearch() {
+  const dtInput  = document.getElementById('movh-hist-dt-search');
+  const mobInput = document.getElementById('movh-hist-search');
+  if (dtInput && mobInput) mobInput.value = dtInput.value;
+  movhRenderHistorial();
 }
 
 // ══════════════════════════════════════════════════════════════
