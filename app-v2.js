@@ -402,10 +402,23 @@ function ensureToken() {
 // Herramientas) · 'containers' (solo Containers) · 'arriendos' (solo
 // Arriendos) — cada uno de estos 7 roles de módulo SOLO ve y puede
 // entrar a su propio módulo en la pantalla de inicio, el resto queda
-// oculto. 'viewer' (cualquier otro valor o ausencia de match) sigue
-// viendo todo en solo lectura, sin restricción de módulo — es el único
-// rol "de solo mirar todo".
+// oculto, y puede EDITAR dentro de ese módulo. Agregando "-viewer" a
+// cualquiera de estos 7 (ej. 'flota-viewer') se obtiene la misma
+// restricción de "solo ese módulo en el home", pero sin permiso de
+// edición — ve solo su módulo, todo en solo lectura, igual que el rol
+// 'viewer' pero acotado a uno solo en vez de a los 6. 'viewer' a secas
+// (cualquier otro valor o ausencia de match) sigue viendo TODO en solo
+// lectura, sin restricción de módulo.
 const ROLES_DE_MODULO = ['mover', 'andamios', 'flota', 'chofer', 'inventario', 'containers', 'arriendos'];
+// Versión "solo lectura" de cada rol de módulo: mismo acceso a UN solo
+// módulo en la pantalla de inicio, pero sin desbloquear edición ahí adentro
+// — a diferencia de 'flota', 'andamios', etc. (que si dan permiso de
+// escritura), este token nunca aparece en MODO_CLASE más abajo, así que
+// applyViewerMode() no le agrega ninguna clase "-mode" que reactive
+// botones: la persona queda en puro viewer-mode, solo que restringido a
+// ver nada más que ese módulo en el home. Ej: 'flota-viewer' en la celda
+// de rol de USUARIOS = ve solo la tarjeta Flota, todo en solo lectura.
+const ROLES_DE_MODULO_VIEWER = ROLES_DE_MODULO.map(r => r + '-viewer');
 
 async function checkUserRole() {
   try {
@@ -426,7 +439,7 @@ async function checkUserRole() {
       userRole  = 'admin';
       userRoles = ['admin'];
     } else {
-      const validos = tokens.filter(t => ROLES_DE_MODULO.includes(t));
+      const validos = tokens.filter(t => ROLES_DE_MODULO.includes(t) || ROLES_DE_MODULO_VIEWER.includes(t));
       if (validos.length) {
         userRoles = validos;
         // userRole (singular) se mantiene por compatibilidad con chequeos
@@ -463,17 +476,28 @@ async function checkUserRole() {
 //              modificar todo dentro del módulo Flota — ficha, editar equipo,
 //              registrar eventos/mantenciones)
 // - viewer   → solo 'viewer-mode' (solo lectura en toda la app)
+// - {modulo}-viewer → 'viewer-mode' nada más (a propósito no tiene entrada
+//              acá): ve solo la tarjeta de ese módulo en el home (por
+//              MODO_TARJETA_CLASE más abajo), pero sin ninguna clase
+//              "-mode" que reactive los botones de edición — a diferencia
+//              de 'flota', 'andamios', etc., queda en solo lectura ahí
+//              también, igual que el resto de la app.
 const MODO_CLASE = {
   mover: 'mover-mode', andamios: 'andamios-mode', flota: 'flota-mode',
   chofer: 'chofer-mode', inventario: 'inventario-mode', containers: 'containers-mode',
   arriendos: 'arriendos-mode',
 };
 // Clase distintiva de cada tarjeta de módulo en la pantalla de inicio, para
-// saber cuáles mostrar según los roles de la persona.
+// saber cuáles mostrar según los roles de la persona. Los roles "-viewer"
+// muestran la MISMA tarjeta que su versión con permiso de escritura — la
+// diferencia entre poder editar o no la da MODO_CLASE de arriba, no esto.
 const MODO_TARJETA_CLASE = {
   mover: 'modulo-card--mov', andamios: 'modulo-card--and', flota: 'modulo-card--flota',
   chofer: 'modulo-card--bit', inventario: 'modulo-card--inv', containers: 'modulo-card--cont',
   arriendos: 'modulo-card--arr',
+  'mover-viewer': 'modulo-card--mov', 'andamios-viewer': 'modulo-card--and', 'flota-viewer': 'modulo-card--flota',
+  'chofer-viewer': 'modulo-card--bit', 'inventario-viewer': 'modulo-card--inv', 'containers-viewer': 'modulo-card--cont',
+  'arriendos-viewer': 'modulo-card--arr',
 };
 
 function applyViewerMode() {
@@ -3878,7 +3902,11 @@ let _globalSearchDatosListos = false;
 // justo lo que el rol restringido debería impedir.
 function _moduloPermitidoBusqueda(mod) {
   const irrestricto = (userRole === 'admin' || userRole === 'viewer' || !userRoles.length);
-  return irrestricto || userRoles.includes(mod);
+  // También cuenta la versión "solo lectura" del rol (ej. 'flota-viewer')
+  // — esa persona puede VER ese módulo aunque no pueda editarlo, así que
+  // tiene que poder encontrarlo en el buscador global igual que cualquier
+  // otro rol de ese módulo.
+  return irrestricto || userRoles.includes(mod) || userRoles.includes(mod + '-viewer');
 }
 
 async function _asegurarDatosBusquedaGlobal() {
