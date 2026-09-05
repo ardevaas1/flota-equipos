@@ -4447,8 +4447,8 @@ async function _recolectarDatosResumen(forzarRecarga) {
 
   allEquipos.forEach(e => agregar(e.ubicacion, 'Flota', `${e.equipo || 'Vehículo'} — ${e.marca || ''} ${e.modelo || ''} (${e.patente || 's/patente'})`.replace(/\s+/g,' ')));
   allGeneradores.forEach(g => agregar(g.ubicacion, 'Generadores', `${g.equipo} — ${g.marca || ''} ${g.modelo || ''}${g.codigo ? ' (' + g.codigo + ')' : ''}`.replace(/\s+/g,' ')));
-  allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}`.replace(/\s+/g,' ')));
-  allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}`.replace(/\s+/g,' ')));
+  allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}${m.numIdent ? ' (' + m.numIdent + ')' : ''}`.replace(/\s+/g,' ')));
+  allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}${h.numIdent ? ' (' + h.numIdent + ')' : ''}`.replace(/\s+/g,' ')));
   allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
 
   // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos).
