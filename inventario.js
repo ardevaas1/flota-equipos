@@ -3411,6 +3411,23 @@ function _movBatchKey(id) {
   return partes.length >= 3 ? partes[0] + '-' + partes[1] : null;
 }
 
+// Clave de agrupación real de un movimiento: primero intenta el lote interno
+// (_movBatchKey — cuando se registraron juntos desde "Trasladar varios").
+// Si no hay lote pero SÍ hay Guía de despacho, agrupa por guía + fecha +
+// ruta — así quedan juntos aunque cada pieza se haya cargado por separado
+// (ej. varios tipos de Andamios movidos con la misma guía uno por uno),
+// que es el caso real que importa: "es el mismo traslado" lo define la
+// guía, no cómo se haya cargado en la app. Sin lote ni guía, es un
+// movimiento suelto y no se agrupa con nada.
+function _movGrupoKey(m) {
+  const batchKey = _movBatchKey(m.id);
+  if (batchKey) return batchKey;
+  if (m.guiaDespacho && m.guiaDespacho.trim()) {
+    return ['guia', m.guiaDespacho.trim(), m.fechaSalida || '', m.origen || '', m.destino || ''].join('|');
+  }
+  return null;
+}
+
 function movhRenderPendientes() {
   const pendientesRaw = (allMovimientos || [])
     .filter(m => !m.estado || m.estado === 'en_transito')
@@ -3423,9 +3440,9 @@ function movhRenderPendientes() {
   const yaAgrupado = new Set();
   pendientesRaw.forEach(m => {
     if (yaAgrupado.has(m.rowIndex)) return;
-    const key = _movBatchKey(m.id);
+    const key = _movGrupoKey(m);
     if (!key) { grupos.push({ key: null, items: [m] }); return; }
-    const items = pendientesRaw.filter(x => _movBatchKey(x.id) === key);
+    const items = pendientesRaw.filter(x => _movGrupoKey(x) === key);
     items.forEach(x => yaAgrupado.add(x.rowIndex));
     grupos.push({ key, items });
   });
@@ -3448,11 +3465,12 @@ function movhRenderPendientes() {
     html = grupos.map(g => {
       const esLote = g.items.length > 1;
       const m = g.items[0]; // datos comunes del lote (origen/destino/fecha/guía son iguales para todos)
+      const mismoTipo = g.items.every(x => x.tipoEquipo === m.tipoEquipo);
       const titulo = esLote
-        ? `${g.items.length} ítems`
+        ? (mismoTipo && m.tipoEquipo ? `${m.tipoEquipo} — ${g.items.length} ítems` : `${g.items.length} ítems`)
         : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
       const onclickAttr = esLote
-        ? `movAbrirRecepcionLote('${g.key}')`
+        ? `movAbrirRecepcionLote('${(g.key || '').replace(/'/g, "\\'")}')`
         : `movAbrirRecepcion('${m.id}', ${m.rowIndex})`;
       return `
       <div class="evento-card-mini evento-card-mini--clickable" onclick="${onclickAttr}" style="cursor:pointer">
@@ -3523,7 +3541,7 @@ function movAbrirRecepcion(movId, rowIndex) {
 // se cargan ahí se aplican a todas las filas del lote al confirmar.
 function movAbrirRecepcionLote(batchKey) {
   const items = (allMovimientos || [])
-    .filter(m => (!m.estado || m.estado === 'en_transito') && _movBatchKey(m.id) === batchKey);
+    .filter(m => (!m.estado || m.estado === 'en_transito') && _movGrupoKey(m) === batchKey);
   if (!items.length) { toast('Movimientos no encontrados', 'error'); return; }
 
   _recvFotoRef = null;
@@ -3658,10 +3676,10 @@ function movhRenderHistorial() {
   // múltiple se ve como una sola entrada con todos sus ítems adentro, en
   // vez de una fila repetida por cada cosa que se movió.
   const todos = (allMovimientos || []).slice();
-  const gruposMap = new Map(); // batchKey -> [m,...]
+  const gruposMap = new Map(); // key -> [m,...]
   const sueltos = [];
   todos.forEach(m => {
-    const key = _movBatchKey(m.id);
+    const key = _movGrupoKey(m);
     if (!key) { sueltos.push(m); return; }
     if (!gruposMap.has(key)) gruposMap.set(key, []);
     gruposMap.get(key).push(m);
@@ -3691,7 +3709,10 @@ function movhRenderHistorial() {
       } else {
         badge = `<span style="background:#fef3c7;color:#b45309;border-radius:99px;padding:2px 8px;font-size: 11.5px;font-weight:700;white-space:nowrap">En tránsito</span>`;
       }
-      const titulo = esLote ? `${g.items.length} ítems` : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
+      const mismoTipo = g.items.every(x => x.tipoEquipo === m.tipoEquipo);
+      const titulo = esLote
+        ? (mismoTipo && m.tipoEquipo ? `${m.tipoEquipo} — ${g.items.length} ítems` : `${g.items.length} ítems`)
+        : `${m.tipoEquipo || '—'} — ${m.nombreEquipo || '—'}`;
       return `
       <div class="evento-card-mini">
         <div class="evento-tipo-icon"><svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M3 16h1M3 16V9a1 1 0 0 1 1-1h9v8M12 16h7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11h4l3 3v2" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/><circle cx="16" cy="16.5" r="1.6" stroke="white" stroke-width="1.6"/></svg></div>
@@ -3704,7 +3725,7 @@ function movhRenderHistorial() {
           <div class="mant-meta">${m.fechaSalida} · ${m.origen || '—'} → ${m.destino || '—'}${m.guiaDespacho ? ' · Guía N° ' + m.guiaDespacho : ''}</div>
           ${m.traslada ? `<div class="evento-desc">Traslada: ${m.traslada}${m.autoriza ? ' · Autoriza: ' + m.autoriza : ''}</div>` : ''}
           ${m.obsSalida ? `<div class="evento-desc"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M6 2h9l3 3v17H6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11h6M9 15h6M9 7h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> ${m.obsSalida}</div>` : ''}
-          ${recibido ? `<div class="evento-desc" style="color:#15803d"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Recibido el ${m.fechaRecepcion} por ${m.recibe}${m.obsRecepcion ? ' · ' + m.obsRecepcion : ''}</div>` : ''}
+          ${recibido && (m.fechaRecepcion || m.recibe) ? `<div class="evento-desc" style="color:#15803d"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Recibido el ${m.fechaRecepcion} por ${m.recibe}${m.obsRecepcion ? ' · ' + m.obsRecepcion : ''}</div>` : ''}
         </div>
       </div>`;
     }).join('');
