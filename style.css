@@ -292,6 +292,10 @@ body.is-offline #app { padding-top: 30px; }
   position: relative;
 }
 .card-icon--flota { /* color ya viene del tema por defecto (azul) */ }
+.card-photo {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
+  object-fit: cover; border: 1px solid var(--line); background: var(--neutral-soft);
+}
 .card-body { flex: 1; min-width: 0; }
 .card-title { font-size: 15.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-sub { font-size: 13.5px; color: #777; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
