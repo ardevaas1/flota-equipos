@@ -76,7 +76,7 @@ async function _bitAsegurarHojas() {
         await writeSheet(`'${CONFIG.SHEET_BITACORA}'!A1:H1`, [['ID','FECHA','PATENTE','KM_INICIAL','KM_FINAL','DESTINO','CHOFER','REGISTRADO_POR']]);
       }
       if (faltantes.includes(CONFIG.SHEET_COMBUSTIBLE)) {
-        await writeSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A1:G1`, [['ID','FECHA','PATENTE','KM','LITROS','CHOFER','REGISTRADO_POR']]);
+        await writeSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A1:H1`, [['ID','FECHA','PATENTE','KM','LITROS','CHOFER','REGISTRADO_POR','LLENO']]);
       }
     }
     _bitHojasListas = true;
@@ -110,7 +110,7 @@ async function loadBitacora() {
 
 async function loadCombustible() {
   try {
-    const rows = await fetchSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A2:G5000`);
+    const rows = await fetchSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A2:H5000`);
     allCombustible = (rows || [])
       .map((r, i) => ({ r, rowIndex: i + 2 }))
       .filter(({ r }) => r[0])
@@ -123,6 +123,10 @@ async function loadCombustible() {
         litros:        parseFloat(r[4]) || 0,
         chofer:        r[5] || '',
         registradoPor: r[6] || '',
+        // Columna nueva (H) — si una carga es vacía/ausente (registros
+        // viejos, de antes de que existiera esta columna) se asume LLENO,
+        // que es como se venía calculando el rendimiento hasta ahora.
+        lleno:         (r[7] === undefined || r[7] === '' || r[7] === null) ? true : (r[7] === true || r[7] === 'SI' || r[7] === 'TRUE'),
       }));
   } catch(e) {
     allCombustible = [];
@@ -192,31 +196,37 @@ function _bitMetricasVehiculo(patente, mes) {
   const kmRecorridos = viajes.reduce((sum, v) => sum + Math.max(0, v.kmFinal - v.kmInicial), 0);
   const litros = cargasDelMes.reduce((sum, c) => sum + c.litros, 0);
 
-  // Rendimiento: SIEMPRE entre una carga de combustible y la siguiente
-  // (como la computadora de a bordo de un auto), nunca "km del mes ÷
-  // litros del mes" — un litro cargado el día 2 todavía no se gastó, así
-  // que ese cálculo por mes calendario daba "—" cada vez que el mes
-  // arrancaba con una carga y sin viajes cargados a mano todavía. Se
-  // compara el odómetro de cada carga contra la carga INMEDIATAMENTE
-  // anterior en todo el historial del vehículo (sin importar de qué mes
-  // sea esa anterior), y se suma todo ponderado en vez de promediar
-  // razones sueltas sin peso (más correcto: una carga de 5 litros no debería
-  // pesar lo mismo que una de 50 en el promedio).
+  // Rendimiento: SIEMPRE entre un llenado COMPLETO del estanque y el
+  // siguiente llenado completo (como corresponde calcularlo de verdad),
+  // nunca "km del mes ÷ litros del mes" — un litro cargado el día 2
+  // todavía no se gastó, así que ese cálculo por mes calendario daba "—"
+  // cada vez que el mes arrancaba con una carga. Tampoco se compara contra
+  // la carga inmediatamente anterior sin más: si esa carga anterior NO
+  // dejó el estanque lleno (alguien echó poco y no completó), los litros
+  // de esa carga parcial se ARRASTRAN y se suman a la próxima carga que sí
+  // complete el estanque — si no, la carga que completa el estanque
+  // parece "rendir pésimo" (más litros para los mismos km) cuando en
+  // realidad solo está compensando lo que faltó cargar la vez anterior.
   const todasLasCargas = allCombustible
     .filter(c => c.patente === patente && c.km > 0)
     .sort((a, b) => a.km - b.km);
 
   let kmEntreCargas = 0, litrosConDelta = 0;
-  todasLasCargas.forEach((c, i) => {
-    if (i === 0) return; // la primera carga del historial no tiene una "anterior" con la que compararse
-    const anterior = todasLasCargas[i - 1];
+  let anclaIdx = 0;       // índice de la última carga usada como punto de referencia (llenado completo, o la primera carga del historial si todavía no hay ninguno)
+  let litrosPendientes = 0; // litros acumulados desde el ancla, en espera de que llegue el próximo llenado completo
+  for (let i = 1; i < todasLasCargas.length; i++) {
+    const c = todasLasCargas[i];
+    litrosPendientes += c.litros;
+    if (!c.lleno) continue; // carga parcial: se suma a lo pendiente, pero todavía no se puede cerrar el tramo
+    const anterior = todasLasCargas[anclaIdx];
     const delta = c.km - anterior.km;
-    if (delta <= 0) return; // odómetro cargado mal (no puede retroceder) — se ignora en vez de ensuciar el cálculo
-    if (!mes || _bitEsDelMes(c.fecha, mes)) {
+    if (delta > 0 && (!mes || _bitEsDelMes(c.fecha, mes))) {
       kmEntreCargas += delta;
-      litrosConDelta += c.litros;
+      litrosConDelta += litrosPendientes;
     }
-  });
+    anclaIdx = i;
+    litrosPendientes = 0;
+  }
   const rendimiento = litrosConDelta > 0 ? (kmEntreCargas / litrosConDelta) : null;
 
   return { kmRecorridos, litros, rendimiento, nViajes: viajes.length, nCargas: cargasDelMes.length };
@@ -327,36 +337,45 @@ function bitRenderMetricasYHistorial() {
     return;
   }
 
-  // Rendimiento de CADA carga puntual (contra la carga inmediatamente
-  // anterior, no contra el promedio del mes) — para poder ver de un
-  // vistazo si una carga en particular rindió mucho menos que las demás,
-  // no solo el promedio general. Mismo cálculo que usa
-  // _bitMetricasVehiculo(), pero guardando el resultado de CADA carga
-  // (ahí solo se usaba el acumulado del mes).
+  // Rendimiento de CADA llenado COMPLETO del estanque (el tramo desde el
+  // llenado completo anterior, sumando los litros de cualquier carga
+  // parcial que haya quedado en el medio) — mismo método que
+  // _bitMetricasVehiculo(), pero guardando el resultado de cada tramo
+  // para mostrarlo en el historial. Las cargas parciales (estanque no
+  // quedó lleno) no tienen un rendimiento propio — se muestran solo como
+  // "carga parcial", sin numerito, porque calcularles uno individual
+  // sería inventar un dato que no se puede saber.
   const cargasOrdenadas = allCombustible.filter(c => c.patente === patente && c.km > 0).sort((a, b) => a.km - b.km);
-  const rendimientoPorCarga = {}; // rowIndex -> { delta, rendimiento }
+  const rendimientoPorCarga = {}; // rowIndex del llenado completo -> { delta, litros, rendimiento }
   const rendimientosValidos = [];
-  cargasOrdenadas.forEach((c, i) => {
-    if (i === 0) return; // primera carga del historial: no hay una anterior con la que comparar
-    const anterior = cargasOrdenadas[i - 1];
+  let anclaIdx = 0;
+  let litrosPendientes = 0;
+  for (let i = 1; i < cargasOrdenadas.length; i++) {
+    const c = cargasOrdenadas[i];
+    litrosPendientes += c.litros;
+    if (!c.lleno) continue; // parcial: se acumula, se cierra el tramo más adelante
+    const anterior = cargasOrdenadas[anclaIdx];
     const delta = c.km - anterior.km;
-    if (delta <= 0 || !c.litros) return; // odómetro cargado mal, se ignora
-    const rendimiento = delta / c.litros;
-    rendimientoPorCarga[c.rowIndex] = { delta, rendimiento };
-    rendimientosValidos.push(rendimiento);
-  });
+    if (delta > 0 && litrosPendientes > 0) {
+      const rendimiento = delta / litrosPendientes;
+      rendimientoPorCarga[c.rowIndex] = { delta, litros: litrosPendientes, rendimiento };
+      rendimientosValidos.push(rendimiento);
+    }
+    anclaIdx = i;
+    litrosPendientes = 0;
+  }
   const rendimientoPromedioGeneral = rendimientosValidos.length
     ? rendimientosValidos.reduce((a, b) => a + b, 0) / rendimientosValidos.length
     : 0;
 
   cont.innerHTML = eventos.map(ev => {
-    // Rendimiento de ESTA carga puntual (contra la carga anterior) — si
-    // rindió bastante menos que el promedio del vehículo (70% o menos),
-    // se marca en rojo: es la señal más directa de "esta carga en
-    // particular salió cara" (más consumo del normal entre una parada y
-    // la otra), más que solo mirar el promedio del mes entero.
+    // Rendimiento de ESTE llenado completo (contra el llenado completo
+    // anterior, arrastrando lo que se cargó en el medio) — si rindió
+    // bastante menos que el promedio del vehículo (70% o menos), se marca
+    // en rojo.
     const rc = rendimientoPorCarga[ev.rowIndex];
     const rindeMalEstaCarga = rc && rendimientoPromedioGeneral > 0 && rc.rendimiento <= rendimientoPromedioGeneral * 0.7;
+    const esParcial = ev.lleno === false;
     return `<div class="evento-card-mini">
       <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
         <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M6 21V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v14" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10h1.5a1 1 0 0 1 1 1v2.5a1.5 1.5 0 0 0 3 0V9.5L17 7" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h12" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -365,8 +384,12 @@ function bitRenderMetricasYHistorial() {
         <div class="mant-title">Carga de combustible
           ${rc ? `<span style="font-weight:800;color:${rindeMalEstaCarga ? '#c0392b' : 'var(--accent-dark)'}">· ${rc.rendimiento.toFixed(1)} ${t.unidadCorta}/L</span>` : ''}
           ${rindeMalEstaCarga ? `<span class="badge red" style="margin-left:6px;vertical-align:middle">Rindió poco</span>` : ''}
+          ${esParcial ? `<span class="badge" style="margin-left:6px;vertical-align:middle;background:#eef0f3;color:var(--ink-soft)">Estanque no quedó lleno</span>` : ''}
         </div>
-        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L${rc ? ` · ${rc.delta.toLocaleString('es-CL')} ${t.unidadCorta} desde la carga anterior` : ' · primera carga registrada, sin anterior con qué comparar'}</div>
+        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L${
+          rc ? ` · ${rc.delta.toLocaleString('es-CL')} ${t.unidadCorta} desde el llenado completo anterior (${rc.litros} L en total, incluye cargas parciales en el medio)`
+          : (esParcial ? ' · rendimiento se calcula cuando se complete el estanque de nuevo' : ' · primera carga registrada, sin anterior con qué comparar')
+        }</div>
         ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
       </div>
     </div>`;
@@ -484,6 +507,7 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-km').value = _bitUltimoKmConocido(patente) || '';
   document.getElementById('bit-comb-litros').value = '';
   document.getElementById('bit-comb-chofer').value = '';
+  document.getElementById('bit-comb-lleno').checked = true;
   document.getElementById('bit-comb-km-label').textContent = `${t.unidadLargaCap} actual`;
   document.getElementById('bit-comb-km').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
   _bitPoblarChoferesConocidos();
@@ -514,6 +538,7 @@ async function bitGuardarCombustible() {
   const litros  = parseFloat(document.getElementById('bit-comb-litros').value);
   const choferEscrito = document.getElementById('bit-comb-chofer').value.trim();
   const chofer  = choferEscrito ? _bitNombreCanonicoChofer(choferEscrito) : '';
+  const lleno   = document.getElementById('bit-comb-lleno').checked;
 
   if (!fecha)                    { toast('La fecha es obligatoria', 'error'); return; }
   if (isNaN(km))                 { toast('Completa el km actual', 'error'); return; }
@@ -525,7 +550,7 @@ async function bitGuardarCombustible() {
   try {
     await _bitAsegurarHojas();
     const id = 'COMB-' + Date.now();
-    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:G`, [[id, fecha, patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : '')]]);
+    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:H`, [[id, fecha, patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : ''), lleno ? 'SI' : 'NO']]);
     toast('✓ Carga de combustible registrada');
     if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-combustible');
