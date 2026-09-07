@@ -445,6 +445,32 @@ async function bitGuardarViaje() {
 }
 
 // ── Registrar combustible ────────────────────────────────────
+// Junta los nombres de chofer ya usados en cargas anteriores (de este
+// vehículo y de cualquier otro) para sugerirlos al escribir — así, si
+// alguien ya escribió "Carlos Breve" antes, la próxima vez alcanza con
+// tocar la sugerencia en vez de tipear el nombre de nuevo (y arriesgarse
+// a escribirlo con una letra distinta, lo que después hace difícil
+// filtrar por esa persona en la planilla). Si para la misma persona hay
+// variantes distintas guardadas de antes (typos ya cometidos), se sugiere
+// la que más veces se usó — así un error ocasional no le gana a la forma
+// correcta.
+function _bitPoblarChoferesConocidos() {
+  const porClave = {}; // nombre en minúsculas -> { 'Forma exacta': cantidad de veces }
+  (allCombustible || []).forEach(c => {
+    const nombre = (c.chofer || '').toString().trim();
+    if (!nombre) return;
+    const clave = nombre.toLowerCase();
+    if (!porClave[clave]) porClave[clave] = {};
+    porClave[clave][nombre] = (porClave[clave][nombre] || 0) + 1;
+  });
+  const nombres = Object.values(porClave)
+    .map(variantes => Object.entries(variantes).sort((a, b) => b[1] - a[1])[0][0])
+    .sort((a, b) => a.localeCompare(b, 'es'));
+
+  const dl = document.getElementById('bit-comb-choferes-lista');
+  if (dl) dl.innerHTML = nombres.map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('');
+}
+
 function bitAbrirCombustible() {
   if (_bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   const patente = _bitPatenteActual;
@@ -460,8 +486,25 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-chofer').value = '';
   document.getElementById('bit-comb-km-label').textContent = `${t.unidadLargaCap} actual`;
   document.getElementById('bit-comb-km').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
+  _bitPoblarChoferesConocidos();
 
   openPanel('panel-bit-combustible');
+}
+
+// Devuelve la forma "oficial" ya guardada de un nombre de chofer si existe
+// una coincidencia (sin importar mayúsculas/tildes exactas) en el
+// historial, o el nombre tal cual si es nuevo. Se usa al guardar para que
+// aunque alguien no haya tocado la sugerencia y haya escrito el nombre a
+// mano, igual quede guardado con el mismo formato que ya se venía usando.
+function _bitNombreCanonicoChofer(nombreEscrito) {
+  const clave = nombreEscrito.toLowerCase();
+  const variantes = {};
+  (allCombustible || []).forEach(c => {
+    const nombre = (c.chofer || '').toString().trim();
+    if (nombre.toLowerCase() === clave) variantes[nombre] = (variantes[nombre] || 0) + 1;
+  });
+  const opciones = Object.entries(variantes).sort((a, b) => b[1] - a[1]);
+  return opciones.length ? opciones[0][0] : nombreEscrito;
 }
 
 async function bitGuardarCombustible() {
@@ -469,7 +512,8 @@ async function bitGuardarCombustible() {
   const fecha   = document.getElementById('bit-comb-fecha').value;
   const km      = parseFloat(document.getElementById('bit-comb-km').value);
   const litros  = parseFloat(document.getElementById('bit-comb-litros').value);
-  const chofer  = document.getElementById('bit-comb-chofer').value.trim();
+  const choferEscrito = document.getElementById('bit-comb-chofer').value.trim();
+  const chofer  = choferEscrito ? _bitNombreCanonicoChofer(choferEscrito) : '';
 
   if (!fecha)                    { toast('La fecha es obligatoria', 'error'); return; }
   if (isNaN(km))                 { toast('Completa el km actual', 'error'); return; }
