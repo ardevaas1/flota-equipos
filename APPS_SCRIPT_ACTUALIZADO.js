@@ -622,6 +622,66 @@ function manejarAccionAndamios(p) {
         }
       }
 
+      // Trasladar VARIAS piezas de una vez desde una ubicación a otra
+      // (botón "Trasladar varias piezas desde acá" del resumen por
+      // ubicación) — antes esto no existía del lado del servidor a pesar
+      // de que el cliente ya lo llamaba, por eso daba "Acción desconocida".
+      // Hace, en una sola llamada, lo que antes hubiera sido: una tanda de
+      // and_mover_ubicacion en paralelo (uno por tipo de pieza) MÁS otra
+      // tanda de escrituras a MOVIMIENTOS para dejar cada traslado en el
+      // historial. Todos los ítems de esta llamada comparten el mismo
+      // "MOV-{timestamp}" al inicio del id — es la misma convención que ya
+      // usa el cliente (_movBatchKey) para agruparlos como un solo
+      // traslado en el historial, en vez de mostrar una tarjeta repetida
+      // por cada tipo de pieza.
+      case 'and_mover_varias': {
+        const origen = (p.origen || '').trim();
+        const destino = (p.destino || '').trim();
+        if (!origen || !destino) return _jsonOut({ success: false, error: 'Falta origen o destino' });
+        if (origen.toLowerCase() === destino.toLowerCase()) {
+          return _jsonOut({ success: false, error: 'El origen y el destino no pueden ser el mismo' });
+        }
+
+        let items;
+        try {
+          items = JSON.parse(p.items || '[]');
+        } catch (eParse) {
+          return _jsonOut({ success: false, error: 'No se pudo leer la lista de piezas a trasladar' });
+        }
+        if (!items || !items.length) return _jsonOut({ success: false, error: 'No se indicó ninguna pieza a trasladar' });
+
+        const shMov = SpreadsheetApp.openById(SHEET_ID).getSheetByName('MOVIMIENTOS');
+        const timestamp = Date.now();
+        let ok = 0;
+        const errores = [];
+
+        items.forEach((item, i) => {
+          const row = parseInt(item.row, 10);
+          const cantidad = parseInt(item.cantidad, 10) || 0;
+          const tipo = item.tipo || '';
+          if (!row || row < 2 || cantidad <= 0) {
+            errores.push({ tipo: tipo, error: 'Fila o cantidad inválida' });
+            return;
+          }
+          try {
+            _trasladarUbicacionAnd(sh, row, origen, destino, cantidad, tipo, email);
+            if (shMov) {
+              const id = 'MOV-' + timestamp + '-' + i;
+              shMov.appendRow([
+                id, p.fecha || '', 'Andamios', '', cantidad + ' x ' + tipo,
+                origen, destino, p.autoriza || '', p.traslada || '', p.obs || '',
+                email, p.guia || '', 'recibido',
+              ]);
+            }
+            ok++;
+          } catch (errItem) {
+            errores.push({ tipo: tipo, error: errItem.message });
+          }
+        });
+
+        return _jsonOut({ success: true, ok: ok, errores: errores });
+      }
+
       // Agregar un tipo de pieza nuevo (sin foto todavía; la foto se agrega después con and_set_foto)
       case 'and_nuevo': {
         const cantidadInicial = parseInt(p.cantidad, 10) || 0;
@@ -821,4 +881,82 @@ function manejarAccionAndamios(p) {
   } catch (err) {
     return _jsonOut({ success: false, error: String(err) });
   }
+}
+
+// ── Sincronización automática de ubicación por GPS (geocercas) ─────────
+// Mismo principio que el ajuste de kilometraje: la empresa de GPS ya
+// escribe sola en la hoja DATOS (columna F = horómetro). Acá se le pide
+// que ADEMÁS escriba, cuando un vehículo entra a una geocerca, el NOMBRE
+// de esa geocerca en la columna M (GEOCERCA_ACTUAL) de esa misma hoja,
+// usando el mismo nombre exacto que la obra tiene en MAQUINARIA (ej.
+// "COLIMA"). Esta función se ejecuta sola cada cierto tiempo (trigger) y,
+// a diferencia del kilometraje, NO necesita que un admin la confirme:
+// si la geocerca cambió, se actualiza la ubicación directo — no hay
+// "desfase" que ajustar como pasa con el odómetro.
+//
+// Columnas esperadas en DATOS (0-index, igual que en abrirAjusteGPS() del
+// cliente): E=4 PATENTE · M=12 GEOCERCA_ACTUAL · N=13 FECHA_ENTRADA_GEOCERCA
+//
+// CONFIGURACIÓN NECESARIA (una sola vez, manual):
+// 1) Pedirle a la empresa de GPS que, en cada evento de entrada a una
+//    geocerca, escriba el nombre de la geocerca en la columna M de la fila
+//    de ese vehículo en DATOS (misma cuenta/API que ya usan para la
+//    columna F). Los nombres de las geocercas deben coincidir tal cual con
+//    los nombres de ubicación usados en Flota (ANDAMIOS/MAQUINARIA), sin
+//    tildes de más ni mayúsculas distintas — o la sincronización no va a
+//    reconocer que es la misma obra.
+// 2) Ejecutar UNA vez la función instalarTriggerUbicacionGPS() de más
+//    abajo desde el editor de Apps Script (▶ Ejecutar), para que quede
+//    corriendo sola cada 15 minutos. Después de eso no hay que tocar nada
+//    más — el trigger queda guardado en el proyecto.
+function sincronizarUbicacionDesdeGPS() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const shDatos = ss.getSheetByName('DATOS');
+  const shMaquinaria = ss.getSheetByName('MAQUINARIA');
+  if (!shDatos || !shMaquinaria) return;
+
+  const datos = shDatos.getDataRange().getValues();
+  const maquinaria = shMaquinaria.getDataRange().getValues();
+
+  // Índice patente -> fila de MAQUINARIA (columna E, index 4), para no
+  // recorrer toda la hoja por cada vehículo del GPS.
+  const filaPorPatente = {};
+  for (let i = 1; i < maquinaria.length; i++) {
+    const patente = (maquinaria[i][4] || '').toString().trim().toUpperCase();
+    if (patente) filaPorPatente[patente] = i + 1; // fila real en la hoja (1-index)
+  }
+
+  let actualizados = 0;
+  for (let i = 1; i < datos.length; i++) {
+    const patente = (datos[i][4] || '').toString().trim().toUpperCase();
+    const geocerca = (datos[i][12] || '').toString().trim(); // columna M
+    if (!patente || !geocerca) continue;
+
+    const filaMaq = filaPorPatente[patente];
+    if (!filaMaq) continue; // el GPS reporta una patente que no está en Flota
+
+    const ubicacionActual = (maquinaria[filaMaq - 1][10] || '').toString().trim(); // columna K
+    if (ubicacionActual.toLowerCase() === geocerca.toLowerCase()) continue; // ya está al día
+
+    shMaquinaria.getRange(filaMaq, 11).setValue(geocerca); // columna K = 11 en base 1
+    actualizados++;
+  }
+
+  if (actualizados > 0) {
+    console.log('[GPS] Ubicaciones actualizadas automáticamente: ' + actualizados);
+  }
+}
+
+// Ejecutar UNA sola vez a mano desde el editor de Apps Script para dejar
+// la sincronización corriendo sola cada 15 minutos. Si se vuelve a correr
+// por error, primero borra cualquier trigger anterior de esta misma
+// función para no dejar dos corriendo en paralelo.
+function instalarTriggerUbicacionGPS() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'sincronizarUbicacionDesdeGPS') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sincronizarUbicacionDesdeGPS')
+    .timeBased()
+    .everyMinutes(15)
+    .create();
 }
