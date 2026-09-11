@@ -117,7 +117,7 @@ async function loadCombustible() {
       .map(({ r, rowIndex }) => ({
         rowIndex,
         id:            r[0] || '',
-        fecha:         r[1] || '',
+        fecha:         _bitFechaDesdeHoja(r[1]),
         patente:       (r[2] || '').toUpperCase(),
         km:            parseFloat(r[3]) || 0,
         litros:        parseFloat(r[4]) || 0,
@@ -188,6 +188,37 @@ function _bitMesActual() {
 }
 function _bitEsDelMes(fechaStr, mes) {
   return (fechaStr || '').slice(0, 7) === mes;
+}
+// El input type="date" guarda/entrega "yyyy-mm-dd" (para que ordene y
+// filtre bien por mes), pero para MOSTRARLA se prefiere "dd/mm/yyyy" —
+// solo cambia cómo se ve, el dato de fondo sigue guardado igual.
+function _bitFormatearFecha(fechaISO) {
+  const partes = (fechaISO || '').split('-');
+  if (partes.length !== 3) return fechaISO || '';
+  const [anio, mes, dia] = partes;
+  return `${dia}/${mes}/${anio}`;
+}
+// Para que la fecha también se vea "dd/mm/yyyy" al abrir la hoja de
+// cálculo directamente (no solo en la app), se guarda en ese formato en
+// la columna B de COMBUSTIBLE (con comilla adelante para que Sheets no la
+// intente interpretar como número/fecha propia y la deje tal cual texto).
+function _bitFechaParaGuardar(fechaISO) {
+  return "'" + _bitFormatearFecha(fechaISO);
+}
+// Y al revés: lo que se lee de la hoja puede venir en "dd/mm/yyyy" (cargas
+// nuevas) o en "yyyy-mm-dd" (cargas viejas, de antes de este cambio) —
+// esto normaliza cualquiera de los dos formatos a ISO para adentro de la
+// app, así todo el resto del código (orden cronológico, filtro por mes)
+// sigue funcionando exactamente igual sin importar en qué formato haya
+// quedado guardada cada fila.
+function _bitFechaDesdeHoja(valor) {
+  const v = (valor || '').toString().trim();
+  if (!v) return '';
+  if (v.includes('/')) {
+    const [dia, mes, anio] = v.split('/');
+    if (dia && mes && anio) return `${anio.padStart(4, '0')}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+  }
+  return v; // ya viene en ISO
 }
 
 function _bitMetricasVehiculo(patente, mes) {
@@ -386,7 +417,7 @@ function bitRenderMetricasYHistorial() {
           ${rindeMalEstaCarga ? `<span class="badge red" style="margin-left:6px;vertical-align:middle">Rindió poco</span>` : ''}
           ${esParcial ? `<span class="badge" style="margin-left:6px;vertical-align:middle;background:#eef0f3;color:var(--ink-soft)">Estanque no quedó lleno</span>` : ''}
         </div>
-        <div class="mant-meta">${ev.fecha} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L${
+        <div class="mant-meta">${_bitFormatearFecha(ev.fecha)} · ${ev.km.toLocaleString('es-CL')} ${t.unidadCorta} · ${ev.litros} L${
           rc ? ` · ${rc.delta.toLocaleString('es-CL')} ${t.unidadCorta} desde el llenado completo anterior (${rc.litros} L en total, incluye cargas parciales en el medio)`
           : (esParcial ? ' · rendimiento se calcula cuando se complete el estanque de nuevo' : ' · primera carga registrada, sin anterior con qué comparar')
         }</div>
@@ -550,7 +581,7 @@ async function bitGuardarCombustible() {
   try {
     await _bitAsegurarHojas();
     const id = 'COMB-' + Date.now();
-    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:H`, [[id, fecha, patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : ''), lleno ? 'SI' : 'NO']]);
+    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:H`, [[id, _bitFechaParaGuardar(fecha), patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : ''), lleno ? 'SI' : 'NO']]);
     toast('✓ Carga de combustible registrada');
     if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-combustible');
