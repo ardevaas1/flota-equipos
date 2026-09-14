@@ -1440,6 +1440,37 @@ function renderEventos() {
   renderHistorialEventos('eventos-historial', allEventos);
 }
 
+// Busca y abre la(s) foto(s) adjuntas a un evento — el nombre exacto de
+// cada archivo queda guardado en la columna FOTO de MANTENCIONES al
+// momento de subirlas (ver saveEvento). Si es una sola foto la abre
+// directo; si son varias, abre la carpeta de Eventos del vehículo para
+// verlas todas juntas (evita tener que buscar y abrir una por una).
+async function abrirFotoEvento(ev, patente, fotoNombres) {
+  if (ev && ev.stopPropagation) ev.stopPropagation(); // no disparar el onclick de la tarjeta (abrir la ficha)
+  const nombres = (fotoNombres || '').split('|').map(n => n.trim()).filter(Boolean);
+  if (!nombres.length) return;
+  toast('Buscando foto...', 'loading');
+  try {
+    await ensureToken();
+    const folderId = await getSubfolder(patente, 'Eventos');
+    if (nombres.length === 1) {
+      const q = `title = '${_qEsc(nombres[0])}' and '${folderId}' in parents and trashed=false`;
+      const data = await driveSearch('flota', q, { pageSize: 1 });
+      if (data.files && data.files.length > 0) {
+        window.open(`https://drive.google.com/file/d/${data.files[0].id}/view`, '_blank');
+        toast('Foto abierta ✓');
+      } else {
+        toast('No se encontró la foto (¿se movió o se borró en Drive?)', 'error');
+      }
+    } else {
+      window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
+      toast(`${nombres.length} fotos — se abrió la carpeta completa`);
+    }
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 function renderHistorialEventos(containerId, eventos, limit = 50) {
   const list = eventos.slice(0, limit);
   document.getElementById(containerId).innerHTML = list.map(ev => {
@@ -1452,6 +1483,7 @@ function renderHistorialEventos(containerId, eventos, limit = 50) {
         <div class="mant-title">${ev.tipo}</div>
         <div class="mant-meta">${ev.fechaEvento} · ${nombre} · ${ev.patente}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>
         ${ev.descripcion ? `<div class="evento-desc">${ev.descripcion}</div>` : ''}
+        ${ev.foto ? `<button class="evento-ver-foto-btn" onclick="abrirFotoEvento(event, '${ev.patente}', '${ev.foto.replace(/'/g, "\\'")}')"><svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Ver foto</button>` : ''}
       </div>
       <span class="badge ${meta.color}" style="white-space:nowrap">${ev.patente}</span>
     </div>`;
@@ -1469,6 +1501,7 @@ function renderHistorialEquipo(patente) {
         <div class="mant-title">${ev.tipo}</div>
         <div class="mant-meta">${ev.fechaEvento}${ev.horometro ? ' · '+formatNum(ev.horometro)+' h/km' : ''}</div>
         ${ev.descripcion ? `<div class="evento-desc">${ev.descripcion}</div>` : ''}
+        ${ev.foto ? `<button class="evento-ver-foto-btn" onclick="abrirFotoEvento(event, '${patente}', '${ev.foto.replace(/'/g, "\\'")}')"><svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> Ver foto</button>` : ''}
       </div>
     </div>`;
   }).join('');

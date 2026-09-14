@@ -1659,6 +1659,12 @@ body.is-offline #app { padding-top: 30px; }
   font-size: 13.5px; font-weight: 600; line-height: 1.4;
 }
 #evento-equipo:disabled { background: #f1f3f5; color: var(--ink-soft); opacity: 0.75; cursor: not-allowed; }
+.evento-ver-foto-btn {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+  padding: 5px 10px; border-radius: 999px; border: 1.5px solid var(--accent);
+  color: var(--accent); background: var(--accent-soft); font-size: 12px; font-weight: 700;
+}
+.evento-ver-foto-btn:active { background: var(--accent); color: #fff; }
 .busqueda-global-clear { width: 26px; height: 26px; }
 .busqueda-global-clear svg { width: 16px; height: 16px; }
 .busqueda-global-resumen-btn {
