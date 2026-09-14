@@ -2434,6 +2434,24 @@ async function guardarAjusteGPS() {
   }
 }
 
+// Aviso bien visible de para qué equipo va a quedar el evento — se llama
+// al abrir el panel Y cada vez que se cambia el <select>, para que sea
+// imposible guardar sin haber visto claramente cuál es el equipo elegido
+// (esto se agregó después de que un evento quedara mal cargado en el
+// equipo equivocado — el primero de la lista — sin que nadie se diera
+// cuenta hasta después).
+function _eventoActualizarBannerEquipo() {
+  const sel = document.getElementById('evento-equipo');
+  const banner = document.getElementById('evento-equipo-banner');
+  if (!sel || !banner) return;
+  const patente = sel.value;
+  if (!patente) { banner.style.display = 'none'; banner.innerHTML = ''; return; }
+  const eq = allEquipos.find(e => e.patente === patente);
+  const nombre = eq ? `${eq.marca} ${eq.modelo}` : patente;
+  banner.style.display = 'block';
+  banner.innerHTML = `⚠️ Este evento va a quedar registrado para <strong>${nombre} (${patente})</strong>. Revisa que sea el equipo correcto antes de guardar.`;
+}
+
 function openEventoPanel(patente) {
   const sel = document.getElementById('evento-equipo');
   if (sel) {
@@ -2441,17 +2459,29 @@ function openEventoPanel(patente) {
       allEquipos.map(e =>
         `<option value="${e.patente}">${e.marca} ${e.modelo} (${e.patente})</option>`
       ).join('');
+    // Siempre se fija explícito (en vez de confiar en que el <select> ya
+    // haya quedado en la placeholder por las puras) — así no puede pasar
+    // que quede seleccionado por accidente el primer equipo de la lista
+    // en vez de "— Seleccionar equipo —" cuando no se pasa un patente
+    // (ej. desde el botón general "+ Registrar evento" de la pestaña
+    // Eventos, que no viene atado a ningún vehículo en particular).
+    let coincide = false;
     if (patente) {
       for (const opt of sel.options) {
-        if (opt.value === patente) { sel.value = patente; break; }
+        if (opt.value === patente) { coincide = true; break; }
       }
     }
+    sel.value = coincide ? patente : '';
   }
   document.getElementById('evento-fecha').value     = new Date().toISOString().slice(0,10);
   document.getElementById('evento-horometro').value = '';
   document.getElementById('evento-proxima').value   = '';
   document.getElementById('evento-obs').value       = '';
   limpiarFotos();
+  // Muestra de entrada para qué equipo va a quedar el evento — así se ve
+  // de una si el equipo precargado es el correcto, sin tener que fijarse
+  // en el <select> letra por letra. Ver _eventoActualizarBannerEquipo().
+  _eventoActualizarBannerEquipo();
 
   // Calcular sola la "Próxima mantención" (horómetro actual + intervalo del
   // vehículo) en vez de que alguien tenga que sumarlo a mano — así no puede
@@ -2549,6 +2579,11 @@ async function saveEvento() {
   // Bloquear botón para evitar doble guardado
   const btn = document.querySelector('#panel-evento .pnl-action');
   if (btn) btnEstado(btn, 'cargando');
+  // Bloquear también el selector de equipo mientras se guarda — sobre
+  // todo mientras se suben fotos (puede tardar), para que sea imposible
+  // que algo lo toque o lo cambie en el medio sin que se note.
+  const selEquipo = document.getElementById('evento-equipo');
+  if (selEquipo) selEquipo.disabled = true;
 
   try {
     const e = allEquipos.find(x => x.patente === patente);
@@ -2589,6 +2624,18 @@ async function saveEvento() {
 
     const fotoNombre = fotosSubidas.join(' | ');
 
+    // Verificación final, justo antes de escribir de verdad: si por algún
+    // motivo el equipo seleccionado cambió mientras se esperaba (ej.
+    // mientras se subían las fotos), frenar y avisar en vez de guardar en
+    // silencio en el equipo equivocado. El <select> queda deshabilitado
+    // arriba apenas se aprieta Guardar, así que en el uso normal esto
+    // nunca debería dispararse — es una red de seguridad, no algo que
+    // se espere que pase.
+    const patenteAlGuardar = document.getElementById('evento-equipo').value;
+    if (patenteAlGuardar !== patente) {
+      throw new Error('El equipo seleccionado cambió mientras se subían las fotos. Por seguridad no se guardó nada — revisa el equipo y vuelve a intentar.');
+    }
+
     // A=FECHA_REG B=PATENTE C=EQUIPO D=HOROMETRO E=TIPO F=DESC G=FECHA_EVT H=FOTO
     const fechaReg = "'" + new Date().toLocaleDateString('es-CL');
     const fechaFmt = "'" + fecha.split('-').reverse().join('/');
@@ -2624,6 +2671,7 @@ async function saveEvento() {
     toast('Error: ' + err.message, 'error');
   } finally {
     if (btn) btnEstado(btn, 'reset');
+    if (selEquipo) selEquipo.disabled = false;
   }
 }
 
