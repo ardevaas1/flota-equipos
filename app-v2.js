@@ -442,6 +442,25 @@ const ROLES_DE_MODULO = ['mover', 'andamios', 'flota', 'chofer', 'inventario', '
 // de rol de USUARIOS = ve solo la tarjeta Flota, todo en solo lectura.
 const ROLES_DE_MODULO_VIEWER = ROLES_DE_MODULO.map(r => r + '-viewer');
 
+// Alias de nombres de rol: el token interno de un par de módulos no
+// coincide con cómo se llaman en la propia app, así que es un error fácil
+// de cometer al cargar la hoja USUARIOS (ej. escribir "bitacora-viewer"
+// pensando en el módulo "Bitácora y Combustible", cuando el token real es
+// "chofer"). Si el rol escrito no coincide con nada y termina cayendo al
+// 'viewer' general (ve TODO en vez de solo ese módulo), es casi siempre
+// por esto — así que se acepta el nombre visible como alias del token real,
+// tanto la versión con permiso de escritura como la "-viewer".
+const ALIAS_ROL = {
+  'bitacora': 'chofer', 'bitácora': 'chofer', 'combustible': 'chofer',
+  'movimientos': 'mover', 'movimiento': 'mover',
+};
+function _normalizarTokenRol(token) {
+  const esViewer = token.endsWith('-viewer');
+  const base = esViewer ? token.slice(0, -'-viewer'.length) : token;
+  const baseReal = ALIAS_ROL[base] || base;
+  return esViewer ? baseReal + '-viewer' : baseReal;
+}
+
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -455,7 +474,7 @@ async function checkUserRole() {
 
     // La celda puede traer varios roles separados por coma (ej: "flota,containers")
     // para dar acceso a más de un módulo a la misma persona.
-    const tokens = celda.split(',').map(t => t.trim()).filter(Boolean);
+    const tokens = celda.split(',').map(t => _normalizarTokenRol(t.trim())).filter(Boolean);
 
     if (tokens.includes('admin')) {
       userRole  = 'admin';
@@ -3388,6 +3407,14 @@ async function saveEquipo() {
       }
       console.log('[SAVE] folderId (Documentos):', folderId);
 
+      // El nombre del archivo lleva la fecha de VENCIMIENTO del documento
+      // (no la fecha en que se sube) — así, mirando la lista de archivos en
+      // Drive, se puede saber a simple vista cuál es el vigente y cuál ya
+      // venció, sin tener que abrir cada uno. Si por algún motivo se sube
+      // el archivo sin haber cargado la fecha de vencimiento, se usa la
+      // fecha de hoy como respaldo (mejor eso que dejar el nombre vacío).
+      const vencimientoPorPrefix = { SOAP: soap, PERMISO: permiso, REVISION: revision };
+
       for (const doc of fileQueue) {
         setBtnState(true, 'Subiendo ' + doc.prefix + '...');
         toast('Subiendo ' + doc.prefix + '...');
@@ -3398,7 +3425,11 @@ async function saveEquipo() {
           // Si hay más de un archivo con el mismo prefix (ej: 2 fotos de
           // Revisión Técnica), se numera para no pisarse en Drive.
           const numSufijo = doc.multiIdx ? `_${doc.multiIdx}` : '';
-          const fileName = `${doc.prefix}_${patente}_${new Date().toLocaleDateString('es-CL').replace(/\//g,'-')}${numSufijo}.${ext}`;
+          const vencimiento = (vencimientoPorPrefix[doc.prefix] || '').trim();
+          const fechaParaNombre = vencimiento
+            ? vencimiento.replace(/\//g, '-')
+            : new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
+          const fileName = `${doc.prefix}_${patente}_${fechaParaNombre}${numSufijo}.${ext}`;
 
           console.log('[SAVE] Subiendo a Drive:', fileName);
           const result = await driveUpload('flota', folderId, fileName, doc.mimeType, doc.b64, false);
