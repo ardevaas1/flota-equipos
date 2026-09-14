@@ -1090,20 +1090,58 @@ async function _fetchConReintento(url, options, intentos = 3) {
 async function _appsScriptCall(accion, params) {
   await ensureToken();
   return _conIndicadorCarga((async () => {
-    let res;
-    try {
-      res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ accion, accessToken, ...params }),
-      });
-    } catch (e) {
-      throw new Error('No se pudo contactar el servidor. Revisa tu conexión.');
+    // Reintenta automáticamente ante fallas PASAJERAS de la comunicación
+    // con el Apps Script (Google a veces redirige la respuesta a una URL
+    // interna suya — script.googleusercontent.com/macros/echo — y esa
+    // redirección falla de forma intermitente con 404, sin que tenga que
+    // ver con la conexión de quien usa la app ni con el dato que se
+    // manda). Reintenta: sin conexión, HTTP no-ok, respuesta que no se
+    // pudo leer como JSON, o una respuesta que no tiene ni "success" ni
+    // "error" (síntoma de que en el medio se perdió el POST real y cayó
+    // en el doGet() de "estoy vivo" en vez de procesar la acción pedida).
+    // Un error de NEGOCIO de verdad (ej. "sin permiso", "dato inválido")
+    // SIEMPRE viene con success:false + un error explicado — eso no se
+    // reintenta, porque va a fallar exactamente igual las veces que sea.
+    const intentos = 3;
+    const esperas = [700, 1600, 3000];
+    let ultimoError;
+    for (let i = 0; i < intentos; i++) {
+      let res;
+      try {
+        res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ accion, accessToken, ...params }),
+        });
+      } catch (e) {
+        ultimoError = new Error('No se pudo contactar el servidor. Revisa tu conexión.');
+        if (i < intentos - 1) { await new Promise(r => setTimeout(r, esperas[i])); continue; }
+        throw ultimoError;
+      }
+      if (!res.ok) {
+        ultimoError = new Error(`Error del servidor (${res.status})`);
+        if (i < intentos - 1) { await new Promise(r => setTimeout(r, esperas[i])); continue; }
+        throw ultimoError;
+      }
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        ultimoError = new Error('Respuesta inválida del servidor.');
+        if (i < intentos - 1) { await new Promise(r => setTimeout(r, esperas[i])); continue; }
+        throw ultimoError;
+      }
+      if (data.success === undefined && data.error === undefined) {
+        // No es la forma de respuesta que espera la app — probablemente el
+        // POST se perdió en el camino (ver comentario arriba).
+        ultimoError = new Error('El servidor no procesó la acción pedida.');
+        if (i < intentos - 1) { await new Promise(r => setTimeout(r, esperas[i])); continue; }
+        throw ultimoError;
+      }
+      if (!data.success) throw new Error(data.error || 'No se pudo guardar');
+      return data;
     }
-    if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'No se pudo guardar');
-    return data;
+    throw ultimoError;
   })());
 }
 
