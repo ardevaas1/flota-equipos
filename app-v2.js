@@ -3415,31 +3415,43 @@ async function saveEquipo() {
       // fecha de hoy como respaldo (mejor eso que dejar el nombre vacío).
       const vencimientoPorPrefix = { SOAP: soap, PERMISO: permiso, REVISION: revision };
 
-      for (const doc of fileQueue) {
-        setBtnState(true, 'Subiendo ' + doc.prefix + '...');
-        toast('Subiendo ' + doc.prefix + '...');
-        console.log('[SAVE] Subiendo', doc.prefix, doc.name, doc.size, 'bytes');
+      setBtnState(true, `Subiendo ${fileQueue.length} archivo(s)...`);
+      toast(`Subiendo ${fileQueue.length} archivo(s)...`);
 
-        try {
-          const ext      = doc.name.split('.').pop();
-          // Si hay más de un archivo con el mismo prefix (ej: 2 fotos de
-          // Revisión Técnica), se numera para no pisarse en Drive.
-          const numSufijo = doc.multiIdx ? `_${doc.multiIdx}` : '';
-          const vencimiento = (vencimientoPorPrefix[doc.prefix] || '').trim();
-          const fechaParaNombre = vencimiento
-            ? vencimiento.replace(/\//g, '-')
-            : new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
-          const fileName = `${doc.prefix}_${patente}_${fechaParaNombre}${numSufijo}.${ext}`;
+      // Se suben TODOS a la vez en vez de uno por uno — antes cada archivo
+      // esperaba a que el anterior terminara del todo (viaje de ida y
+      // vuelta completo al Apps Script) antes de arrancar el siguiente,
+      // lo que hacía sentir la subida mucho más lenta de lo necesario
+      // apenas había más de un documento junto (ej. varias fotos de
+      // Revisión Técnica). Cada promesa atrapa su propio error para que
+      // si uno falla no frene ni tire abajo a los demás.
+      const resultados = await Promise.all(fileQueue.map(doc => {
+        const ext = doc.name.split('.').pop();
+        // Si hay más de un archivo con el mismo prefix (ej: 2 fotos de
+        // Revisión Técnica), se numera para no pisarse en Drive.
+        const numSufijo = doc.multiIdx ? `_${doc.multiIdx}` : '';
+        const vencimiento = (vencimientoPorPrefix[doc.prefix] || '').trim();
+        const fechaParaNombre = vencimiento
+          ? vencimiento.replace(/\//g, '-')
+          : new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
+        const fileName = `${doc.prefix}_${patente}_${fechaParaNombre}${numSufijo}.${ext}`;
 
-          console.log('[SAVE] Subiendo a Drive:', fileName);
-          const result = await driveUpload('flota', folderId, fileName, doc.mimeType, doc.b64, false);
-          console.log('[SAVE] Subida OK:', result.id, result.name);
-          toast(doc.prefix + ' subido a Drive ✓');
-        } catch(uploadErr) {
-          console.error('[SAVE] Error subiendo ' + doc.prefix + ':', uploadErr);
-          toast('Error subiendo ' + doc.prefix + ': ' + uploadErr.message, 'error');
-        }
-      }
+        console.log('[SAVE] Subiendo a Drive:', fileName);
+        return driveUpload('flota', folderId, fileName, doc.mimeType, doc.b64, false)
+          .then(result => {
+            console.log('[SAVE] Subida OK:', result.id, result.name);
+            return { doc, ok: true };
+          })
+          .catch(err => {
+            console.error('[SAVE] Error subiendo ' + doc.prefix + ':', err);
+            return { doc, ok: false, error: err };
+          });
+      }));
+
+      const exitosos = resultados.filter(r => r.ok);
+      const fallidos = resultados.filter(r => !r.ok);
+      if (exitosos.length) toast(`${exitosos.length} archivo(s) subido(s) a Drive ✓`);
+      fallidos.forEach(r => toast('Error subiendo ' + r.doc.prefix + ': ' + r.error.message, 'error'));
     }
 
     // 3. Cerrar y recargar
