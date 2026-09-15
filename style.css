@@ -853,6 +853,14 @@ body.is-offline #app { padding-top: 30px; }
 .doc-file-label:active { background: var(--accent-soft); }
 .doc-file-label.selected { border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; border-style: solid; }
 .doc-file-hint { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; text-align: center; }
+.calibdoc-upload-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; padding: 11px; border-radius: 10px; border: none;
+  background: var(--accent); color: #fff; font-size: 14.5px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 2px 6px rgba(var(--accent-rgb),0.25);
+}
+.calibdoc-upload-btn:active { background: var(--accent-dark); }
+.calibdoc-upload-btn.selected { background: #2e7d32; box-shadow: none; }
 
 /* ── Login screen ── */
 .login-screen {

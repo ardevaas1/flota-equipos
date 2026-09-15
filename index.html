@@ -2003,8 +2003,9 @@
           <button type="button" class="link-btn" style="margin-left:10px" onclick="invQuitarDocCalibracion()">Quitar</button>
         </div>
         <div class="doc-upload-row">
-          <label id="calibdoc-file-label" class="doc-file-label">
-            <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Subir certificado de calibración
+          <label id="calibdoc-file-label" class="calibdoc-upload-btn">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Subir certificado</span>
             <input type="file" id="calibdoc-file" accept="image/*,.pdf" onchange="onCalibDocFileSelected(this)" style="display:none">
           </label>
         </div>

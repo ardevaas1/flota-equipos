@@ -914,9 +914,8 @@ function invAbrirEditar() {
     const label = document.getElementById('calibdoc-file-label');
     if (label) {
       label.classList.remove('selected');
-      const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
-      const texto = ' Subir certificado de calibración';
-      if (textNode) textNode.textContent = texto;
+      const span = label.querySelector('span');
+      if (span) span.textContent = 'Subir certificado';
     }
   } else {
     if (calSec) calSec.style.display = 'none';
@@ -967,15 +966,12 @@ function onCalibDocFileSelected(input) {
   if (!input.files || !input.files.length) return;
   const file = input.files[0];
   const label = document.getElementById('calibdoc-file-label');
+  const span = label ? label.querySelector('span') : null;
   _comprimirImagen(file).then(c => {
     _invCalibDoc = { b64: c.b64, name: c.name, mimeType: c.mimeType };
     _invCalibDocQuitar = false;
-    if (label) {
-      const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
-      const texto = ' ✅ ' + c.name + ' ';
-      if (textNode) textNode.textContent = texto; else label.insertBefore(document.createTextNode(texto), label.firstChild);
-      label.classList.add('selected');
-    }
+    if (span) span.textContent = c.name;
+    if (label) label.classList.add('selected');
     // Un documento nuevo reemplaza al actual — se oculta el link "ver
     // documento actual" mientras haya uno nuevo elegido, para no
     // confundir cuál es el que se va a guardar.
