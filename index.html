@@ -1994,6 +1994,21 @@
         <label style="margin-top:10px">Última calibración</label>
         <input type="date" id="inv-edit-ultcal">
       </div>
+      <div class="doc-upload-card" id="inv-edit-calibdoc-card" style="display:none">
+        <div class="doc-upload-title">Certificado de calibración</div>
+        <div id="inv-edit-calibdoc-actual" style="display:none;margin-bottom:8px">
+          <a href="#" id="inv-edit-calibdoc-link" onclick="invVerDocCalibracion(); return false" class="evento-ver-foto-btn" style="text-decoration:none">
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver documento actual
+          </a>
+          <button type="button" class="link-btn" style="margin-left:10px" onclick="invQuitarDocCalibracion()">Quitar</button>
+        </div>
+        <div class="doc-upload-row">
+          <label id="calibdoc-file-label" class="doc-file-label">
+            <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Subir certificado de calibración
+            <input type="file" id="calibdoc-file" accept="image/*,.pdf" onchange="onCalibDocFileSelected(this)" style="display:none">
+          </label>
+        </div>
+      </div>
 
       <div class="form-sec">Ubicación</div>
       <div class="form-group">

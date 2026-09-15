@@ -304,6 +304,7 @@ function parseTopografico(rows) {
       ultCal:    r[10] || '',
       obs:       r[11] || '',
       numIdent:  r[12] || '',
+      calibracionDoc: r[13] || '',
     }));
 }
 
@@ -339,7 +340,7 @@ async function loadInventario() {
     fetchSheet(`'${SHEET_GENERADORES}'!A2:O200`),
     fetchSheet(`'${SHEET_MAQ_MENOR}'!A2:K200`),
     fetchSheet(`'${SHEET_HERRAMIENTAS}'!A2:K200`),
-    fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:M200`),
+    fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:N200`),
     fetchSheet(`'${SHEET_CONTAINERS}'!A2:J100`),
   ]);
   const pGenEventos = fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
@@ -488,6 +489,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
       ${item.motor    ? `<div class="field-row"><span class="fl">N° de serie</span><span class="fv">${item.motor}</span></div>` : ''}
       ${item.proxCal  ? `<div class="field-row"><span class="fl">Próx. calibración</span><span class="fv">${item.proxCal} ${calBadge}</span></div>` : ''}
       ${item.ultCal   ? `<div class="field-row"><span class="fl">Última calibración</span><span class="fv">${item.ultCal}</span></div>` : ''}
+      ${item.calibracionDoc ? `<div class="field-row"><span class="fl">Certificado</span><span class="fv"><button class="evento-ver-foto-btn" onclick="invVerDocCalibracion()"><svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver certificado</button></span></div>` : ''}
     `;
   } else {
     extraFields = `
@@ -898,14 +900,28 @@ function invAbrirEditar() {
   // Calibración: solo Equipos Topográficos
   const calSec = document.getElementById('inv-edit-calibracion-sec');
   const calRow = document.getElementById('inv-edit-calibracion-row');
+  const calDocCard = document.getElementById('inv-edit-calibdoc-card');
   if (modulo === 'topografico') {
     if (calSec) calSec.style.display = '';
     if (calRow) calRow.style.display = '';
+    if (calDocCard) calDocCard.style.display = '';
     document.getElementById('inv-edit-proxcal').value = _invFechaAInput(item.proxCal || '');
     document.getElementById('inv-edit-ultcal').value  = _invFechaAInput(item.ultCal  || '');
+    _invCalibDoc = null;
+    _invCalibDocQuitar = false;
+    const actual = document.getElementById('inv-edit-calibdoc-actual');
+    if (actual) actual.style.display = item.calibracionDoc ? 'flex' : 'none';
+    const label = document.getElementById('calibdoc-file-label');
+    if (label) {
+      label.classList.remove('selected');
+      const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+      const texto = ' Subir certificado de calibración';
+      if (textNode) textNode.textContent = texto;
+    }
   } else {
     if (calSec) calSec.style.display = 'none';
     if (calRow) calRow.style.display = 'none';
+    if (calDocCard) calDocCard.style.display = 'none';
   }
 
   // Limpiar foto nueva pendiente
@@ -943,6 +959,61 @@ function invAbrirEditar() {
 // Foto de referencia para edición inventario
 let _invFotoRef = null;
 let _invFotoQuitar = false;
+// Certificado de calibración (solo Equipos Topográficos)
+let _invCalibDoc = null;
+let _invCalibDocQuitar = false;
+
+function onCalibDocFileSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const label = document.getElementById('calibdoc-file-label');
+  _comprimirImagen(file).then(c => {
+    _invCalibDoc = { b64: c.b64, name: c.name, mimeType: c.mimeType };
+    _invCalibDocQuitar = false;
+    if (label) {
+      const textNode = Array.from(label.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+      const texto = ' ✅ ' + c.name + ' ';
+      if (textNode) textNode.textContent = texto; else label.insertBefore(document.createTextNode(texto), label.firstChild);
+      label.classList.add('selected');
+    }
+    // Un documento nuevo reemplaza al actual — se oculta el link "ver
+    // documento actual" mientras haya uno nuevo elegido, para no
+    // confundir cuál es el que se va a guardar.
+    const actual = document.getElementById('inv-edit-calibdoc-actual');
+    if (actual) actual.style.display = 'none';
+  }).catch(e => { console.error('[CALIB DOC] No se pudo procesar:', e.message); toast('No se pudo procesar el archivo', 'error'); });
+  input.value = '';
+}
+
+function invQuitarDocCalibracion() {
+  _invCalibDocQuitar = true;
+  _invCalibDoc = null;
+  const actual = document.getElementById('inv-edit-calibdoc-actual');
+  if (actual) actual.style.display = 'none';
+  toast('El certificado se quitará al guardar');
+}
+
+// Busca y abre el certificado de calibración actual de este ítem — vive
+// en la misma carpeta de Drive que su foto de referencia.
+async function invVerDocCalibracion() {
+  if (!invItem || !invItem.calibracionDoc) return;
+  toast('Buscando documento...', 'loading');
+  try {
+    await ensureToken();
+    const sheetFolder = await findOrCreateFolder('inventario', SHEET_TOPOGRAFICO, DRIVE_INV_FOLDER);
+    const folderId = await _findOrCreateFolderInv(invItem, sheetFolder);
+    const q = `title = '${_qEsc(invItem.calibracionDoc)}' and '${folderId}' in parents and trashed=false`;
+    const data = await driveSearch('inventario', q, { pageSize: 1 });
+    if (data.files && data.files.length > 0) {
+      window.open(`https://drive.google.com/file/d/${data.files[0].id}/view`, '_blank');
+      toast('Documento abierto ✓');
+    } else {
+      toast('No se encontró el documento (¿se movió o se borró en Drive?)', 'error');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
 
 function quitarInvFoto() {
   _invFotoQuitar = true;
@@ -1119,6 +1190,47 @@ async function invGuardar() {
       }
     }
 
+    // Certificado de calibración (solo Equipos Topográficos) — mismo
+    // patrón que los documentos de Flota (SOAP/Permiso/Revisión): el
+    // nombre del archivo lleva la fecha de VENCIMIENTO (acá, la próxima
+    // calibración) en vez de la fecha de subida, para poder ver de un
+    // vistazo cuál certificado sigue vigente.
+    let calibDocNombreFinal = undefined; // undefined = sin cambios; '' = se quitó; string = subida nueva
+    if (modulo === 'topografico' && _invCalibDocQuitar) {
+      await writeSheet(`'${sheetName}'!N${row}`, [['']]);
+      _invCalibDocQuitar = false;
+      calibDocNombreFinal = '';
+    }
+    if (modulo === 'topografico' && _invCalibDoc) {
+      if (btn) btn.textContent = 'Subiendo certificado...';
+      toast('Subiendo certificado de calibración...', 'loading');
+      try {
+        const itemParaCarpeta = { ...invItem, numIdent: numIdentNuevo };
+        const codigo = invItem.codigo || numIdentNuevo || invItem.num || row;
+        let folderId = DRIVE_INV_FOLDER;
+        try {
+          const sheetFolder = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
+          folderId = await _findOrCreateFolderInv(itemParaCarpeta, sheetFolder);
+        } catch(fe) { console.warn('[CALIB DOC] Carpeta fallback:', fe.message); }
+
+        const ext = _invCalibDoc.name.split('.').pop() || 'jpg';
+        // proxCalNuevo viene como dd/mm/aaaa (ver _invFechaDeInput) — para
+        // el nombre del archivo se usa dd-mm-aaaa, igual que el resto de
+        // los documentos con vencimiento en la app.
+        const fechaNombre = proxCalNuevo ? proxCalNuevo.replace(/\//g, '-') : new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
+        const fileName = `CALIBRACION_${codigo}_${fechaNombre}.${ext}`;
+
+        const result = await driveUpload('inventario', folderId, fileName, _invCalibDoc.mimeType, _invCalibDoc.b64, false);
+        await writeSheet(`'${sheetName}'!N${row}`, [[result.name]]);
+        calibDocNombreFinal = result.name;
+        _invCalibDoc = null;
+        toast('Certificado subido ✓');
+      } catch(fe) {
+        console.error('[CALIB DOC] Error:', fe.message);
+        toast('Error subiendo certificado: ' + fe.message, 'error');
+      }
+    }
+
     toast('Guardado ✓');
     if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-inv-edit'); 
@@ -1142,6 +1254,7 @@ async function invGuardar() {
       itemLocal.obs = obs;
       if (modulo === 'herramientas' || modulo === 'maqmenor' || modulo === 'topografico') itemLocal.numIdent = numIdentNuevo;
       if (modulo === 'topografico') { itemLocal.proxCal = proxCalNuevo; itemLocal.ultCal = ultCalNuevo; }
+      if (calibDocNombreFinal !== undefined) itemLocal.calibracionDoc = calibDocNombreFinal;
       if (fotoNombreFinal !== undefined) {
         // El nombre del campo de foto cambia según el módulo (imagen/foto/registro)
         const campoFoto = modulo === 'generadores' ? 'imagen' : modulo === 'maqmenor' ? 'foto' : 'registro';
