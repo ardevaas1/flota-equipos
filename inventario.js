@@ -3957,11 +3957,18 @@ function andRenderLista() {
   if (lista)   lista.innerHTML   = buildHtml('');
   if (listaDt) listaDt.innerHTML = buildHtml('-dt');
 
-  // Cargar miniaturas de foto (async, no bloquea el render) en ambas copias
-  filtrados.forEach(it => {
-    if (!it.foto) return;
-    invCargarMiniaturaAndamio(it.foto, `and-thumb-${it.rowIndex}`);
-    invCargarMiniaturaAndamio(it.foto, `and-thumb-dt-${it.rowIndex}`);
+  // Cargar miniaturas de foto (async, no bloquea el render) en ambas copias.
+  // Primero se resuelven TODAS juntas en pocos lotes (ver
+  // _andResolverThumbsBatch) y recién ahí se pintan una por una — así cada
+  // invCargarMiniaturaAndamio individual encuentra su foto ya en caché en
+  // vez de disparar su propia búsqueda a Drive.
+  const nombresFotos = filtrados.filter(it => it.foto).map(it => it.foto);
+  _andResolverThumbsBatch(nombresFotos).then(() => {
+    filtrados.forEach(it => {
+      if (!it.foto) return;
+      invCargarMiniaturaAndamio(it.foto, `and-thumb-${it.rowIndex}`);
+      invCargarMiniaturaAndamio(it.foto, `and-thumb-dt-${it.rowIndex}`);
+    });
   });
 
   // El total: en modo normal suma las piezas BUENAS (cantidad) de todo el catálogo,
@@ -5006,6 +5013,52 @@ function andSyncSearch() {
 // tarjeta, que antes disparaban 2 búsquedas idénticas a Drive porque
 // ninguna alcanzaba a terminar antes de que empezara la otra), la segunda
 // espera la MISMA promesa en vez de volver a golpear la API.
+// Resuelve las miniaturas de VARIAS fotos de Andamios en pocas llamadas al
+// servidor en vez de una por foto. Antes, una lista con 40 piezas
+// distintas disparaba 40 búsquedas de Drive en paralelo (una por foto) en
+// cada primer render — además de lento, podía chocar con el límite de
+// ejecuciones simultáneas de Apps Script y hacer que algunas fallaran
+// (los 404 intermitentes que se ven a veces en la consola). Agrupando
+// varios nombres de archivo en una sola consulta "title='a' or title='b'
+// or ..." se resuelven de a bloques de _AND_THUMB_LOTE por llamada — una
+// lista de 40 pasa de 40 llamadas a solo 3.
+const _AND_THUMB_LOTE = 15;
+async function _andResolverThumbsBatch(fileNames) {
+  const pendientes = [...new Set(fileNames)].filter(f => f && !_andThumbCache[f]);
+  if (!pendientes.length) return;
+
+  const lotes = [];
+  for (let i = 0; i < pendientes.length; i += _AND_THUMB_LOTE) {
+    lotes.push(pendientes.slice(i, i + _AND_THUMB_LOTE));
+  }
+
+  await Promise.all(lotes.map(async (lote) => {
+    const q = '(' + lote.map(f => `title = '${_qEsc(f)}'`).join(' or ') + ') and trashed = false';
+    try {
+      const data = await driveSearch('andamios', q, { pageSize: lote.length });
+      const porNombre = {};
+      (data.files || []).forEach(file => { porNombre[file.name] = file; });
+      lote.forEach(nombre => {
+        const file = porNombre[nombre];
+        if (file) {
+          _andThumbCache[nombre] = {
+            imgUrl: `https://drive.google.com/uc?export=view&id=${file.id}`,
+            fallbackUrl: file.thumbnailLink ? file.thumbnailLink.replace(/=s\d+$/, '=s200') : '',
+          };
+        }
+        // Si no se encontró en este lote, no se cachea nada — el próximo
+        // render lo vuelve a intentar en vez de quedar roto para siempre.
+      });
+    } catch (e) {
+      console.warn('[ANDAMIOS] Error cargando lote de fotos:', e.message);
+      if (!window._andAvisoPermisoFotos) {
+        window._andAvisoPermisoFotos = true;
+        toast('No se pudo acceder a las fotos: ' + e.message, 'error');
+      }
+    }
+  }));
+}
+
 async function _andResolverThumb(fileName) {
   if (_andThumbCache[fileName]) return _andThumbCache[fileName];
 
