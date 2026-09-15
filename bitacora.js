@@ -293,7 +293,8 @@ function bitRenderLista() {
           <div class="card-sub card-sub--patente">${eq.patente}</div>
         </div>
         <div class="card-right">
-          <span style="font-size: 13.5px;color:var(--ink-soft);text-align:right;line-height:1.5">${m.litros.toLocaleString('es-CL')} L<br>este mes</span>
+          <div class="card-stat-num">${m.litros.toLocaleString('es-CL')} L</div>
+          <div class="card-stat-label">Este mes</div>
         </div>
       </div>`;
     }).join('');

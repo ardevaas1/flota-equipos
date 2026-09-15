@@ -270,12 +270,14 @@ body.is-offline #app { padding-top: 30px; }
 
 /* ── Cards ── */
 .card {
-  background: #fff; border-radius: 12px; border: 1px solid var(--line);
-  padding: 13px 14px; margin-bottom: 8px; cursor: pointer;
+  background: #fff; border-radius: 14px; border: 1px solid var(--line);
+  padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
   display: flex; align-items: center; gap: 12px;
   border-left-width: 4px; /* sobreescrito por los modificadores de estado abajo */
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 3px rgba(20,30,45,0.06);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
+.card:active { transform: scale(0.99); box-shadow: 0 1px 2px rgba(20,30,45,0.05); }
 /* Strip de color según estado */
 .card--op  { border-left-color: #43a047; }
 .card--obs { border-left-color: #f59e0b; }
@@ -284,37 +286,51 @@ body.is-offline #app { padding-top: 30px; }
 .card--default { border-left-color: var(--line); }
 
 .card-icon {
-  font-size: 19px; flex-shrink: 0; width: 36px; height: 36px;
+  font-size: 19px; flex-shrink: 0; width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 11px; color: #fff;
+  border-radius: 12px; color: #fff;
   background: linear-gradient(145deg, var(--accent), var(--accent-dark));
   box-shadow: 0 3px 8px rgba(var(--accent-rgb),0.3);
   position: relative;
 }
 .card-icon--flota { /* color ya viene del tema por defecto (azul) */ }
 .card-photo {
-  flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px;
   object-fit: cover; border: 1px solid var(--line); background: var(--neutral-soft);
 }
 .card-body { flex: 1; min-width: 0; }
-.card-title { font-size: 15.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-title { font-size: 15.5px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-sub { font-size: 13.5px; color: #777; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Patente como "chapa" — bien grande y clara, en fuente monoespaciada
-   (como una patente de verdad), para identificar el vehículo de un
-   vistazo sin tener que leer la marca/modelo primero. Se usa en las
-   tarjetas de Bitácora, donde la patente es lo que más importa
+/* Patente como una chapa de verdad: chip con borde y fondo propio, letra
+   condensada bien separada — se distingue de un vistazo del resto del
+   texto de la tarjeta en vez de ser solo una línea más de texto gris. Se
+   usa en las tarjetas de Bitácora, donde la patente es lo que más importa
    reconocer rápido al elegir un vehículo. */
 .card-sub--patente {
-  font-size: 16.5px;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.5px;
-  color: var(--ink);
-  margin-top: 3px;
+  display: inline-flex; align-items: center;
+  font-size: 13.5px;
+  font-weight: 800;
+  font-family: 'Arial Narrow', 'Helvetica Neue Condensed', Arial, sans-serif;
+  letter-spacing: 1.6px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-top: 5px;
+  width: fit-content;
 }
 .card-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .card-arrow { color: #ccc; font-size: 21px; flex-shrink: 0; }
+
+/* Estadística a la derecha de una tarjeta de lista (ej. litros cargados
+   este mes en Bitácora) — el número queda como protagonista, la etiqueta
+   de abajo en segundo plano, en vez de las dos líneas del mismo tamaño y
+   color que se perdían entre sí. */
+.card-stat-num { font-size: 17px; font-weight: 800; color: var(--accent-dark); line-height: 1.2; text-align: right; }
+.card-stat-label { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-align: right; text-transform: uppercase; letter-spacing: 0.3px; }
+
 
 /* ── Botón de detalles/fotos (módulo Movimientos) ──
    Antes era un círculo blanco casi invisible sobre el fondo blanco de la
