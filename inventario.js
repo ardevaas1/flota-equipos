@@ -4166,6 +4166,101 @@ async function andRenombrarUbicacion(desde, hacia) {
   }
 }
 
+// ══ Estandarizar ubicaciones EN TODOS LOS MÓDULOS a la vez ═══════════════
+// Herramientas de consola (F12 → pestaña Console) para ver y unificar los
+// distintos nombres que puede tener una misma ubicación repartidos por
+// Flota, Containers, Inventario (Generadores/Maq. Menor/Herramientas/
+// Topográfico) y Andamios — cada módulo guarda la ubicación como texto
+// libre por su cuenta, así que es fácil terminar con "Colima", "COLIMA" y
+// "Bodega Colima" siendo en realidad el mismo lugar.
+//
+// Paso 1 — mirar qué hay:
+//   listarUbicaciones()
+// Muestra una tabla con cada nombre distinto encontrado, en qué módulo(s)
+// aparece y cuántas veces — no cambia nada, es solo para decidir el mapeo.
+//
+// Paso 2 — unificar:
+//   renombrarUbicacionGlobal('Bodega Colima', 'COLIMA')
+// Repetir una vez por cada nombre viejo que haya que corregir. Ya
+// actualiza TODOS los módulos de una sola vez (Andamios incluido).
+function listarUbicaciones() {
+  const porUbic = {}; // 'nombre tal cual aparece' -> { modulo: cantidad }
+  const agregar = (modulo, valor) => {
+    const nombre = (valor || '').toString().trim();
+    if (!nombre) return;
+    if (!porUbic[nombre]) porUbic[nombre] = {};
+    porUbic[nombre][modulo] = (porUbic[nombre][modulo] || 0) + 1;
+  };
+  (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => agregar('Flota', e.ubicacion));
+  (typeof allContainers !== 'undefined' ? allContainers : []).forEach(c => agregar('Containers', c.ubicacion));
+  (typeof allGeneradores !== 'undefined' ? allGeneradores : []).forEach(g => agregar('Generadores', g.ubicacion));
+  (typeof allMaqMenor !== 'undefined' ? allMaqMenor : []).forEach(m => agregar('Maq. Menor', m.ubicacion));
+  (typeof allHerramientas !== 'undefined' ? allHerramientas : []).forEach(h => agregar('Herramientas', h.ubicacion));
+  (typeof allTopografico !== 'undefined' ? allTopografico : []).forEach(t => agregar('Topográfico', t.ubicacion));
+
+  const filas = Object.keys(porUbic).sort((a, b) => a.localeCompare(b, 'es')).map(nombre => ({
+    Ubicación: nombre,
+    'Aparece en': Object.keys(porUbic[nombre]).join(', '),
+    'Filas (Flota/Cont./Inv.)': Object.values(porUbic[nombre]).reduce((s, n) => s + n, 0),
+  }));
+
+  console.table(filas);
+  console.log('(Andamios usa su propia hoja de ubicaciones — sus nombres actuales se ven en la pantalla de "Resumen por ubicación" del módulo.)');
+  console.log('Para unificar: renombrarUbicacionGlobal("nombre viejo", "nombre nuevo")');
+  return filas;
+}
+
+// Renombra una ubicación EN TODOS LOS MÓDULOS a la vez (Flota, Containers,
+// Generadores, Maq. Menor, Herramientas, Topográfico y Andamios), sin
+// tener que ir módulo por módulo. Coincidencia sin distinguir mayúsculas
+// ni espacios de más, pero el nombre nuevo se guarda tal cual se escriba.
+async function renombrarUbicacionGlobal(desde, hacia) {
+  const clave = (desde || '').trim().toLowerCase();
+  const nuevo = (hacia || '').trim();
+  if (!clave || !nuevo) { console.error('Uso: renombrarUbicacionGlobal("nombre viejo", "nombre nuevo")'); return; }
+
+  const writes = [];
+  let total = 0;
+  const procesar = (arr, sheetName, col) => {
+    (arr || []).forEach(item => {
+      if ((item.ubicacion || '').toString().trim().toLowerCase() === clave) {
+        writes.push(writeSheet(`'${sheetName}'!${col}${item.rowIndex}`, [[nuevo]]));
+        total++;
+      }
+    });
+  };
+  procesar(typeof allEquipos !== 'undefined' ? allEquipos : [], CONFIG.SHEET_MAQUINARIA, 'K');
+  procesar(typeof allContainers !== 'undefined' ? allContainers : [], SHEET_CONTAINERS, 'G');
+  procesar(typeof allGeneradores !== 'undefined' ? allGeneradores : [], SHEET_GENERADORES, 'J');
+  procesar(typeof allMaqMenor !== 'undefined' ? allMaqMenor : [], SHEET_MAQ_MENOR, 'I');
+  procesar(typeof allHerramientas !== 'undefined' ? allHerramientas : [], SHEET_HERRAMIENTAS, 'I');
+  procesar(typeof allTopografico !== 'undefined' ? allTopografico : [], SHEET_TOPOGRAFICO, 'I');
+
+  try {
+    await Promise.all(writes);
+  } catch (e) {
+    console.error('[RENOMBRAR GLOBAL] Error escribiendo Flota/Containers/Inventario:', e.message);
+  }
+
+  // Andamios usa su propia lógica (suma cantidades si el destino ya
+  // existía en alguna pieza, en vez de duplicar la fila).
+  let andamiosRenombradas = 0;
+  try {
+    const data = await _andEscrituraRemota('and_renombrar_ubicacion', { desde, hacia: nuevo });
+    andamiosRenombradas = data.renombradas || 0;
+  } catch (e) {
+    console.warn('[RENOMBRAR GLOBAL] Andamios (puede que no hubiera nada que renombrar ahí):', e.message);
+  }
+
+  console.log(`[RENOMBRAR GLOBAL] ✓ "${desde}" → "${nuevo}": ${total} fila(s) en Flota/Containers/Inventario + ${andamiosRenombradas} en Andamios.`);
+
+  // Recargar todo para que se vea reflejado sin tener que recargar la página
+  if (typeof loadData === 'function') await loadData(true);
+  if (typeof loadInventario === 'function') await loadInventario();
+  if (typeof andCargar === 'function') await andCargar();
+  console.log('[RENOMBRAR GLOBAL] Datos recargados ✓');
+}
+
 // Limpia filas duplicadas en AND-UBICACIONES (la misma pieza+ubicación
 // cargada varias veces, algo que puede pasar por bugs viejos ya
 // corregidos) — se queda con el ÚLTIMO valor cargado para cada
