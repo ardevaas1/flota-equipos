@@ -2728,9 +2728,15 @@ async function invGuardarMovimiento() {
       if (col) await writeSheet(`'${sheetName}'!${col}${rowIndex}`, [[destino]]);
     } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'cont') {
       await writeSheet(`'${SHEET_CONTAINERS}'!G${rowIndex}`, [[destino]]);
-    } else if (_movPendienteActual && _movPendienteActual.onGuardar === 'flota') {
-      await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${rowIndex}`, [[destino]]);
     }
+    // Nota: para Flota YA NO se actualiza acá la ubicación de la
+    // MAQUINARIA — ahora se actualiza sola vía GPS (ver
+    // sincronizarUbicacionDesdeGPS en el Apps Script). Registrar un
+    // movimiento de un vehículo sigue dejando el registro en el
+    // historial de Movimientos como siempre, solo que ya no pisa la
+    // ubicación a mano — evita que quede desactualizada si el GPS ya la
+    // había corregido, o que un movimiento cargado con demora pise por
+    // error una ubicación más reciente que ya puso el GPS.
 
     toast('✓ Movimiento registrado');
     if (btn) btnEstado(btn, 'ok');
@@ -3100,11 +3106,13 @@ async function guardarMovimientoMulti() {
         registradoPor, guia, 'en_transito'
       ]);
 
-      // Actualizar ubicación en la hoja correspondiente
+      // Actualizar ubicación en la hoja correspondiente (Flota queda
+      // afuera a propósito: su ubicación ahora la actualiza sola el GPS,
+      // ver comentario en guardarMovimiento())
       if (item.modulo === 'cont') {
         writes.push(writeSheet(`'${SHEET_CONTAINERS}'!G${item.rowIndex}`, [[destino]]));
       } else if (item.modulo === 'flota') {
-        writes.push(writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${item.rowIndex}`, [[destino]]));
+        // sin escritura acá a propósito
       } else {
         let col = item.modulo === 'generadores' ? 'J' : 'I';
         const sheetName = item.modulo === 'generadores' ? SHEET_GENERADORES
