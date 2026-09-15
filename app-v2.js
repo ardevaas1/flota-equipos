@@ -2890,18 +2890,39 @@ async function loadData(background = false) {
 
 // ── Dashboard ─────────────────────────────────────────────────
 function renderDashboard() {
-  animarContador(document.getElementById('stat-op'),  allEquipos.filter(e => e.estado === 'op').length);
-  animarContador(document.getElementById('stat-obs'), allEquipos.filter(e => e.estado === 'obs').length);
-  animarContador(document.getElementById('stat-det'), allEquipos.filter(e => e.estado === 'det' || e.estado === 'rep').length);
+  const enOp  = allEquipos.filter(e => e.estado === 'op').length;
+  const enObs = allEquipos.filter(e => e.estado === 'obs').length;
+  const enDet = allEquipos.filter(e => e.estado === 'det' || e.estado === 'rep').length;
+  animarContador(document.getElementById('stat-op'),  enOp);
+  animarContador(document.getElementById('stat-obs'), enObs);
+  animarContador(document.getElementById('stat-det'), enDet);
 
-  let docsVenc = 0;
-  allEquipos.forEach(e => ['soap','permiso','revision'].forEach(k => {
-    const d = diasRestantes(e[k]);
-    if (d !== null && d < 0) docsVenc++;
-  }));
-  animarContador(document.getElementById('stat-docs'), docsVenc);
-  document.getElementById('nav-dot').style.display = docsVenc > 0 ? 'block' : 'none';
+  // Antes esto contaba DOCUMENTOS vencidos (si una camioneta tenía el
+  // SOAP y el permiso vencidos a la vez, sumaba 2) en vez de VEHÍCULOS —
+  // mezclado con las otras 3 tarjetas de arriba, que sí cuentan
+  // vehículos, el número quedaba sin relación real con la flota y
+  // confundía más que ayudar. Ahora cuenta cuántos vehículos DISTINTOS
+  // tienen al menos un documento vencido (aunque tengan varios), para que
+  // las 4 tarjetas midan lo mismo: cantidad de vehículos.
+  let vehiculosConDocsVenc = 0;
+  allEquipos.forEach(e => {
+    const tieneAlgunoVencido = ['soap','permiso','revision'].some(k => {
+      const d = diasRestantes(e[k]);
+      return d !== null && d < 0;
+    });
+    if (tieneAlgunoVencido) vehiculosConDocsVenc++;
+  });
+  animarContador(document.getElementById('stat-docs'), vehiculosConDocsVenc);
+  document.getElementById('nav-dot').style.display = vehiculosConDocsVenc > 0 ? 'block' : 'none';
 
+  // Mismas 4 cifras en la versión de escritorio (antes se quedaban
+  // siempre en "—" porque nada las actualizaba acá).
+  ['dt-stat-op','dt-stat-obs','dt-stat-det','dt-stat-docs'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) animarContador(el, [enOp, enObs, enDet, vehiculosConDocsVenc][i]);
+  });
+
+  const docsVenc = vehiculosConDocsVenc;
   // Alertas urgentes
   const alertas = [];
   allEquipos.forEach(e => {

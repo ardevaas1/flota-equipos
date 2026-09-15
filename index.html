@@ -335,7 +335,7 @@
       </div>
       <div class="desktop-stat blue">
         <div class="desktop-stat-n" id="dt-stat-docs">—</div>
-        <div class="desktop-stat-l">Docs venc.</div>
+        <div class="desktop-stat-l">Con doc. venc.</div>
       </div>
     </div>
     <nav class="desktop-nav">
@@ -514,7 +514,7 @@
           </div>
           <div class="stat blue">
             <div class="stat-n" id="stat-docs">—</div>
-            <div class="stat-l">Docs venc.</div>
+            <div class="stat-l">Con doc. venc.</div>
           </div>
         </div>
         <div class="dash-cols">
@@ -800,7 +800,8 @@
     <div class="panel-body">
       <div class="form-group">
         <label>Equipo</label>
-        <select id="evento-equipo"></select>
+        <select id="evento-equipo" onchange="_eventoActualizarBannerEquipo()"></select>
+        <div id="evento-equipo-banner" class="evento-equipo-banner" style="display:none"></div>
       </div>
       <div class="form-group">
         <label>Tipo de evento</label>
