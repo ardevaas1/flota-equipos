@@ -366,9 +366,13 @@ function signIn() {
 }
 
 // Asegura que haya token válido antes de llamar a la API
-function ensureToken() {
+function ensureToken(forzar) {
   return new Promise((resolve, reject) => {
-    if (isTokenValid()) { resolve(); return; }
+    // forzar=true se usa cuando Google ya rechazó una petición real con
+    // 401 aunque el token parecía válido localmente (pudo vencer justo
+    // en el medio, o revocarse por otro motivo) — en ese caso no alcanza
+    // con confiar en isTokenValid(), hay que renovar sí o sí.
+    if (!forzar && isTokenValid()) { resolve(); return; }
     if (!tokenClient) { reject(new Error('OAuth no iniciado')); return; }
     // Intenta renovar silenciosamente (sin popup), hasta 2 reintentos
     let intentos = 0;
@@ -1138,7 +1142,21 @@ async function _appsScriptCall(accion, params) {
         if (i < intentos - 1) { await new Promise(r => setTimeout(r, esperas[i])); continue; }
         throw ultimoError;
       }
-      if (!data.success) throw new Error(data.error || 'No se pudo guardar');
+      if (!data.success) {
+        // "Sesión de Google inválida o expirada" es el único error de
+        // negocio que SÍ vale la pena reintentar: puede pasar aunque
+        // ensureToken() haya dicho que el token era válido (venció justo
+        // en el medio, por ejemplo) — se fuerza una renovación y se
+        // reintenta una vez con el token nuevo antes de rendirse.
+        const esSesionInvalida = /sesión de google inválida/i.test(data.error || '');
+        if (esSesionInvalida && i < intentos - 1) {
+          try {
+            await ensureToken(true);
+            continue; // reintenta con el accessToken ya actualizado
+          } catch (e) { /* si la renovación forzada falla, se cae al error original abajo */ }
+        }
+        throw new Error(data.error || 'No se pudo guardar');
+      }
       return data;
     }
     throw ultimoError;
@@ -1149,7 +1167,19 @@ async function fetchSheet(range) {
   await ensureToken();
   const url = `${SHEETS_BASE}/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`;
   return _conIndicadorCarga((async () => {
-    const res = await _fetchConReintento(url, { headers: authHeader() });
+    let res = await _fetchConReintento(url, { headers: authHeader() });
+    if (res.status === 401) {
+      // El token parecía válido localmente (isTokenValid()) pero Google
+      // lo rechazó igual — se fuerza una renovación YA (sin esperar al
+      // chequeo cada 30s) y se reintenta una sola vez con el token nuevo
+      // antes de darse por vencido y mostrar "sesión expirada". Esto es
+      // lo que antes hacía que la sesión se sintiera "expirada" de la
+      // nada aunque la persona hubiera iniciado sesión hacía poco.
+      try {
+        await ensureToken(true);
+        res = await _fetchConReintento(url, { headers: authHeader() });
+      } catch (e) { /* si la renovación forzada también falla, se sigue con la respuesta 401 original */ }
+    }
     if (!res.ok) throw new Error(_friendlyGoogleApiError(res.status, await res.text()));
     return (await res.json()).values || [];
   })());
