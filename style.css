@@ -1898,16 +1898,30 @@ body.is-offline #app { padding-top: 30px; }
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
-/* Degradé + no hace falta más que esto: en cuanto la fila de pestañas no
-   entra completa en la pantalla (pasó justo con "Topográfico", la 4ta
-   pestaña, que quedaba cortada sin ningún aviso de que había que
-   deslizar), este borde difuminado dice "hay más para el lado" sin
-   tapar el texto de la pestaña que sí se alcanza a ver. */
+/* Degradé + flechita: en cuanto la fila de pestañas no entra completa en
+   la pantalla (pasó justo con "Topográfico", la 4ta pestaña, que quedaba
+   cortada), esto avisa que hay más para el lado sin tapar el texto de la
+   pestaña que sí se alcanza a ver. El degradé solo no se notaba lo
+   suficiente — la flechita lo deja inequívoco. */
 .inv-tabs-wrap::after {
   content: '';
-  position: absolute; top: 0; right: 0; bottom: 0; width: 22px;
-  background: linear-gradient(to right, transparent, #fff);
+  position: absolute; top: 0; right: 0; bottom: 0; width: 30px;
+  background: linear-gradient(to right, transparent, #fff 65%);
   pointer-events: none;
+}
+/* Al llegar al final del scroll (o si de entrada ya entran todas las
+   pestañas y no hace falta deslizar) se esconde el degradé + flechita —
+   no tiene sentido seguir insistiendo con "hay más" cuando ya no hay más. */
+.inv-tabs-wrap.scrolled-end::after,
+.inv-tabs-wrap.scrolled-end .inv-tabs-chevron { display: none; }
+.inv-tabs-wrap .inv-tabs-chevron {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: var(--accent); pointer-events: none;
+  animation: inv-tabs-nudge 1.6s ease-in-out infinite;
+}
+@keyframes inv-tabs-nudge {
+  0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.55; }
+  50% { transform: translateY(-50%) translateX(3px); opacity: 1; }
 }
 .inv-tabs {
   display: flex; gap: 0; background: #fff;

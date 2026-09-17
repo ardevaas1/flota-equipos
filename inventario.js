@@ -1915,6 +1915,17 @@ function _invActivarDesktop(tipo) {
   }
 }
 
+// Muestra/esconde el degradé + flechita de "hay más pestañas al costado"
+// según si ya se llegó al final del scroll horizontal (o si de entrada
+// ya entran todas sin hacer falta deslizar).
+function _invTabsOnScroll() {
+  const tabs = document.getElementById('inv-mobile-tabs');
+  const wrap = document.getElementById('inv-tabs-wrap');
+  if (!tabs || !wrap) return;
+  const yaLlegoAlFinal = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 4;
+  wrap.classList.toggle('scrolled-end', yaLlegoAlFinal);
+}
+
 function invSetModulo(mod) {
   invModulo = mod;
   // Tabs móvil
@@ -1927,6 +1938,7 @@ function invSetModulo(mod) {
     // vista sola — útil sobre todo cuando se llega acá desde el
     // buscador global, sin haber tocado la pestaña a mano.
     tabEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    setTimeout(_invTabsOnScroll, 350); // después de que termine el scroll suave
   }
   // Tabs desktop
   document.querySelectorAll('.inv-desktop-tab').forEach(t => t.classList.remove('active'));
