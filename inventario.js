@@ -489,7 +489,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
       ${item.motor    ? `<div class="field-row"><span class="fl">N° de serie</span><span class="fv">${item.motor}</span></div>` : ''}
       ${item.proxCal  ? `<div class="field-row"><span class="fl">Próx. calibración</span><span class="fv">${item.proxCal} ${calBadge}</span></div>` : ''}
       ${item.ultCal   ? `<div class="field-row"><span class="fl">Última calibración</span><span class="fv">${item.ultCal}</span></div>` : ''}
-      ${item.calibracionDoc ? `<div class="field-row"><span class="fl">Certificado</span><span class="fv"><button class="evento-ver-foto-btn" onclick="invVerDocCalibracion()"><svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver certificado</button></span></div>` : ''}
+      ${item.calibracionDoc ? `<button class="ficha-link-btn" onclick="invVerDocCalibracion()"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver certificado de calibración</button>` : ''}
     `;
   } else {
     extraFields = `
@@ -910,7 +910,7 @@ function invAbrirEditar() {
     _invCalibDoc = null;
     _invCalibDocQuitar = false;
     const actual = document.getElementById('inv-edit-calibdoc-actual');
-    if (actual) actual.style.display = item.calibracionDoc ? 'flex' : 'none';
+    if (actual) actual.style.display = item.calibracionDoc ? 'block' : 'none';
     const label = document.getElementById('calibdoc-file-label');
     if (label) {
       label.classList.remove('selected');
@@ -2111,6 +2111,22 @@ function quitarNuevoInvFoto() {
   document.getElementById('nuevo-foto-remove').style.display = 'none';
 }
 
+// Certificado de calibración en nuevo ítem (solo Equipos Topográficos)
+let _nuevoCalibDoc = null;
+
+function onNuevoCalibDocFileSelected(input) {
+  if (!input.files || !input.files.length) return;
+  const file = input.files[0];
+  const label = document.getElementById('nuevo-calibdoc-file-label');
+  const span = label ? label.querySelector('span') : null;
+  _comprimirImagen(file).then(c => {
+    _nuevoCalibDoc = { b64: c.b64, name: c.name, mimeType: c.mimeType };
+    if (span) span.textContent = c.name;
+    if (label) label.classList.add('selected');
+  }).catch(e => { console.error('[CALIB DOC NUEVO]', e.message); toast('No se pudo procesar el archivo', 'error'); });
+  input.value = '';
+}
+
 // ── Tipos "OTRO" que la gente va escribiendo a mano — quedan guardados en
 // este navegador para aparecer como opción real la próxima vez, en vez de
 // tener que escribirlos de nuevo cada vez. Por módulo, porque un tipo de
@@ -2166,6 +2182,15 @@ function invAbrirNuevo() {
   // Calibración: solo Equipos Topográficos
   const calRow = document.getElementById('nuevo-calibracion-row');
   if (calRow) calRow.style.display = mod === 'topografico' ? '' : 'none';
+  const calDocCard = document.getElementById('nuevo-calibdoc-card');
+  if (calDocCard) calDocCard.style.display = mod === 'topografico' ? '' : 'none';
+  _nuevoCalibDoc = null;
+  const calDocLabel = document.getElementById('nuevo-calibdoc-file-label');
+  if (calDocLabel) {
+    calDocLabel.classList.remove('selected');
+    const span = calDocLabel.querySelector('span');
+    if (span) span.textContent = 'Subir certificado';
+  }
 
   // Limpiar campos
   ['nuevo-marca','nuevo-modelo','nuevo-ubicacion','nuevo-potencia','nuevo-equipo-otro','nuevo-color','nuevo-numident','nuevo-proxcal','nuevo-ultcal'].forEach(id => {
@@ -2302,12 +2327,14 @@ async function invGuardarNuevo() {
     if (equipoSel === 'OTRO' && equipoOtro) _agregarTipoCustom(mod, equipoOtro);
 
     // Subir foto de referencia si se seleccionó
+    let newRowUsado = null;
     if (_nuevoInvFoto) {
       toast('Subiendo foto de referencia...', 'loading');
       try {
         // Obtener rowIndex del nuevo ítem (última fila del sheet)
         const datos = _invDatos(mod);
         const newRow = (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
+        newRowUsado = newRow;
         const numIdentNuevo = (mod === 'herramientas' || mod === 'maqmenor' || mod === 'topografico') ? document.getElementById('nuevo-numident')?.value.trim() : '';
         const codigoFoto = mod === 'generadores' ? (document.getElementById('nuevo-codigo')?.value || numFinal) : (numIdentNuevo || numFinal);
         const itemParaCarpeta = { codigo: mod === 'generadores' ? codigoFoto : '', numIdent: numIdentNuevo, num: numFinal, equipo, marca, modelo };
@@ -2325,6 +2352,32 @@ async function invGuardarNuevo() {
         toast('Foto subida ✓');
       } catch(fe) { console.error('[NUEVO FOTO]', fe); }
       _nuevoInvFoto = null;
+    }
+
+    // Subir certificado de calibración si se seleccionó (solo Equipos
+    // Topográficos) — mismo patrón que al editar: el nombre del archivo
+    // lleva la fecha de próxima calibración, se guarda en la misma
+    // carpeta de Drive del ítem, y su nombre queda en la columna N.
+    if (mod === 'topografico' && _nuevoCalibDoc) {
+      toast('Subiendo certificado de calibración...', 'loading');
+      try {
+        const datos = _invDatos(mod);
+        const newRow = newRowUsado || (datos.length > 0 ? Math.max(...datos.map(i => i.rowIndex||0)) : 1) + 1;
+        const numIdentNuevo = document.getElementById('nuevo-numident')?.value.trim() || numFinal;
+        const itemParaCarpeta = { codigo: '', numIdent: numIdentNuevo, num: numFinal, equipo, marca, modelo };
+        let folderId = DRIVE_INV_FOLDER;
+        try {
+          const sf = await findOrCreateFolder('inventario', sheetName, DRIVE_INV_FOLDER);
+          folderId = await _findOrCreateFolderInv(itemParaCarpeta, sf);
+        } catch(fe) { console.warn('[CALIB DOC NUEVO] carpeta fallback'); }
+        const ext = _nuevoCalibDoc.name.split('.').pop() || 'jpg';
+        const fechaNombre = proxCal ? proxCal.replace(/\//g, '-') : new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
+        const fileName = `CALIBRACION_${numIdentNuevo}_${fechaNombre}.${ext}`;
+        const result = await driveUpload('inventario', folderId, fileName, _nuevoCalibDoc.mimeType, _nuevoCalibDoc.b64, false);
+        await writeSheet(`'${sheetName}'!N${newRow}`, [[result.name]]);
+        toast('Certificado subido ✓');
+      } catch(fe) { console.error('[CALIB DOC NUEVO]', fe); toast('Error subiendo el certificado: ' + fe.message, 'error'); }
+      _nuevoCalibDoc = null;
     }
 
     _origClosePanel('panel-nuevo-inv'); 

@@ -1989,18 +1989,20 @@
 
       <div class="form-sec" id="inv-edit-calibracion-sec" style="display:none">Calibración</div>
       <div class="form-group" id="inv-edit-calibracion-row" style="display:none">
-        <label>Próxima calibración</label>
-        <input type="date" id="inv-edit-proxcal">
+        <div id="inv-edit-proxcal-wrap" style="display:none">
+          <label>Próxima calibración</label>
+          <input type="date" id="inv-edit-proxcal">
+        </div>
         <label style="margin-top:10px">Última calibración</label>
         <input type="date" id="inv-edit-ultcal">
       </div>
       <div class="doc-upload-card" id="inv-edit-calibdoc-card" style="display:none">
         <div class="doc-upload-title">Certificado de calibración</div>
         <div id="inv-edit-calibdoc-actual" style="display:none;margin-bottom:8px">
-          <a href="#" id="inv-edit-calibdoc-link" onclick="invVerDocCalibracion(); return false" class="evento-ver-foto-btn" style="text-decoration:none">
-            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver documento actual
+          <a href="#" id="inv-edit-calibdoc-link" onclick="invVerDocCalibracion(); return false" class="ficha-link-btn" style="margin-top:0">
+            <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver documento actual
           </a>
-          <button type="button" class="link-btn" style="margin-left:10px" onclick="invQuitarDocCalibracion()">Quitar</button>
+          <button type="button" class="link-btn" style="margin-left:10px;margin-top:6px" onclick="invQuitarDocCalibracion()">Quitar</button>
         </div>
         <div class="doc-upload-row">
           <label id="calibdoc-file-label" class="calibdoc-upload-btn">
@@ -2450,10 +2452,23 @@
         <input type="text" id="nuevo-numident" placeholder="N° de serie, grabado, etiqueta u otra forma de identificarlo">
       </div>
       <div id="nuevo-calibracion-row" class="form-group" style="display:none">
-        <label>Próxima calibración</label>
-        <input type="date" id="nuevo-proxcal">
+        <div id="nuevo-proxcal-wrap" style="display:none">
+          <label>Próxima calibración</label>
+          <input type="date" id="nuevo-proxcal">
+        </div>
         <label style="margin-top:10px">Última calibración</label>
         <input type="date" id="nuevo-ultcal">
+      </div>
+      <div class="doc-upload-card" id="nuevo-calibdoc-card" style="display:none">
+        <div class="doc-upload-title">Certificado de calibración</div>
+        <div class="doc-upload-row">
+          <label id="nuevo-calibdoc-file-label" class="calibdoc-upload-btn">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M7 11V6a4 4 0 0 1 8 0v9a3 3 0 1 1-6 0V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Subir certificado</span>
+            <input type="file" id="nuevo-calibdoc-file" accept="image/*,.pdf" onchange="onNuevoCalibDocFileSelected(this)" style="display:none">
+          </label>
+        </div>
+        <div class="doc-file-hint">Opcional — también se puede agregar después desde "Editar información"</div>
       </div>
       <div class="form-group">
         <label>Color</label>
