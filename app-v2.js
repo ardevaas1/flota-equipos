@@ -1193,8 +1193,18 @@ async function writeSheet(range, values) {
   return _appsScriptCall('sheet_write', { range, values: JSON.stringify(values) });
 }
 
+// Id único por cada llamada a appendSheet (no por cada intento — la MISMA
+// petición se reenvía con el mismo reqId si _appsScriptCall reintenta por
+// una falla pasajera). El servidor lo usa para reconocer "esto ya lo hice
+// antes" y no agregar la fila dos veces — ver el comentario en
+// manejarEscrituraGenerica() del Apps Script para el porqué.
+function _nuevoReqId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
 async function appendSheet(range, values) {
-  return _appsScriptCall('sheet_append', { range, values: JSON.stringify(values) });
+  return _appsScriptCall('sheet_append', { range, values: JSON.stringify(values), reqId: _nuevoReqId() });
 }
 
 // ── Google Drive — a través del Apps Script ──────────────────
@@ -3906,9 +3916,18 @@ function enterApp() {
   if (hadLogin) {
     mostrarLogin('Conectando...', true);
 
+    // Antes esto reintentaba hasta 3 veces con un watchdog de 6s cada una
+    // (hasta ~20s pegado en "Conectando..." sin ningún cambio visible antes
+    // de rendirse) — se sentía trabado. Ahora son máximo 2 intentos con un
+    // watchdog más corto, y el mensaje cambia en cada intento para que se
+    // note que la app sigue viva y no se colgó.
     let intentosInit = 0;
+    const MAX_INTENTOS_SILENCIOSOS = 2;
     function intentarSilencioso() {
       intentosInit++;
+      if (intentosInit > 1) {
+        document.getElementById('login-hint').textContent = `Conectando (intento ${intentosInit})...`;
+      }
       if (tokenClient) {
         const prevCb = tokenClient.callback;
         let resuelto = false;
@@ -3922,12 +3941,12 @@ function enterApp() {
           if (resuelto) return;
           resuelto = true;
           tokenClient.callback = prevCb;
-          if (intentosInit < 3) {
-            setTimeout(intentarSilencioso, 1500);
+          if (intentosInit < MAX_INTENTOS_SILENCIOSOS) {
+            setTimeout(intentarSilencioso, 1000);
           } else {
-            mostrarLogin('Inicia sesión para acceder a los datos', false);
+            mostrarLogin('No se pudo reconectar solo — inicia sesión de nuevo', false);
           }
-        }, 6000);
+        }, 4000);
 
         tokenClient.callback = (response) => {
           if (resuelto) return;
@@ -3935,11 +3954,11 @@ function enterApp() {
           clearTimeout(watchdog);
           tokenClient.callback = prevCb;
           if (response.error) {
-            if (intentosInit < 3 && response.error !== 'access_denied') {
-              setTimeout(intentarSilencioso, 2000);
+            if (intentosInit < MAX_INTENTOS_SILENCIOSOS && response.error !== 'access_denied') {
+              setTimeout(intentarSilencioso, 1000);
             } else {
-              // Tras múltiples fallos → login
-              mostrarLogin('Inicia sesión para acceder a los datos', false);
+              // Tras varios fallos → login
+              mostrarLogin('No se pudo reconectar solo — inicia sesión de nuevo', false);
             }
             return;
           }
