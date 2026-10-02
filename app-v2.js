@@ -965,36 +965,15 @@ function hideSplash() {
     // color de Inventario/Containers/Movimientos/Andamios.
     document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and');
     chequearAlertaKilometraje();
-    _iniciarAutoRefresh();
   }, 400);
 }
 
-// ── Actualización automática de datos ───────────────────────────
-// No es una notificación instantánea (esta app no tiene servidor propio
-// para avisar "che, alguien subió una foto" al toque) — es una revisión
-// periódica en segundo plano, combinada con una revisión apenas la persona
-// vuelve a la app. En la práctica, para el uso normal (alguien sube algo,
-// otro lo ve un rato después sin tener que acordarse de apretar el botón),
-// da una sensación bastante parecida a "se actualiza sola".
-let _autoRefreshListo = false;
-function _iniciarAutoRefresh() {
-  if (_autoRefreshListo) return; // por si hideSplash llega a correr más de una vez
-  _autoRefreshListo = true;
-
-  // Cada 90 segundos, pero solo si la pestaña/app está realmente visible
-  // (no gasta cuota de Google revisando algo que nadie está mirando)
-  setInterval(() => {
-    if (!document.hidden) loadData(true);
-  }, 90000);
-
-  // Apenas la persona vuelve a la app (cambió de pestaña/app y volvió,
-  // desbloqueó el celular con la app ya abierta, etc.) — es el momento
-  // donde más vale la pena revisar, porque es cuando más probablemente
-  // se perdió algún cambio de otra persona mientras no estaba mirando.
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) loadData(true);
-  });
-}
+// La actualización de datos es manual a propósito — con el botón "↻
+// Actualizar datos" que ya tiene cada módulo (arriba de cada lista, mobile
+// y desktop). Antes había además una revisión automática de fondo cada 90s
+// + al volver a la app, pero se sacó: competía por recursos con lo que la
+// persona estuviera haciendo en ese momento (ej. subir un documento) y
+// hacía sentir todo más lento.
 
 // ── Debounce genérico para buscadores ──────────────────────────
 // Evita que cada buscador re-dibuje toda la lista en CADA tecla; espera un
