@@ -293,7 +293,7 @@ function bitRenderLista() {
           <div class="card-sub card-sub--patente">${eq.patente}</div>
         </div>
         <div class="card-right">
-          <div class="card-stat-num">${m.litros.toLocaleString('es-CL')} L</div>
+          <div class="card-stat-num">${m.kmRecorridos.toLocaleString('es-CL')} ${_bitTextos(eq.patente).unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</div>
           <div class="card-stat-label">Este mes</div>
         </div>
       </div>`;
@@ -344,6 +344,10 @@ function bitRenderMetricasYHistorial() {
       <div class="ficha-sec-title">${nombreMes}</div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>
+          <div style="font-size: 12.5px;color:var(--ink-soft)">${t.unidadLarga} recorridos</div>
+        </div>
+        <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.litros.toLocaleString('es-CL')}</div>
           <div style="font-size: 12.5px;color:var(--ink-soft)">litros cargados</div>
         </div>
@@ -355,17 +359,17 @@ function bitRenderMetricasYHistorial() {
     </div>
   `;
 
-  // La parte de "viajes" (Bitácora propiamente dicha) está escondida por
-  // ahora — no se estaba usando. Se deja allBitacora/bitAbrirViaje() sin
-  // tocar por si se retoma más adelante; acá simplemente no se incluyen
-  // esos registros en el historial ni en las métricas.
-  const eventos = allCombustible.filter(c => c.patente === patente)
-    .map(c => ({ ...c, _tipo: 'combustible' }))
-    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex);
+  const viajesVehiculo = allBitacora.filter(b => b.patente === patente);
+  const kmDeViajes = viajesVehiculo.map(v => Math.max(0, v.kmFinal - v.kmInicial)).filter(k => k > 0);
+  const kmPromedioViajes = kmDeViajes.length ? kmDeViajes.reduce((x, y) => x + y, 0) / kmDeViajes.length : 0;
+  const eventos = [
+    ...viajesVehiculo.map(b => ({ ...b, _tipo: 'viaje' })),
+    ...allCombustible.filter(c => c.patente === patente).map(c => ({ ...c, _tipo: 'combustible' }))
+  ].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex);
 
   const cont = document.getElementById('bit-ficha-historial');
   if (!eventos.length) {
-    cont.innerHTML = emptyState('Sin registros', 'Todavía no hay cargas de combustible para este vehículo');
+    cont.innerHTML = emptyState('Sin registros', 'Todavía no hay viajes ni cargas de combustible para este vehículo');
     return;
   }
 
@@ -401,6 +405,23 @@ function bitRenderMetricasYHistorial() {
     : 0;
 
   cont.innerHTML = eventos.map(ev => {
+    if (ev._tipo === 'viaje') {
+      const recorrido = Math.max(0, ev.kmFinal - ev.kmInicial);
+      const largo = kmPromedioViajes > 0 && kmDeViajes.length >= 3 && recorrido >= kmPromedioViajes * 1.5;
+      return `<div class="evento-card-mini">
+      <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">
+        <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="11" r="2" stroke="white" stroke-width="1.7"/></svg>
+      </div>
+      <div class="mant-body">
+        <div class="mant-title">Viaje${ev.destino ? ' a ' + ev.destino : ''}
+          <span style="font-weight:800;color:var(--accent-dark)">· ${recorrido.toLocaleString('es-CL')} ${t.unidadCorta}</span>
+          ${largo ? `<span class="badge" style="margin-left:6px;vertical-align:middle">Más largo de lo normal</span>` : ''}
+        </div>
+        <div class="mant-meta">${_bitFormatearFecha(ev.fecha)} · ${ev.kmInicial.toLocaleString('es-CL')} → ${ev.kmFinal.toLocaleString('es-CL')} ${t.unidadCorta}</div>
+        ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
+      </div>
+    </div>`;
+    }
     // Rendimiento de ESTE llenado completo (contra el llenado completo
     // anterior, arrastrando lo que se cargó en el medio) — si rindió
     // bastante menos que el promedio del vehículo (70% o menos), se marca
