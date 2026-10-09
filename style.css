@@ -2009,3 +2009,12 @@ body.is-offline #app { padding-top: 30px; }
    cada estilo puntual — así ninguno se queda con letra fina y débil. */
 [class*="-btn"] { font-weight: 600; }
 [class*="-btn"]:disabled { opacity: 0.55; }
+
+/* ── Código de container ── */
+.cont-codigo{display:inline-block;background:var(--accent-soft,#e8f0fe);color:var(--accent-dark,#1d4ed8);border-radius:6px;padding:1px 7px;font-weight:800;font-size:.85em;letter-spacing:.04em;font-variant-numeric:tabular-nums;vertical-align:1px}
+.cont-codigo--grande{font-size:1.1rem;padding:3px 10px}
+.cont-sin-codigo{display:inline-block;background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 7px;font-weight:700;font-size:.72em;vertical-align:1px}
+.cont-codif-progreso{margin:0 14px 8px;padding:8px 12px;border-radius:10px;background:#fef3c7;color:#92400e;font-size:13.5px;font-weight:600}
+.cont-codif-progreso:empty{display:none}
+.cont-codif-progreso.cont-codif-ok{background:#dcfce7;color:#166534}
+.inv-desktop-content .cont-codif-progreso{margin:0 0 8px}

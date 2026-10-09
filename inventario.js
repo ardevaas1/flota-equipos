@@ -309,7 +309,7 @@ function parseTopografico(rows) {
 }
 
 // Containers: encabezado simple en la fila 1, datos desde la fila 2
-// Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
+// Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS K=CODIGO
 function parseContainers(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 2 }))
@@ -326,6 +326,7 @@ function parseContainers(rows) {
       fecha:        r[7] || '',
       equipamiento: r[8] || '',
       obs:          r[9] || '',
+      codigo:       (r[10] || '').toString().trim().toUpperCase(),
     }));
 }
 
@@ -341,7 +342,7 @@ async function loadInventario() {
     fetchSheet(`'${SHEET_MAQ_MENOR}'!A2:K200`),
     fetchSheet(`'${SHEET_HERRAMIENTAS}'!A2:K200`),
     fetchSheet(`'${SHEET_TOPOGRAFICO}'!A2:N200`),
-    fetchSheet(`'${SHEET_CONTAINERS}'!A2:J100`),
+    fetchSheet(`'${SHEET_CONTAINERS}'!A2:K100`),
   ]);
   const pGenEventos = fetchSheet(`'${SHEET_GEN_EVENTOS}'!A2:H500`);
 
@@ -1416,13 +1417,33 @@ function _colorHex(nombre) {
   return _COLOR_HEX[v] || '#94a3b8'; // gris neutro para colores "Otro..."
 }
 
+// ── Código de container (001, 002, 003...) ────────────────────
+// Se guarda en la columna K de CONTENEDORES. Numeración corrida, sin
+// diferenciar por tipo.
+function _contSugerirCodigo() {
+  const usados = new Set(allContainers.map(c => c.codigo).filter(Boolean));
+  let n = 1;
+  while (usados.has(String(n).padStart(3, '0'))) n++;
+  return String(n).padStart(3, '0');
+}
+function contSugerirCodigoEn(inputId) {
+  const el = document.getElementById(inputId);
+  if (el) el.value = _contSugerirCodigo();
+}
+// Devuelve texto de error si el código ya lo usa otro container, o '' si está bien.
+function _contCodigoRepetido(codigo, rowIndexActual) {
+  if (!codigo) return '';
+  const otro = allContainers.find(c => c.codigo === codigo && c.rowIndex !== rowIndexActual);
+  return otro ? `El código ${codigo} ya lo tiene el container N° ${otro.num} (${otro.tipo})` : '';
+}
+
 function renderContainers() {
   const searchEl = document.getElementById('cont-search');
   const txt = searchEl ? searchEl.value.toLowerCase() : '';
 
   const filtrados = allContainers.filter(c => {
     if (!txt) return true;
-    return (c.tipo+c.ubicacion+c.estado+c.obs+'').toLowerCase().includes(txt);
+    return (c.tipo+c.ubicacion+c.estado+c.obs+(c.codigo||'')+(c.codigo ? '' : ' sin codigo sin código')+'').toLowerCase().includes(txt);
   }).sort((a, b) => {
     const cmp = (a.tipo||'').localeCompare(b.tipo||'', 'es');
     if (cmp !== 0) return cmp;
@@ -1442,7 +1463,7 @@ function renderContainers() {
       ${_contModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size: 23px">${icon}</div>
       <div class="card-body">
-        <div class="card-title">N° ${c.num} · ${c.tipo}</div>
+        <div class="card-title">${c.codigo ? `<span class="cont-codigo">${c.codigo}</span> ` : ''}N° ${c.num} · ${c.tipo}${c.codigo ? '' : ' <span class="cont-sin-codigo">Sin código</span>'}</div>
         <div class="card-sub">${c.medidas}${c.equipamiento&&c.equipamiento!=='-'?' · '+c.equipamiento:''}</div>
         ${c.color ? `<div class="card-sub" style="display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="width:9px;height:9px;border-radius:50%;background:${_colorHex(c.color)};border:1px solid rgba(0,0,0,.15);flex:none"></span>
@@ -1469,6 +1490,9 @@ function renderContainers() {
   ['cont-stat-total','cont-dt-stat-total'].forEach(id     => { if (el(id)) animarContador(el(id), total); });
   ['cont-stat-bodega','cont-dt-stat-bodega'].forEach(id   => { if (el(id)) animarContador(el(id), bodegas); });
   ['cont-stat-oficina','cont-dt-stat-oficina'].forEach(id => { if (el(id)) animarContador(el(id), oficinas); });
+  const codificados = allContainers.filter(c => c.codigo).length;
+  const progTxt = total ? (codificados === total ? `✓ Los ${total} containers ya tienen código` : `Codificados: ${codificados} de ${total} — faltan ${total - codificados} (busca "sin código" para verlos)`) : '';
+  ['cont-codif-progreso', 'cont-dt-codif-progreso'].forEach(id => { if (el(id)) { el(id).textContent = progTxt; el(id).classList.toggle('cont-codif-ok', total > 0 && codificados === total); } });
   _actualizarContadorBuscador(['cont-search', 'cont-dt-search'], filtrados.length);
 }
 
@@ -1486,6 +1510,7 @@ function contAbrirDetalle(rowIndex) {
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${c.tipo}</div>
         <div class="ficha-hero-name">Container N° ${c.num}</div>
+        <div style="margin-top:4px">${c.codigo ? `<span class="cont-codigo cont-codigo--grande">${c.codigo}</span>` : `<span class="cont-sin-codigo">Sin código</span>`}</div>
         <span class="badge ${cls}" style="margin-top:6px;display:inline-block">${c.estado||'Sin estado'}</span>
       </div>
     </div>
@@ -1529,6 +1554,7 @@ function contAbrirEditar() {
 
   document.getElementById('cont-edit-row').value    = c.rowIndex;
   document.getElementById('cont-edit-estado').value = c.estado;
+  document.getElementById('cont-edit-codigo').value = c.codigo || '';
   document.getElementById('cont-edit-ubicacion').value = c.ubicacion || '';
   _precargarColor('cont-edit-color', c.color || '');
   document.getElementById('cont-edit-equip').value     = c.equipamiento !== '-' ? c.equipamiento : '';
@@ -1573,7 +1599,10 @@ async function contGuardar() {
   const color  = _valorColor('cont-edit-color');
   const equip  = document.getElementById('cont-edit-equip').value;
   const obs    = document.getElementById('cont-edit-obs').value;
+  const codigo = document.getElementById('cont-edit-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
   if (!row) return;
+  const errCod = _contCodigoRepetido(codigo, row);
+  if (errCod) { toast(errCod, 'error'); return; }
 
   const btn = document.querySelector('#panel-cont-edit .pnl-action');
   if (btn) btnEstado(btn, 'cargando');
@@ -1588,6 +1617,7 @@ async function contGuardar() {
       writeSheet(`'${SHEET_CONTAINERS}'!G${row}`, [[ubic]]),
       writeSheet(`'${SHEET_CONTAINERS}'!I${row}`, [[equip]]),
       writeSheet(`'${SHEET_CONTAINERS}'!J${row}`, [[obs]]),
+      writeSheet(`'${SHEET_CONTAINERS}'!K${row}`, [[codigo]]),
     ]);
 
     if (_contFoto) {
@@ -1622,7 +1652,7 @@ async function contGuardar() {
     // antes de refrescar la pantalla.
     const c = allContainers.find(i => i.rowIndex === row);
     if (c) {
-      c.estado = estado; c.color = color; c.ubicacion = ubic; c.equipamiento = equip; c.obs = obs;
+      c.estado = estado; c.color = color; c.ubicacion = ubic; c.equipamiento = equip; c.obs = obs; c.codigo = codigo;
       if (fotoNombreFinal !== undefined) c.foto = fotoNombreFinal;
       contItem = c;
       contAbrirDetalle(row);
@@ -2428,6 +2458,7 @@ function contAbrirNuevo() {
 
   const nextNum = allContainers.length > 0 ? Math.max(...allContainers.map(i => parseInt(i.num)||0)) + 1 : 1;
   document.getElementById('cont-nuevo-num').value = nextNum;
+  document.getElementById('cont-nuevo-codigo').value = _contSugerirCodigo();
 
   openPanel('panel-nuevo-cont');
 }
@@ -2441,6 +2472,7 @@ async function contGuardarNuevo() {
   const color    = _valorColor('cont-nuevo-color');
   const equip    = document.getElementById('cont-nuevo-equip').value.trim();
   const obs      = document.getElementById('cont-nuevo-obs').value.trim();
+  const codigo   = document.getElementById('cont-nuevo-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
 
   _limpiarErrores('panel-nuevo-cont');
   let valido = true;
@@ -2450,6 +2482,8 @@ async function contGuardarNuevo() {
     _enfocarPrimerError('panel-nuevo-cont');
     return;
   }
+  const errCodN = _contCodigoRepetido(codigo, -1);
+  if (errCodN) { toast(errCodN, 'error'); return; }
 
   // Re-chequear N° por si se agregó otro container desde que se abrió el formulario
   const numFresco = allContainers.length > 0 ? Math.max(...allContainers.map(i => parseInt(i.num)||0)) + 1 : 1;
@@ -2465,8 +2499,8 @@ async function contGuardarNuevo() {
 
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
-    const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs];
-    const appendRes = await appendSheet(`'${SHEET_CONTAINERS}'!A:J`, [fila]);
+    const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs, codigo];
+    const appendRes = await appendSheet(`'${SHEET_CONTAINERS}'!A:K`, [fila]);
     toast('✓ Container agregado');
     if (btn) btnEstado(btn, 'ok');
 
@@ -3487,7 +3521,7 @@ function _movhTodosLosItems() {
       key: `cont:${e.rowIndex}`, modulo: 'cont', rowIndex: e.rowIndex,
       tipoEquipo: 'Container',
       codigoEquipo: String(e.num || e.rowIndex),
-      nombreEquipo: `N° ${e.num} · ${e.tipo || 'Container'}`,
+      nombreEquipo: `${e.codigo ? e.codigo + ' · ' : ''}N° ${e.num} · ${e.tipo || 'Container'}`,
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.tipo),
     });

@@ -1137,6 +1137,7 @@
           <input type="text" id="cont-dt-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont', () => contSyncSearch())"><span id="cont-dt-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-dt-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
+      <div id="cont-dt-codif-progreso" class="cont-codif-progreso"></div>
       <div class="inv-desktop-list">
         <div id="cont-dt-lista"></div>
       </div>
@@ -1163,6 +1164,7 @@
         <input type="text" id="cont-search" placeholder="Buscar tipo, ubicación..." oninput="_deb('cont-mob', () => renderContainers())" style="flex:1;border:none;outline:none;font-size: 15.5px"><span id="cont-search-contador" class="searchbox-contador hidden" title=""></span><button type="button" class="searchbox-clear hidden" onclick="limpiarBuscador('cont-search')" aria-label="Limpiar búsqueda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
     </div>
+    <div id="cont-codif-progreso" class="cont-codif-progreso"></div>
     <div class="pages" style="padding:0 14px 80px" id="cont-mobile-list">
       <div id="cont-lista"></div>
     </div>
@@ -2328,6 +2330,16 @@
     <div class="panel-body">
       <input type="hidden" id="cont-edit-row">
 
+      <div class="form-sec">Código</div>
+      <div class="form-group">
+        <label>Código del container</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="cont-edit-codigo" placeholder="Ej: 001" autocapitalize="characters" style="flex:1;text-transform:uppercase">
+          <button type="button" class="action-btn" style="margin-top:0;white-space:nowrap" onclick="contSugerirCodigoEn('cont-edit-codigo')">Sugerir</button>
+        </div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">No se puede repetir. "Sugerir" propone el siguiente número libre (001, 002...).</div>
+      </div>
+
       <div class="form-sec">Estado de conservación</div>
       <div class="form-group">
         <label>Estado</label>
@@ -2517,6 +2529,15 @@
     </div>
     <div class="panel-body">
       <input type="hidden" id="cont-nuevo-num">
+
+      <div class="form-sec">Código</div>
+      <div class="form-group">
+        <label>Código del container</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="cont-nuevo-codigo" placeholder="Ej: 001" autocapitalize="characters" style="flex:1;text-transform:uppercase">
+          <button type="button" class="action-btn" style="margin-top:0;white-space:nowrap" onclick="contSugerirCodigoEn('cont-nuevo-codigo')">Sugerir</button>
+        </div>
+      </div>
 
       <div class="form-sec">Tipo</div>
       <div class="form-group">
