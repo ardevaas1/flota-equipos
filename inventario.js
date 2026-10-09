@@ -603,7 +603,8 @@ async function invCargarMiniatura(fileName, thumbId) {
 
   try {
     const q = `title = '${_qEsc(fileName)}' and trashed = false`;
-    const data = await driveSearch('inventario', q, { pageSize: 1 });
+    const data = await driveSearch('inventario', q, { orderBy: 'createdTime desc', pageSize: 1 });
+    if (data.files && data.files[0]) _fotoIdPorNombre[fileName] = data.files[0];
     if (!data.files || data.files.length === 0) {
       el.innerHTML = `<span style="color:#64748b;font-size: 13.5px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
       return;
@@ -626,6 +627,12 @@ async function invCargarMiniatura(fileName, thumbId) {
     el.innerHTML = `<span style="color:#64748b;font-size: 13.5px;padding:12px"><svg viewBox="0 0 24 24" fill="none" class="inline-ic" style="width:13px;height:13px"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg> ${fileName}</span>`;
   }
 }
+
+// Archivo de Drive que ya resolvió la miniatura para cada nombre de foto: el
+// visor grande usa EXACTAMENTE ese mismo archivo. Antes cada uno buscaba por
+// nombre por su lado y, si había dos archivos con el mismo nombre, la
+// miniatura mostraba uno y al apretar "Ver" se abría otra foto distinta.
+const _fotoIdPorNombre = {};
 
 // Modal simple para URLs directas
 function invAbrirFotoModalUrl(imgUrl) {
@@ -719,7 +726,9 @@ async function invAbrirFotoModal(fileName) {
     const q = `title = '${_qEsc(fileName)}' and trashed = false`;
     let data;
     try {
-      data = await driveSearch('inventario', q, { orderBy: 'createdTime desc', pageSize: 1 });
+      data = _fotoIdPorNombre[fileName]
+        ? { files: [_fotoIdPorNombre[fileName]] }
+        : await driveSearch('inventario', q, { orderBy: 'createdTime desc', pageSize: 1 });
     } catch (permErr) {
       if (miToken !== _fotoModalToken) return;
       spinnerTxt.textContent = '⚠️ ' + permErr.message;
