@@ -310,6 +310,18 @@ function parseTopografico(rows) {
 
 // Containers: encabezado simple en la fila 1, datos desde la fila 2
 // Col A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS K=CODIGO
+// Sheets convierte "003" en el número 3 y le come los ceros. Si el código es
+// solo números, se completa a 3 dígitos al leerlo, y al guardarlo se manda
+// como texto (con apóstrofe adelante) para que Sheets no lo convierta.
+function _contNormalizarCodigo(v) {
+  const t = (v == null ? '' : v).toString().trim().toUpperCase();
+  return /^\d+$/.test(t) && t.length < 3 ? t.padStart(3, '0') : t;
+}
+function _contCodigoParaHoja(codigo) {
+  const c = _contNormalizarCodigo(codigo);
+  return /^\d+$/.test(c) ? "'" + c : c;
+}
+
 function parseContainers(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 2 }))
@@ -326,7 +338,7 @@ function parseContainers(rows) {
       fecha:        r[7] || '',
       equipamiento: r[8] || '',
       obs:          r[9] || '',
-      codigo:       (r[10] || '').toString().trim().toUpperCase(),
+      codigo:       _contNormalizarCodigo(r[10]),
     }));
 }
 
@@ -1599,7 +1611,7 @@ async function contGuardar() {
   const color  = _valorColor('cont-edit-color');
   const equip  = document.getElementById('cont-edit-equip').value;
   const obs    = document.getElementById('cont-edit-obs').value;
-  const codigo = document.getElementById('cont-edit-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
+  const codigo = _contNormalizarCodigo(document.getElementById('cont-edit-codigo').value.replace(/\s+/g, ''));
   if (!row) return;
   const errCod = _contCodigoRepetido(codigo, row);
   if (errCod) { toast(errCod, 'error'); return; }
@@ -1617,7 +1629,7 @@ async function contGuardar() {
       writeSheet(`'${SHEET_CONTAINERS}'!G${row}`, [[ubic]]),
       writeSheet(`'${SHEET_CONTAINERS}'!I${row}`, [[equip]]),
       writeSheet(`'${SHEET_CONTAINERS}'!J${row}`, [[obs]]),
-      writeSheet(`'${SHEET_CONTAINERS}'!K${row}`, [[codigo]]),
+      writeSheet(`'${SHEET_CONTAINERS}'!K${row}`, [[_contCodigoParaHoja(codigo)]]),
     ]);
 
     if (_contFoto) {
@@ -2472,7 +2484,7 @@ async function contGuardarNuevo() {
   const color    = _valorColor('cont-nuevo-color');
   const equip    = document.getElementById('cont-nuevo-equip').value.trim();
   const obs      = document.getElementById('cont-nuevo-obs').value.trim();
-  const codigo   = document.getElementById('cont-nuevo-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
+  const codigo   = _contNormalizarCodigo(document.getElementById('cont-nuevo-codigo').value.replace(/\s+/g, ''));
 
   _limpiarErrores('panel-nuevo-cont');
   let valido = true;
@@ -2499,7 +2511,7 @@ async function contGuardarNuevo() {
 
   try {
     // Cols: A=N° B=TIPO C=FOTO D=MEDIDAS E=ESTADO F=COLOR G=UBICACION H=FECHA I=EQUIPAMIENTO J=OBS
-    const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs, codigo];
+    const fila = [numFinal, tipo, '', medidas, estado, color, ubicacion, '-', equip || '-', obs, _contCodigoParaHoja(codigo)];
     const appendRes = await appendSheet(`'${SHEET_CONTAINERS}'!A:K`, [fila]);
     toast('✓ Container agregado');
     if (btn) btnEstado(btn, 'ok');
