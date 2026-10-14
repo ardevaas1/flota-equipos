@@ -4260,7 +4260,7 @@ async function buscarGlobal(query) {
       resultados.push({
         cat: 'Container',
         icono: '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="1.5" stroke="white" stroke-width="1.7"/><path d="M9 7v12M15 7v12" stroke="white" stroke-width="1.4"/></svg>',
-        titulo: c.tipo, sub: (c.codigo ? c.codigo + ' · ' : '') + 'N° ' + c.num,
+        titulo: c.tipo, sub: c.codigo || ('N° ' + c.num),
         ubicacion: c.ubicacion || '',
         ir: () => { irAModulo('containers'); setTimeout(() => contAbrirDetalle(c.rowIndex), 340); },
       });

@@ -322,6 +322,11 @@ function _contCodigoParaHoja(codigo) {
   return /^\d+$/.test(c) ? "'" + c : c;
 }
 
+// Una vez codificado, el código REEMPLAZA al N° viejo en todas las pantallas
+// (el N° sigue guardado en la hoja, pero ya no se muestra).
+function _contIdent(c) { return c.codigo || ('N° ' + c.num); }
+function _contNombre(c) { return `${_contIdent(c)} · ${c.tipo || 'Container'}`; }
+
 function parseContainers(rows) {
   return rows
     .map((r, i) => ({ r, rowIndex: i + 2 }))
@@ -1475,7 +1480,7 @@ function renderContainers() {
       ${_contModoSeleccion ? `<div class="card-checkbox ${checked?'checked':''}">${checked?'✓':''}</div>` : ''}
       <div class="card-icon" style="font-size: 23px">${icon}</div>
       <div class="card-body">
-        <div class="card-title">${c.codigo ? `<span class="cont-codigo">${c.codigo}</span> ` : ''}N° ${c.num} · ${c.tipo}${c.codigo ? '' : ' <span class="cont-sin-codigo">Sin código</span>'}</div>
+        <div class="card-title">${c.codigo ? `<span class="cont-codigo">${c.codigo}</span> ${c.tipo}` : `N° ${c.num} · ${c.tipo}`}${c.codigo ? '' : ' <span class="cont-sin-codigo">Sin código</span>'}</div>
         <div class="card-sub">${c.medidas}${c.equipamiento&&c.equipamiento!=='-'?' · '+c.equipamiento:''}</div>
         ${c.color ? `<div class="card-sub" style="display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="width:9px;height:9px;border-radius:50%;background:${_colorHex(c.color)};border:1px solid rgba(0,0,0,.15);flex:none"></span>
@@ -1521,7 +1526,7 @@ function contAbrirDetalle(rowIndex) {
       <div class="ficha-hero-icon" style="font-size:36px">${icon}</div>
       <div class="ficha-hero-info">
         <div class="ficha-hero-type">${c.tipo}</div>
-        <div class="ficha-hero-name">Container N° ${c.num}</div>
+        <div class="ficha-hero-name">Container ${c.codigo || ('N° ' + c.num)}</div>
         <div style="margin-top:4px">${c.codigo ? `<span class="cont-codigo cont-codigo--grande">${c.codigo}</span>` : `<span class="cont-sin-codigo">Sin código</span>`}</div>
         <span class="badge ${cls}" style="margin-top:6px;display:inline-block">${c.estado||'Sin estado'}</span>
       </div>
@@ -3117,8 +3122,8 @@ function abrirMoverSeleccionCont() {
     _movMultiItems.push({
       key, modulo: 'cont', rowIndex,
       tipoEquipo: 'Container',
-      codigoEquipo: String(item.num || item.rowIndex),
-      nombreEquipo: `N° ${item.num} · ${item.tipo || 'Container'}`,
+      codigoEquipo: item.codigo || String(item.num || item.rowIndex),
+      nombreEquipo: _contNombre(item),
       ubicacionActual: item.ubicacion || '',
     });
   });
@@ -3532,8 +3537,8 @@ function _movhTodosLosItems() {
     items.push({
       key: `cont:${e.rowIndex}`, modulo: 'cont', rowIndex: e.rowIndex,
       tipoEquipo: 'Container',
-      codigoEquipo: String(e.num || e.rowIndex),
-      nombreEquipo: `${e.codigo ? e.codigo + ' · ' : ''}N° ${e.num} · ${e.tipo || 'Container'}`,
+      codigoEquipo: e.codigo || String(e.num || e.rowIndex),
+      nombreEquipo: _contNombre(e),
       ubicacionActual: e.ubicacion || '',
       icon: invIcono(e.tipo),
     });
@@ -4788,7 +4793,7 @@ async function _recolectarDatosResumen(forzarRecarga) {
   allGeneradores.forEach(g => agregar(g.ubicacion, 'Generadores', `${g.equipo} — ${g.marca || ''} ${g.modelo || ''}${g.codigo ? ' (' + g.codigo + ')' : ''}`.replace(/\s+/g,' ')));
   allMaqMenor.forEach(m => agregar(m.ubicacion, 'Maquinaria Menor', `${m.equipo} — ${m.marca || ''} ${m.modelo || ''}${m.numIdent ? ' (' + m.numIdent + ')' : ''}`.replace(/\s+/g,' ')));
   allHerramientas.forEach(h => agregar(h.ubicacion, 'Herramientas', `${h.equipo} — ${h.marca || ''} ${h.modelo || ''}${h.numIdent ? ' (' + h.numIdent + ')' : ''}`.replace(/\s+/g,' ')));
-  allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container N°${c.num} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
+  allContainers.forEach(c => agregar(c.ubicacion, 'Containers', `Container ${c.codigo || ('N°' + c.num)} — ${c.tipo || ''} (${c.medidas || ''})`.replace(/\s+/g,' ')));
 
   // Andamios: se agrega aparte, ya viene agrupado por ubicación (cantidad, no ítems únicos).
   const rowsUbic = await fetchSheet(`'${SHEET_AND_UBIC}'!A2:D5000`);
