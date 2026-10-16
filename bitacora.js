@@ -1,3 +1,19 @@
+// Respaldo: estas dos ayudas viven en app-v2.js; si por algún motivo se subió
+// una versión de app-v2.js que todavía no las tiene, se definen acá para que
+// los formularios de Bitácora no se queden "muertos".
+if (typeof _parseNumeroSheet !== 'function') {
+  window._parseNumeroSheet = function (v) {
+    let s = (v == null ? '' : v).toString().trim();
+    if (!s) return NaN;
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else { const p = s.split('.'); if (p.length > 1 && !(p.length === 2 && p[1].length <= 2)) s = s.replace(/\./g, ''); }
+    return parseFloat(s);
+  };
+}
+if (typeof _numeroParaInput !== 'function') {
+  window._numeroParaInput = function (v) { const n = _parseNumeroSheet(v); return isNaN(n) ? '' : String(n).replace('.', ','); };
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // MÓDULO: BITÁCORA & CONSUMO DE COMBUSTIBLE
 // ═══════════════════════════════════════════════════════════════════════

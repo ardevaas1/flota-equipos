@@ -1351,7 +1351,7 @@ async function invGuardarEventoGen() {
   const codigo    = document.getElementById('gen-evento-codigo').value;
   const fecha     = document.getElementById('gen-evento-fecha').value;
   const tipo      = document.getElementById('gen-evento-tipo').value;
-  const horometro = document.getElementById('gen-evento-horometro').value;
+  const horometro = _numeroParaHoja(document.getElementById('gen-evento-horometro').value);
   const obs       = document.getElementById('gen-evento-obs').value;
 
   if (!codigo || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }

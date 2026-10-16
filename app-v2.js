@@ -911,6 +911,20 @@ function _parseNumeroSheet(v) {
   return parseFloat(s);
 }
 
+// Número escrito por una persona (acepta coma o punto: "10,5" / "10.5") →
+// número real para guardar en la hoja ('' si está vacío o no es número).
+// Se guarda como NÚMERO (no como texto) para que no dependa del idioma de
+// la planilla.
+function _numeroParaHoja(v) {
+  const n = _parseNumeroSheet(v);
+  return isNaN(n) ? '' : n;
+}
+// Para mostrar un número en un campo de texto con coma decimal (10,5).
+function _numeroParaInput(v) {
+  const n = _parseNumeroSheet(v);
+  return isNaN(n) ? '' : String(n).replace('.', ',');
+}
+
 function formatNum(v) {
   const n = _parseNumeroSheet(v);
   if (isNaN(n)) return v || '—';
@@ -2559,11 +2573,11 @@ function openEventoPanel(patente) {
       // es "horómetro + 1000" a secas, así la mantención siempre cae en
       // un número redondo (1000, 2000, 3000...) sin importar el horómetro
       // exacto en el que se termine registrando.
-      proximaInput.value = actual > 0 ? (Math.floor(actual / INTERVALO_MANT_1000H) + 1) * INTERVALO_MANT_1000H : '';
+      proximaInput.value = actual > 0 ? String((Math.floor(actual / INTERVALO_MANT_1000H) + 1) * INTERVALO_MANT_1000H) : '';
       return;
     }
     const cada = _parseNumeroSheet(eq && eq.mantCada) || 0;
-    if (cada > 0 && actual > 0) proximaInput.value = actual + cada;
+    if (cada > 0 && actual > 0) proximaInput.value = _numeroParaInput(actual + cada);
     else proximaInput.value = '';
   };
 
@@ -2620,11 +2634,11 @@ function openMantPanel(patente) { openEventoPanel(patente); }
 
 async function saveEvento() {
   const patente   = document.getElementById('evento-equipo').value;
-  const horometro = document.getElementById('evento-horometro').value;
+  const horometro = _numeroParaHoja(document.getElementById('evento-horometro').value);
   const fecha     = document.getElementById('evento-fecha').value;
   const tipo      = document.getElementById('evento-tipo').value;
   const obs       = document.getElementById('evento-obs').value;
-  const proxima   = document.getElementById('evento-proxima')?.value || '';
+  const proxima   = _numeroParaHoja(document.getElementById('evento-proxima')?.value || '');
 
   if (!patente || !fecha) { toast('Completa los campos obligatorios', 'error'); return; }
 
@@ -3323,11 +3337,11 @@ function openEditPanel() {
   }
 
   document.getElementById('edit-ubicacion').value = e.ubicacion;
-  document.getElementById('edit-horometro').value = e.horometro;
+  document.getElementById('edit-horometro').value = _numeroParaInput(e.horometro);
   document.getElementById('edit-unidad-uso').value = e.unidadUso || 'KM';
-  document.getElementById('edit-mantcada').value = e.mantCada || '';
-  document.getElementById('edit-proxima').value   = e.proxMant;
-  document.getElementById('edit-ultima').value    = e.ultMant;
+  document.getElementById('edit-mantcada').value = _numeroParaInput(e.mantCada);
+  document.getElementById('edit-proxima').value   = _numeroParaInput(e.proxMant);
+  document.getElementById('edit-ultima').value    = _numeroParaInput(e.ultMant);
 
   document.getElementById('edit-soap').value      = e.soap;
   document.getElementById('edit-permiso').value   = e.permiso;
@@ -3470,12 +3484,12 @@ async function saveEquipo() {
   const row       = document.getElementById('edit-row').value;
   const estado    = document.getElementById('edit-estado').value;
   const ubicacion = document.getElementById('edit-ubicacion').value;
-  const horometro = document.getElementById('edit-horometro').value;
+  const horometro = _numeroParaHoja(document.getElementById('edit-horometro').value);
   const unidadUso = document.getElementById('edit-unidad-uso').value;
-  const mantCada  = document.getElementById('edit-mantcada').value;
+  const mantCada  = _numeroParaHoja(document.getElementById('edit-mantcada').value);
   // edit-proxima ya no se lee/escribe desde acá: queda disabled y solo se
   // recalcula al registrar una mantención (igual que el horómetro, columna L).
-  const ultima    = document.getElementById('edit-ultima').value;
+  const ultima    = _numeroParaHoja(document.getElementById('edit-ultima').value);
   const soap      = document.getElementById('edit-soap').value;
   const permiso   = document.getElementById('edit-permiso').value;
   const revision  = document.getElementById('edit-revision').value;
