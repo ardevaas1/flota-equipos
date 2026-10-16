@@ -190,6 +190,8 @@
     body.chofer-mode #mod-bitacora .viewer-hidden,
     body.chofer-mode #panel-bit-ficha .pnl-action,
     body.chofer-mode #panel-bit-ficha .action-btn,
+    body.chofer-mode #panel-bit-cerrar .pnl-action,
+    body.chofer-mode #panel-bit-cerrar .action-btn,
     body.chofer-mode #panel-bit-viaje .pnl-action,
     body.chofer-mode #panel-bit-viaje .action-btn,
     body.chofer-mode #panel-bit-combustible .pnl-action,
@@ -652,12 +654,12 @@
       </div>
       <div class="form-group">
         <label>Cada cuánto se hace la mantención (h/km)</label>
-        <input type="number" id="edit-mantcada" placeholder="Ej: 300">
+        <input type="text" inputmode="decimal" id="edit-mantcada" placeholder="Ej: 300">
         <div style="font-size: 13px;color:var(--ink-soft);margin-top:5px">Con esto, "Próxima mantención" se calcula sola al registrar un evento de mantención — no hace falta escribirla a mano.</div>
       </div>
       <div class="form-group">
         <label>Kilometraje / Horómetro actual</label>
-        <input type="number" id="edit-horometro" placeholder="—" disabled
+        <input type="text" inputmode="decimal" id="edit-horometro" placeholder="—" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
         <div style="font-size: 13px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
           <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -666,7 +668,7 @@
       </div>
       <div class="form-group">
         <label>Próxima mantención (en)</label>
-        <input type="number" id="edit-proxima" placeholder="—" disabled
+        <input type="text" inputmode="decimal" id="edit-proxima" placeholder="—" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
         <div style="font-size: 13px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;gap:5px">
           <svg viewBox="0 0 24 24" fill="none" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -675,7 +677,7 @@
       </div>
       <div class="form-group">
         <label>Última mantención (en)</label>
-        <input type="number" id="edit-ultima" placeholder="Ej: 12000">
+        <input type="text" inputmode="decimal" id="edit-ultima" placeholder="Ej: 12000">
       </div>
 
 
@@ -781,7 +783,7 @@
       <div id="ajuste-gps-gps" style="font-size: 13.5px;color:var(--ink-soft);margin-bottom:14px"></div>
       <div class="form-group">
         <label>Valor real (lo que ves en la máquina)</label>
-        <input type="number" id="ajuste-gps-valor" step="0.01" placeholder="Ej: 246422" oninput="_recalcularAjusteGPS()">
+        <input type="text" inputmode="decimal" id="ajuste-gps-valor" step="0.01" placeholder="Ej: 246422" oninput="_recalcularAjusteGPS()">
       </div>
       <div class="ficha-section" style="text-align:center">
         <div class="ficha-sec-title">Reajuste que se va a guardar</div>
@@ -822,11 +824,11 @@
       </div>
       <div class="form-group">
         <label>Horómetro / Odómetro actual</label>
-        <input type="number" id="evento-horometro" placeholder="Ej: 12500">
+        <input type="text" inputmode="decimal" id="evento-horometro" placeholder="Ej: 12500">
       </div>
       <div class="form-group" id="evento-proxima-group" style="display:none">
         <label>Próxima mantención (h/km)</label>
-        <input type="number" id="evento-proxima" placeholder="Se calcula sola" disabled
+        <input type="text" inputmode="decimal" id="evento-proxima" placeholder="Se calcula sola" disabled
           style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;border-color:#e2e8f0">
         <div style="font-size: 13px;color:#94a3b8;margin-top:5px">Horómetro/odómetro de este evento + intervalo del equipo. Si el equipo no tiene un intervalo cargado ("Cada"), corrígelo desde Editar vehículo.</div>
       </div>
@@ -1483,6 +1485,7 @@
         <label>Mes de las métricas</label>
         <select id="bit-ficha-mes-select" onchange="bitCambiarMes(this.value)"></select>
       </div>
+      <div id="bit-ficha-en-curso"></div>
       <div id="bit-ficha-metricas"></div>
       <div style="display:flex;gap:8px;margin:14px 0">
         <button class="action-btn" style="margin-top:0;flex:1" onclick="bitAbrirViaje()">+ Registrar viaje</button>
@@ -1490,6 +1493,27 @@
       </div>
       <div class="ficha-sec-title">Historial</div>
       <div id="bit-ficha-historial"></div>
+    </div>
+  </div>
+
+  <!-- ── Panel: Cerrar viaje en curso (bitácora) ── -->
+  <div id="panel-bit-cerrar" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-bit-cerrar')">‹ Cancelar</button>
+      <span class="pnl-title">Cerrar recorrido</span>
+      <button class="pnl-action" onclick="bitGuardarCierreViaje()">Cerrar</button>
+    </div>
+    <div class="panel-body">
+      <input type="hidden" id="bit-cerrar-row">
+      <div id="bit-cerrar-resumen" style="font-weight:700;font-size:16px;margin-bottom:14px"></div>
+      <div class="form-group">
+        <label id="bit-cerrar-kmf-label">Km final</label>
+        <input type="text" inputmode="decimal" id="bit-cerrar-kmf" placeholder="Ej: 45350">
+      </div>
+      <div class="form-group">
+        <label>Destino</label>
+        <input type="text" id="bit-cerrar-destino" placeholder="Ej: Faena Pircunche">
+      </div>
     </div>
   </div>
 
@@ -1509,11 +1533,11 @@
       </div>
       <div class="form-group">
         <label id="bit-viaje-kmi-label">Km inicial</label>
-        <input type="number" id="bit-viaje-kmi" min="0" placeholder="Ej: 45200">
+        <input type="text" inputmode="decimal" id="bit-viaje-kmi" min="0" placeholder="Ej: 45200">
       </div>
       <div class="form-group">
-        <label id="bit-viaje-kmf-label">Km final</label>
-        <input type="number" id="bit-viaje-kmf" min="0" placeholder="Ej: 45350">
+        <label id="bit-viaje-kmf-label">Km final <span style="font-weight:400;color:var(--ink-soft)">(déjalo vacío si el viaje sigue en curso)</span></label>
+        <input type="text" inputmode="decimal" id="bit-viaje-kmf" min="0" placeholder="Ej: 45350">
       </div>
       <div class="form-group">
         <label>Destino</label>
@@ -1542,11 +1566,11 @@
       </div>
       <div class="form-group">
         <label id="bit-comb-km-label">Km actual</label>
-        <input type="number" id="bit-comb-km" min="0" placeholder="Ej: 45350">
+        <input type="text" inputmode="decimal" id="bit-comb-km" min="0" placeholder="Ej: 45350">
       </div>
       <div class="form-group">
         <label>Litros cargados</label>
-        <input type="number" id="bit-comb-litros" min="0" step="0.1" placeholder="Ej: 45.5">
+        <input type="text" inputmode="decimal" id="bit-comb-litros" min="0" step="0.1" placeholder="Ej: 45,5">
       </div>
       <div class="form-group">
         <label>Chofer</label>
@@ -2286,7 +2310,7 @@
       </div>
       <div class="form-group">
         <label>Horómetro actual (horas)</label>
-        <input type="number" id="gen-evento-horometro" placeholder="Ej: 12500">
+        <input type="text" inputmode="decimal" id="gen-evento-horometro" placeholder="Ej: 12500">
       </div>
       <div class="form-group">
         <label>Descripción</label>

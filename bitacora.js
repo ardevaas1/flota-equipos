@@ -96,8 +96,10 @@ async function loadBitacora() {
         id:            r[0] || '',
         fecha:         r[1] || '',
         patente:       (r[2] || '').toUpperCase(),
-        kmInicial:     parseFloat(r[3]) || 0,
-        kmFinal:       parseFloat(r[4]) || 0,
+        kmInicial:     _parseNumeroSheet(r[3]) || 0,
+        kmFinal:       _parseNumeroSheet(r[4]) || 0,
+        // Viaje en curso = se registró el inicio y todavía no se cerró (km final vacío)
+        enCurso:       r[4] === undefined || r[4] === null || r[4].toString().trim() === '',
         destino:       r[5] || '',
         chofer:        r[6] || '',
         registradoPor: r[7] || '',
@@ -119,8 +121,8 @@ async function loadCombustible() {
         id:            r[0] || '',
         fecha:         _bitFechaDesdeHoja(r[1]),
         patente:       (r[2] || '').toUpperCase(),
-        km:            parseFloat(r[3]) || 0,
-        litros:        parseFloat(r[4]) || 0,
+        km:            _parseNumeroSheet(r[3]) || 0,
+        litros:        _parseNumeroSheet(r[4]) || 0,
         chofer:        r[5] || '',
         registradoPor: r[6] || '',
         // Columna nueva (H) — si una carga es vacía/ausente (registros
@@ -221,6 +223,12 @@ function _bitFechaDesdeHoja(valor) {
   return v; // ya viene en ISO
 }
 
+// Viaje abierto (inicio registrado, sin km final todavía) de un vehículo.
+function _bitViajeEnCurso(patente) {
+  return allBitacora.filter(b => b.patente === patente && b.enCurso)
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex)[0] || null;
+}
+
 function _bitMetricasVehiculo(patente, mes) {
   const viajes = allBitacora.filter(b => b.patente === patente && (!mes || _bitEsDelMes(b.fecha, mes)));
   const cargasDelMes = allCombustible.filter(c => c.patente === patente && (!mes || _bitEsDelMes(c.fecha, mes)));
@@ -291,6 +299,7 @@ function bitRenderLista() {
         <div class="card-body">
           <div class="card-title">${nombre}</div>
           <div class="card-sub card-sub--patente">${eq.patente}</div>
+          ${_bitViajeEnCurso(eq.patente) ? '<div class="bit-en-curso-chip">● Viaje en curso</div>' : ''}
         </div>
         <div class="card-right">
           <div class="card-stat-num">${m.kmRecorridos.toLocaleString('es-CL')} ${_bitTextos(eq.patente).unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</div>
@@ -359,6 +368,15 @@ function bitRenderMetricasYHistorial() {
     </div>
   `;
 
+  const bannerEl = document.getElementById('bit-ficha-en-curso');
+  if (bannerEl) {
+    const vc = _bitViajeEnCurso(patente);
+    bannerEl.innerHTML = vc ? `<div class="bit-banner-curso">
+      <div><strong>Viaje en curso</strong>${vc.destino ? ' a ' + vc.destino : ''}</div>
+      <div style="font-size:13.5px;margin:2px 0 8px">Desde ${_bitFormatearFecha(vc.fecha)} · ${t.unidadLargaCap} inicial: ${vc.kmInicial.toLocaleString('es-CL')}${vc.chofer ? ' · ' + vc.chofer : ''}</div>
+      <button class="action-btn" style="margin-top:0;width:100%;background:var(--accent);color:#fff;border:none" onclick="bitAbrirCerrarViaje(${vc.rowIndex})">Cerrar recorrido</button>
+    </div>` : '';
+  }
   const viajesVehiculo = allBitacora.filter(b => b.patente === patente);
   const kmDeViajes = viajesVehiculo.map(v => Math.max(0, v.kmFinal - v.kmInicial)).filter(k => k > 0);
   const kmPromedioViajes = kmDeViajes.length ? kmDeViajes.reduce((x, y) => x + y, 0) / kmDeViajes.length : 0;
@@ -405,6 +423,18 @@ function bitRenderMetricasYHistorial() {
     : 0;
 
   cont.innerHTML = eventos.map(ev => {
+    if (ev._tipo === 'viaje' && ev.enCurso) {
+      return `<div class="evento-card-mini">
+      <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#16a34a,#15803d)">
+        <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="11" r="2" stroke="white" stroke-width="1.7"/></svg>
+      </div>
+      <div class="mant-body">
+        <div class="mant-title">Viaje${ev.destino ? ' a ' + ev.destino : ''} <span class="badge green" style="margin-left:6px;vertical-align:middle">En curso</span></div>
+        <div class="mant-meta">${_bitFormatearFecha(ev.fecha)} · desde ${ev.kmInicial.toLocaleString('es-CL')} ${t.unidadCorta} · falta registrar el final</div>
+        ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
+      </div>
+    </div>`;
+    }
     if (ev._tipo === 'viaje') {
       const recorrido = Math.max(0, ev.kmFinal - ev.kmInicial);
       const largo = kmPromedioViajes > 0 && kmDeViajes.length >= 3 && recorrido >= kmPromedioViajes * 1.5;
@@ -456,7 +486,7 @@ function _bitUltimoKmConocido(patente) {
   const viajes = allBitacora.filter(b => b.patente === patente).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex);
   const cargas = allCombustible.filter(c => c.patente === patente).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex);
   const candidatos = [];
-  if (viajes[0]) candidatos.push({ fecha: viajes[0].fecha, km: viajes[0].kmFinal });
+  if (viajes[0]) candidatos.push({ fecha: viajes[0].fecha, km: viajes[0].enCurso ? viajes[0].kmInicial : viajes[0].kmFinal });
   if (cargas[0]) candidatos.push({ fecha: cargas[0].fecha, km: cargas[0].km });
   if (!candidatos.length) return 0;
   candidatos.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
@@ -464,6 +494,52 @@ function _bitUltimoKmConocido(patente) {
 }
 
 // ── Registrar viaje ──────────────────────────────────────────
+// ── Cerrar un viaje en curso ─────────────────────────────────
+function bitAbrirCerrarViaje(rowIndex) {
+  if (_bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
+  const v = allBitacora.find(b => b.rowIndex === rowIndex);
+  if (!v) return;
+  const t = _bitTextos(v.patente);
+  document.getElementById('bit-cerrar-row').value = rowIndex;
+  document.getElementById('bit-cerrar-resumen').textContent = `${v.patente} · desde ${_bitFormatearFecha(v.fecha)} · ${t.unidadLarga} inicial: ${v.kmInicial.toLocaleString('es-CL')}`;
+  document.getElementById('bit-cerrar-kmf-label').textContent = `${t.unidadLargaCap} final`;
+  document.getElementById('bit-cerrar-kmf').value = '';
+  document.getElementById('bit-cerrar-kmf').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215,5' : 'Ej: 45350';
+  document.getElementById('bit-cerrar-destino').value = v.destino || '';
+  openPanel('panel-bit-cerrar');
+}
+
+async function bitGuardarCierreViaje() {
+  const rowIndex = parseInt(document.getElementById('bit-cerrar-row').value);
+  const kmf = _parseNumeroSheet(document.getElementById('bit-cerrar-kmf').value);
+  const destino = document.getElementById('bit-cerrar-destino').value.trim();
+  const btn = document.querySelector('#panel-bit-cerrar .pnl-action');
+  if (btn && btn.disabled) return;
+  if (btn) btnEstado(btn, 'cargando');
+  try {
+    // Se vuelve a leer la hoja antes de cerrar: por si otra persona ya lo cerró.
+    await loadBitacora();
+    const v = allBitacora.find(b => b.rowIndex === rowIndex);
+    if (!v) throw new Error('No se encontró el viaje');
+    if (!v.enCurso) throw new Error('Este viaje ya fue cerrado por otra persona');
+    if (isNaN(kmf)) throw new Error('Escribe el valor final');
+    if (kmf < v.kmInicial) throw new Error('El valor final no puede ser menor al inicial (' + v.kmInicial.toLocaleString('es-CL') + ')');
+    await writeSheet(`'${CONFIG.SHEET_BITACORA}'!E${rowIndex}:F${rowIndex}`, [[kmf, destino]]);
+    toast('✓ Viaje cerrado');
+    if (btn) btnEstado(btn, 'ok');
+    _origClosePanel('panel-bit-cerrar');
+    const idx = _panelStack.lastIndexOf('panel-bit-cerrar');
+    if (idx !== -1) _panelStack.splice(idx, 1);
+    await loadBitacora();
+    bitRenderMetricasYHistorial();
+    bitRenderLista();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    if (btn) btnEstado(btn, 'reset');
+  }
+}
+
 function bitAbrirViaje() {
   if (_bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   const patente = _bitPatenteActual;
@@ -474,14 +550,14 @@ function bitAbrirViaje() {
   document.getElementById('bit-viaje-patente').value = patente;
   document.getElementById('bit-viaje-vehiculo').textContent = `${nombre} — ${patente}`;
   document.getElementById('bit-viaje-fecha').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('bit-viaje-kmi').value = _bitUltimoKmConocido(patente) || '';
+  document.getElementById('bit-viaje-kmi').value = _numeroParaInput(_bitUltimoKmConocido(patente));
   document.getElementById('bit-viaje-kmf').value = '';
   document.getElementById('bit-viaje-destino').value = '';
   document.getElementById('bit-viaje-chofer').value = '';
   document.getElementById('bit-viaje-kmi-label').textContent = `${t.unidadLargaCap} inicial`;
-  document.getElementById('bit-viaje-kmf-label').textContent = `${t.unidadLargaCap} final`;
-  document.getElementById('bit-viaje-kmi').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1200' : 'Ej: 45200';
-  document.getElementById('bit-viaje-kmf').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
+  document.getElementById('bit-viaje-kmf-label').innerHTML = `${t.unidadLargaCap} final <span style="font-weight:400;color:var(--ink-soft)">(déjalo vacío si el viaje sigue en curso)</span>`;
+  document.getElementById('bit-viaje-kmi').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1200,5' : 'Ej: 45200';
+  document.getElementById('bit-viaje-kmf').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215,5' : 'Ej: 45350';
 
   openPanel('panel-bit-viaje');
 }
@@ -489,14 +565,16 @@ function bitAbrirViaje() {
 async function bitGuardarViaje() {
   const patente = document.getElementById('bit-viaje-patente').value;
   const fecha   = document.getElementById('bit-viaje-fecha').value;
-  const kmi     = parseFloat(document.getElementById('bit-viaje-kmi').value);
-  const kmf     = parseFloat(document.getElementById('bit-viaje-kmf').value);
+  const kmi     = _parseNumeroSheet(document.getElementById('bit-viaje-kmi').value);
+  const kmf     = _parseNumeroSheet(document.getElementById('bit-viaje-kmf').value);
   const destino = document.getElementById('bit-viaje-destino').value.trim();
   const chofer  = document.getElementById('bit-viaje-chofer').value.trim();
 
   if (!fecha)               { toast('La fecha es obligatoria', 'error'); return; }
-  if (isNaN(kmi) || isNaN(kmf)) { toast('Completa el km inicial y final', 'error'); return; }
-  if (kmf < kmi)             { toast('El km final no puede ser menor al km inicial', 'error'); return; }
+  const sinFinal = isNaN(kmf);
+  if (isNaN(kmi)) { toast('Completa el valor inicial', 'error'); return; }
+  if (!sinFinal && kmf < kmi) { toast('El valor final no puede ser menor al inicial', 'error'); return; }
+  if (sinFinal && _bitViajeEnCurso(patente)) { toast('Este vehículo ya tiene un viaje en curso: ciérralo primero (botón "Cerrar recorrido")', 'error'); return; }
   if (!chofer)               { toast('Indica quién maneja', 'error'); return; }
 
   const btn = document.querySelector('#panel-bit-viaje .pnl-action');
@@ -504,8 +582,8 @@ async function bitGuardarViaje() {
   try {
     await _bitAsegurarHojas();
     const id = 'BIT-' + Date.now();
-    await appendSheet(`'${CONFIG.SHEET_BITACORA}'!A:H`, [[id, fecha, patente, kmi, kmf, destino, chofer, (typeof userEmail !== 'undefined' ? userEmail : '')]]);
-    toast('✓ Viaje registrado');
+    await appendSheet(`'${CONFIG.SHEET_BITACORA}'!A:H`, [[id, fecha, patente, kmi, sinFinal ? '' : kmf, destino, chofer, (typeof userEmail !== 'undefined' ? userEmail : '')]]);
+    toast(sinFinal ? '✓ Viaje iniciado: queda en curso hasta que registres el final' : '✓ Viaje registrado');
     if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-viaje');
     const idx = _panelStack.lastIndexOf('panel-bit-viaje');
@@ -557,7 +635,7 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-patente').value = patente;
   document.getElementById('bit-comb-vehiculo').textContent = `${nombre} — ${patente}`;
   document.getElementById('bit-comb-fecha').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('bit-comb-km').value = _bitUltimoKmConocido(patente) || '';
+  document.getElementById('bit-comb-km').value = _numeroParaInput(_bitUltimoKmConocido(patente));
   document.getElementById('bit-comb-litros').value = '';
   document.getElementById('bit-comb-chofer').value = '';
   document.getElementById('bit-comb-lleno').checked = true;
@@ -587,8 +665,8 @@ function _bitNombreCanonicoChofer(nombreEscrito) {
 async function bitGuardarCombustible() {
   const patente = document.getElementById('bit-comb-patente').value;
   const fecha   = document.getElementById('bit-comb-fecha').value;
-  const km      = parseFloat(document.getElementById('bit-comb-km').value);
-  const litros  = parseFloat(document.getElementById('bit-comb-litros').value);
+  const km      = _parseNumeroSheet(document.getElementById('bit-comb-km').value);
+  const litros  = _parseNumeroSheet(document.getElementById('bit-comb-litros').value);
   const choferEscrito = document.getElementById('bit-comb-chofer').value.trim();
   const chofer  = choferEscrito ? _bitNombreCanonicoChofer(choferEscrito) : '';
   const lleno   = document.getElementById('bit-comb-lleno').checked;

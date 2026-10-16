@@ -2018,3 +2018,7 @@ body.is-offline #app { padding-top: 30px; }
 .cont-codif-progreso:empty{display:none}
 .cont-codif-progreso.cont-codif-ok{background:#dcfce7;color:#166534}
 .inv-desktop-content .cont-codif-progreso{margin:0 0 8px}
+
+/* ── Viaje en curso ── */
+.bit-en-curso-chip{display:inline-block;margin-top:3px;background:#dcfce7;color:#166534;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700}
+.bit-banner-curso{margin:12px 0;padding:12px 14px;border-radius:12px;background:#dcfce7;color:#14532d;border:1px solid #86efac}
