@@ -325,7 +325,7 @@ function chkRenderItems() {
         <button type="button" class="chk-seg-btn ${it.estado === 'NA' ? 'on-na' : ''}" onclick="chkMarcar('${it.key}','NA')">No aplica</button>
       </div>
       ${it.estado === 'FALLA' ? `<input type="text" class="chk-obs" placeholder="Describe la falla (opcional)" value="${_chkEsc(it.obs)}" oninput="chkSetObs('${it.key}', this.value)">
-      <button type="button" class="action-btn chk-foto-falla" onclick="chkTomarFoto('${it.key}')">${it.fotos.length ? '+ Agregar otra foto' : '📷 Sacar foto de la falla (obligatoria)'}</button>` : ''}
+      <button type="button" class="action-btn chk-foto-falla" onclick="chkTomarFoto('${it.key}')">${it.fotos.length ? '+ Agregar otra foto' : '📷 Sacar foto de la falla (opcional)'}</button>` : ''}
       ${it.estado === 'FALLA' && it.fotos.length ? `<div class="chk-fotos">${it.fotos.map((f, i) => `<div class="chk-foto"><img src="${f.previewUrl}" alt="Foto"><button type="button" onclick="chkQuitarFoto('${it.key}', ${i})" aria-label="Quitar foto">✕</button></div>`).join('')}</div>` : ''}
     </div>`;
   });
@@ -414,13 +414,6 @@ async function chkGuardar() {
   if (sinResp.length) {
     toast(`Faltan ${sinResp.length} puntos por revisar (puedes usar "Marcar lo que falta como OK")`, 'error');
     const el = document.getElementById('chk-item-' + sinResp[0].key);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-  const faltaDetalle = _chkItems.find(i => i.estado === 'FALLA' && !i.fotos.length);
-  if (faltaDetalle) {
-    toast('Cada punto con falla necesita al menos una foto', 'error');
-    const el = document.getElementById('chk-item-' + faltaDetalle.key);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
