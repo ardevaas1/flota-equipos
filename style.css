@@ -2055,3 +2055,4 @@ body.is-offline #app { padding-top: 30px; }
 .uso-detalle summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--accent-dark)}
 .uso-fila{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line,#e5e7eb);font-size:14px}
 .chk-obs{border:1.5px solid #cbd5e1;border-radius:10px;padding:9px 10px;font-size:14.5px;font-family:inherit;background:#fff}
+.chk-foto-falla{margin:8px 0 0 !important;width:100%}

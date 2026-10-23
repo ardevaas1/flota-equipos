@@ -323,10 +323,10 @@ function chkRenderItems() {
         <button type="button" class="chk-seg-btn ${it.estado === 'OK' ? 'on-ok' : ''}" onclick="chkMarcar('${it.key}','OK')">OK</button>
         <button type="button" class="chk-seg-btn ${it.estado === 'FALLA' ? 'on-falla' : ''}" onclick="chkMarcar('${it.key}','FALLA')">Falla</button>
         <button type="button" class="chk-seg-btn ${it.estado === 'NA' ? 'on-na' : ''}" onclick="chkMarcar('${it.key}','NA')">No aplica</button>
-        <button type="button" class="chk-foto-btn" onclick="chkTomarFoto('${it.key}')" aria-label="Agregar foto"><svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 8a1 1 0 0 1 1-1h2l1.2-2h7.6L17 7h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg></button>
       </div>
-      ${it.estado === 'FALLA' ? `<input type="text" class="chk-obs" placeholder="¿Qué falla tiene? (o saca una foto)" value="${_chkEsc(it.obs)}" oninput="chkSetObs('${it.key}', this.value)">` : ''}
-      ${it.fotos.length ? `<div class="chk-fotos">${it.fotos.map((f, i) => `<div class="chk-foto"><img src="${f.previewUrl}" alt="Foto"><button type="button" onclick="chkQuitarFoto('${it.key}', ${i})" aria-label="Quitar foto">✕</button></div>`).join('')}</div>` : ''}
+      ${it.estado === 'FALLA' ? `<input type="text" class="chk-obs" placeholder="Describe la falla (opcional)" value="${_chkEsc(it.obs)}" oninput="chkSetObs('${it.key}', this.value)">
+      <button type="button" class="action-btn chk-foto-falla" onclick="chkTomarFoto('${it.key}')">${it.fotos.length ? '+ Agregar otra foto' : '📷 Sacar foto de la falla (obligatoria)'}</button>` : ''}
+      ${it.estado === 'FALLA' && it.fotos.length ? `<div class="chk-fotos">${it.fotos.map((f, i) => `<div class="chk-foto"><img src="${f.previewUrl}" alt="Foto"><button type="button" onclick="chkQuitarFoto('${it.key}', ${i})" aria-label="Quitar foto">✕</button></div>`).join('')}</div>` : ''}
     </div>`;
   });
   document.getElementById('bit-chk-items').innerHTML = html;
@@ -352,6 +352,7 @@ function chkMarcar(key, estado) {
   const it = _chkItems.find(i => i.key === key);
   if (!it) return;
   it.estado = it.estado === estado ? '' : estado; // tocar de nuevo desmarca
+  if (it.estado !== 'FALLA') { it.fotos = []; it.obs = ''; } // la foto y la descripción son solo para fallas
   _chkRenderConScroll();
 }
 // Vuelve a dibujar la lista sin perder el lugar donde estaba el scroll
@@ -416,9 +417,9 @@ async function chkGuardar() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-  const faltaDetalle = _chkItems.find(i => i.estado === 'FALLA' && !i.obs.trim() && !i.fotos.length);
+  const faltaDetalle = _chkItems.find(i => i.estado === 'FALLA' && !i.fotos.length);
   if (faltaDetalle) {
-    toast('Cada punto con falla necesita una descripción o una foto', 'error');
+    toast('Cada punto con falla necesita al menos una foto', 'error');
     const el = document.getElementById('chk-item-' + faltaDetalle.key);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
