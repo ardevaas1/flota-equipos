@@ -9,6 +9,7 @@ const CONFIG = {
   SHEET_MANTENCIONES: 'MANTENCIONES',
   SHEET_BITACORA:     'BITACORA',
   SHEET_COMBUSTIBLE:  'COMBUSTIBLE',
+  SHEET_CHECKLIST:    'CHECKLIST',
   SHEET_ARRIENDOS:    'ARRIENDOS',
   SHEET_DATOS:        'DATOS',
   // Carpeta Registro Fotográfico — contiene subcarpetas por patente

@@ -184,10 +184,16 @@ const ROL_REQUERIDO_POR_HOJA = {
   'MOVIMIENTOS':           'mover',
   'BITACORA':              'chofer',
   'COMBUSTIBLE':           'chofer',
+  'CHECKLIST':             'chofer',
   'ARRIENDOS':             'arriendos',
   'ANDAMIOS':              'andamios',
   'AND-UBICACIONES':       'andamios',
   'AND-HISTORIAL':         'andamios',
+};
+
+// Hojas que el Apps Script crea solo (con su fila de encabezados) si no existen.
+const HOJAS_AUTOCREAR = {
+  'CHECKLIST': ['ID','FECHA','HORA','PATENTE','TIPO_CHECKLIST','CHOFER','KM_HORAS','RESULTADO','N_FALLAS','DETALLE','FOTOS_GENERALES','OBSERVACIONES','REGISTRADO_POR'],
 };
 
 // Mismo criterio que ya usa el cliente para decidir qué puede hacer cada
@@ -249,7 +255,13 @@ function manejarEscrituraGenerica(p) {
       return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar "' + sheetName + '".' });
     }
 
-    const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(sheetName);
+    let sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(sheetName);
+    // Hojas que se crean solas la primera vez que alguien registra algo
+    // (así no hace falta que quien registra tenga permiso de editar la planilla).
+    if (!sh && HOJAS_AUTOCREAR[sheetName]) {
+      sh = SpreadsheetApp.openById(SHEET_ID).insertSheet(sheetName);
+      sh.getRange(1, 1, 1, HOJAS_AUTOCREAR[sheetName].length).setValues([HOJAS_AUTOCREAR[sheetName]]);
+    }
     if (!sh) return _jsonOut({ success: false, error: 'No se encontró la hoja "' + sheetName + '".' });
 
     let values;
@@ -264,6 +276,24 @@ function manejarEscrituraGenerica(p) {
     }
 
     if (p.accion === 'sheet_append') {
+      // Protección contra duplicados: el cliente manda un reqId generado
+      // UNA sola vez por cada intento de guardar (se reenvía igual si
+      // reintenta por una falla pasajera de red, nunca cambia entre
+      // reintentos de la MISMA acción). Si ese reqId ya se procesó antes
+      // — quedó guardado en caché durante 10 minutos — se devuelve el
+      // mismo resultado de esa vez en lugar de agregar la fila de nuevo.
+      // Esto es lo que hacía que, cuando un reintento automático pasaba
+      // justo después de que el guardado ya se había hecho pero la
+      // respuesta se perdió en el camino (el 404 intermitente de Google),
+      // la fila terminara duplicada o hasta triplicada — sobre todo se
+      // notaba en Combustible, que se guarda seguido y rápido.
+      const cache = CacheService.getScriptCache();
+      const reqId = (p.reqId || '').toString().trim();
+      if (reqId) {
+        const yaHecho = cache.get('APPEND_' + reqId);
+        if (yaHecho) return _jsonOut(JSON.parse(yaHecho));
+      }
+
       // Mismo comportamiento que "append" de la API de Sheets: agrega
       // DESPUÉS de la última fila con contenido real — el rango puntual
       // que mandó el cliente (ej. "A:P") solo sirve acá para saber la
@@ -273,7 +303,9 @@ function manejarEscrituraGenerica(p) {
       // Se devuelve la fila real donde quedó escrito (algún lugar del
       // cliente la necesita para, por ejemplo, subir después una foto al
       // container recién creado sin adivinar en qué fila cayó).
-      return _jsonOut({ success: true, row: filaLibre });
+      const resultado = { success: true, row: filaLibre };
+      if (reqId) cache.put('APPEND_' + reqId, JSON.stringify(resultado), 600); // 10 min
+      return _jsonOut(resultado);
     }
 
     return _jsonOut({ success: false, error: 'Acción de escritura desconocida: ' + p.accion });
@@ -898,13 +930,26 @@ function manejarAccionAndamios(p) {
 // cliente): E=4 PATENTE · M=12 GEOCERCA_ACTUAL · N=13 FECHA_ENTRADA_GEOCERCA
 //
 // CONFIGURACIÓN NECESARIA (una sola vez, manual):
-// 1) Pedirle a la empresa de GPS que, en cada evento de entrada a una
+// 1) Pedirle a la empresa de GPS que, en cada evento de ENTRADA a una
 //    geocerca, escriba el nombre de la geocerca en la columna M de la fila
 //    de ese vehículo en DATOS (misma cuenta/API que ya usan para la
 //    columna F). Los nombres de las geocercas deben coincidir tal cual con
 //    los nombres de ubicación usados en Flota (ANDAMIOS/MAQUINARIA), sin
 //    tildes de más ni mayúsculas distintas — o la sincronización no va a
 //    reconocer que es la misma obra.
+// 1.b) Además, pedirle que en cada evento de SALIDA de una geocerca BORRE
+//    (deje vacía) esa misma columna M — así, cuando el vehículo está en
+//    tránsito (fuera de cualquier geocerca), la app va a mostrar
+//    "En tránsito" en vez de quedarse pegada en la última obra donde
+//    estuvo. La función más abajo solo empieza a interpretar "vacío" como
+//    "en tránsito" para un vehículo DESPUÉS de haber visto al menos un
+//    dato real de ese mismo vehículo — así nunca confunde "todavía no
+//    configurado" con "salió de la obra", ni siquiera en la primera
+//    corrida antes de que el proveedor arranque a reportar. Si el
+//    proveedor no puede configurar el evento de salida y la columna se
+//    queda con el último valor sin vaciarse, la sincronización igual
+//    funciona bien para saber en qué obra está — solo que no va a poder
+//    distinguir "en tránsito" de "todavía en la última obra".
 // 2) Ejecutar UNA vez la función instalarTriggerUbicacionGPS() de más
 //    abajo desde el editor de Apps Script (▶ Ejecutar), para que quede
 //    corriendo sola cada 15 minutos. Después de eso no hay que tocar nada
@@ -926,20 +971,45 @@ function sincronizarUbicacionDesdeGPS() {
     if (patente) filaPorPatente[patente] = i + 1; // fila real en la hoja (1-index)
   }
 
+  // Recuerda, de una corrida a la otra, para qué patentes YA se vio
+  // alguna vez una geocerca real (no vacía) reportada por el GPS. Solo
+  // para esas es seguro interpretar una columna M vacía como "salió de
+  // la geocerca, está en tránsito" — para una patente de la que TODAVÍA
+  // no se ha visto NUNCA un dato real, una columna vacía simplemente
+  // significa "el proveedor no reportó nada todavía" y no se toca su
+  // ubicación. Así, aunque el proveedor borre la columna M al salir
+  // (como se le pidió), el primer tramo antes de que arranque a reportar
+  // no se confunde con "está en tránsito".
+  const props = PropertiesService.getScriptProperties();
+  const vistasRaw = props.getProperty('GPS_PATENTES_CON_DATO_REAL');
+  const vistas = vistasRaw ? JSON.parse(vistasRaw) : {};
+  let huboPatenteNueva = false;
+
   let actualizados = 0;
   for (let i = 1; i < datos.length; i++) {
     const patente = (datos[i][4] || '').toString().trim().toUpperCase();
     const geocerca = (datos[i][12] || '').toString().trim(); // columna M
-    if (!patente || !geocerca) continue;
+    if (!patente) continue;
 
     const filaMaq = filaPorPatente[patente];
     if (!filaMaq) continue; // el GPS reporta una patente que no está en Flota
 
-    const ubicacionActual = (maquinaria[filaMaq - 1][10] || '').toString().trim(); // columna K
-    if (ubicacionActual.toLowerCase() === geocerca.toLowerCase()) continue; // ya está al día
+    if (geocerca) {
+      if (!vistas[patente]) { vistas[patente] = true; huboPatenteNueva = true; }
+    } else if (!vistas[patente]) {
+      continue; // nunca se vio un dato real de este vehículo — no tocar todavía
+    }
 
-    shMaquinaria.getRange(filaMaq, 11).setValue(geocerca); // columna K = 11 en base 1
+    const nuevaUbicacion = geocerca || 'En tránsito';
+    const ubicacionActual = (maquinaria[filaMaq - 1][10] || '').toString().trim(); // columna K
+    if (ubicacionActual.toLowerCase() === nuevaUbicacion.toLowerCase()) continue; // ya está al día
+
+    shMaquinaria.getRange(filaMaq, 11).setValue(nuevaUbicacion); // columna K = 11 en base 1
     actualizados++;
+  }
+
+  if (huboPatenteNueva) {
+    props.setProperty('GPS_PATENTES_CON_DATO_REAL', JSON.stringify(vistas));
   }
 
   if (actualizados > 0) {

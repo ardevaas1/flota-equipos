@@ -155,7 +155,7 @@ async function loadCombustible() {
 async function bitInit() {
   await _bitAsegurarHojas();
   if (!allBitacora.length && !allCombustible.length) {
-    await Promise.all([loadBitacora(), loadCombustible()]);
+    await Promise.all([loadBitacora(), loadCombustible(), (typeof loadChecklist === 'function' ? loadChecklist() : Promise.resolve())]);
   }
   if (!_bitMesSeleccionado) _bitMesSeleccionado = _bitMesActual();
   _bitRenderSelectoresMes();
@@ -243,6 +243,50 @@ function _bitFechaDesdeHoja(valor) {
 function _bitViajeEnCurso(patente) {
   return allBitacora.filter(b => b.patente === patente && b.enCurso)
     .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex)[0] || null;
+}
+
+// ── Visor de uso (horas trabajadas / km recorridos de viajes ya cerrados) ──
+function _bitFmt(n) { return (Math.round(n * 100) / 100).toLocaleString('es-CL', { maximumFractionDigits: 2 }); }
+function _bitFechaLocalISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+function _bitRenderUso(patente, t) {
+  const el = document.getElementById('bit-ficha-uso');
+  if (!el) return;
+  const cerrados = allBitacora.filter(b => b.patente === patente && !b.enCurso)
+    .map(b => ({ ...b, usado: Math.max(0, b.kmFinal - b.kmInicial) }));
+  const ahora = new Date();
+  const hoy = _bitFechaLocalISO(ahora);
+  const lunes = new Date(ahora); lunes.setDate(ahora.getDate() - ((ahora.getDay() + 6) % 7));
+  const lunesISO = _bitFechaLocalISO(lunes);
+  const mes = hoy.slice(0, 7);
+  const suma = f => cerrados.filter(f).reduce((s, b) => s + b.usado, 0);
+  const uHoy = suma(b => b.fecha === hoy);
+  const uSem = suma(b => b.fecha >= lunesISO && b.fecha <= hoy);
+  const uMes = suma(b => (b.fecha || '').slice(0, 7) === mes);
+  const uTot = suma(() => true);
+
+  // Detalle por día (últimos 14 días con registros)
+  const porDia = {};
+  cerrados.forEach(b => { (porDia[b.fecha] = porDia[b.fecha] || []).push(b); });
+  const dias = Object.keys(porDia).sort().reverse().slice(0, 14);
+  const detalle = dias.map(d => {
+    const lista = porDia[d];
+    const total = lista.reduce((s, b) => s + b.usado, 0);
+    const choferes = [...new Set(lista.map(b => b.chofer).filter(Boolean))].join(', ');
+    return `<div class="uso-fila"><span>${_bitFormatearFecha(d)}${choferes ? ' · ' + choferes : ''}</span><strong>${_bitFmt(total)} ${t.unidadCorta}</strong></div>`;
+  }).join('');
+
+  const etiqueta = t.recorridoLabel.charAt(0).toUpperCase() + t.recorridoLabel.slice(1);
+  el.innerHTML = `<div class="ficha-section">
+    <div class="ficha-sec-title">${etiqueta} (viajes cerrados)</div>
+    <div class="uso-grid">
+      <div class="uso-tile"><div class="uso-num">${_bitFmt(uHoy)}</div><div class="uso-lbl">Hoy</div></div>
+      <div class="uso-tile"><div class="uso-num">${_bitFmt(uSem)}</div><div class="uso-lbl">Esta semana</div></div>
+      <div class="uso-tile"><div class="uso-num">${_bitFmt(uMes)}</div><div class="uso-lbl">Este mes</div></div>
+      <div class="uso-tile"><div class="uso-num">${_bitFmt(uTot)}</div><div class="uso-lbl">Total registrado</div></div>
+    </div>
+    ${detalle ? `<details class="uso-detalle"><summary>Ver detalle por día</summary>${detalle}</details>` : '<div style="font-size:13.5px;color:var(--ink-soft);margin-top:8px">Todavía no hay viajes cerrados.</div>'}
+  </div>`;
 }
 
 function _bitMetricasVehiculo(patente, mes) {
@@ -393,12 +437,15 @@ function bitRenderMetricasYHistorial() {
       <button class="action-btn" style="margin-top:0;width:100%;background:var(--accent);color:#fff;border:none" onclick="bitAbrirCerrarViaje(${vc.rowIndex})">Cerrar recorrido</button>
     </div>` : '';
   }
+  if (typeof chkRenderBanner === 'function') chkRenderBanner(patente);
+  _bitRenderUso(patente, t);
   const viajesVehiculo = allBitacora.filter(b => b.patente === patente);
   const kmDeViajes = viajesVehiculo.map(v => Math.max(0, v.kmFinal - v.kmInicial)).filter(k => k > 0);
   const kmPromedioViajes = kmDeViajes.length ? kmDeViajes.reduce((x, y) => x + y, 0) / kmDeViajes.length : 0;
   const eventos = [
     ...viajesVehiculo.map(b => ({ ...b, _tipo: 'viaje' })),
-    ...allCombustible.filter(c => c.patente === patente).map(c => ({ ...c, _tipo: 'combustible' }))
+    ...allCombustible.filter(c => c.patente === patente).map(c => ({ ...c, _tipo: 'combustible' })),
+    ...(typeof allChecklist !== 'undefined' ? allChecklist : []).filter(c => c.patente === patente).map(c => ({ ...c, _tipo: 'checklist' }))
   ].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex);
 
   const cont = document.getElementById('bit-ficha-historial');
@@ -439,6 +486,19 @@ function bitRenderMetricasYHistorial() {
     : 0;
 
   cont.innerHTML = eventos.map(ev => {
+    if (ev._tipo === 'checklist') {
+      const okChk = ev.nFallas === 0;
+      return `<div class="evento-card-mini" style="cursor:pointer" onclick="chkAbrirDetalle(${ev.rowIndex})">
+      <div class="evento-tipo-icon" style="background:linear-gradient(135deg,${okChk ? '#16a34a,#15803d' : '#dc2626,#b91c1c'})">
+        <svg viewBox="0 0 24 24" fill="none" class="equipo-svg"><path d="M5 12.5l4.2 4.2L19 7" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="mant-body">
+        <div class="mant-title">Checklist de inicio <span class="badge ${okChk ? 'green' : 'red'}" style="margin-left:6px;vertical-align:middle">${okChk ? 'Todo OK' : ev.nFallas + (ev.nFallas === 1 ? ' falla' : ' fallas')}</span></div>
+        <div class="mant-meta">${_bitFormatearFecha(ev.fecha)} ${ev.hora || ''}${ev.medicion !== '' && ev.medicion != null ? ' · ' + ev.medicion + ' ' + t.unidadCorta : ''}</div>
+        ${ev.chofer ? `<div class="evento-desc">Hecho por: ${ev.chofer}</div>` : ''}
+      </div>
+    </div>`;
+    }
     if (ev._tipo === 'viaje' && ev.enCurso) {
       return `<div class="evento-card-mini">
       <div class="evento-tipo-icon" style="background:linear-gradient(135deg,#16a34a,#15803d)">
@@ -556,9 +616,17 @@ async function bitGuardarCierreViaje() {
   }
 }
 
-function bitAbrirViaje() {
+function bitAbrirViaje(checklistRecienHecho) {
   if (_bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   const patente = _bitPatenteActual;
+  // Antes de iniciar un viaje / trabajo se revisa el estado del vehículo:
+  // si hoy todavía no tiene checklist, se hace primero (y al guardarlo se
+  // abre el formulario del viaje).
+  if (!checklistRecienHecho && typeof chkRequerido === 'function' && chkRequerido(patente)) {
+    toast('Primero haz el checklist de inicio', 'info');
+    chkAbrir({ luegoViaje: true });
+    return;
+  }
   const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
   const t = _bitTextos(patente);

@@ -190,6 +190,8 @@
     body.chofer-mode #mod-bitacora .viewer-hidden,
     body.chofer-mode #panel-bit-ficha .pnl-action,
     body.chofer-mode #panel-bit-ficha .action-btn,
+    body.chofer-mode #panel-bit-checklist .pnl-action,
+    body.chofer-mode #panel-bit-checklist .action-btn,
     body.chofer-mode #panel-bit-cerrar .pnl-action,
     body.chofer-mode #panel-bit-cerrar .action-btn,
     body.chofer-mode #panel-bit-viaje .pnl-action,
@@ -1485,15 +1487,67 @@
         <label>Mes de las métricas</label>
         <select id="bit-ficha-mes-select" onchange="bitCambiarMes(this.value)"></select>
       </div>
+      <div id="bit-ficha-chk-estado"></div>
       <div id="bit-ficha-en-curso"></div>
       <div id="bit-ficha-metricas"></div>
+      <div id="bit-ficha-uso"></div>
       <div style="display:flex;gap:8px;margin:14px 0">
         <button class="action-btn" style="margin-top:0;flex:1" onclick="bitAbrirViaje()">+ Registrar viaje</button>
         <button class="action-btn" style="margin-top:0;flex:1;background:var(--accent);color:#fff;border:none" onclick="bitAbrirCombustible()">+ Registrar combustible</button>
       </div>
+      <button class="action-btn" style="margin:0 0 14px;width:100%" onclick="chkAbrir()">Checklist de inicio (con fotos)</button>
       <div class="ficha-sec-title">Historial</div>
       <div id="bit-ficha-historial"></div>
     </div>
+  </div>
+
+  <!-- ── Panel: Checklist de inicio (bitácora) ── -->
+  <div id="panel-bit-checklist" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-bit-checklist')">‹ Cancelar</button>
+      <span class="pnl-title">Checklist de inicio</span>
+      <button class="pnl-action" onclick="chkGuardar()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <div id="bit-chk-aviso" class="chk-banner chk-banner--pend" style="display:none"><div><strong>Antes de iniciar el viaje</strong><div style="font-size:13.5px">Revisa el estado del vehículo. Al guardar, se abre el registro del viaje.</div></div></div>
+      <div id="bit-chk-vehiculo" style="font-weight:700;font-size:16.5px;margin-bottom:10px"></div>
+      <div class="form-group">
+        <label>Tipo de checklist</label>
+        <select id="bit-chk-tipo" onchange="chkCambiarTipo(this.value)"></select>
+      </div>
+      <div class="form-group">
+        <label>Quién lo hace *</label>
+        <input type="text" id="bit-chk-chofer" list="bit-chk-choferes-lista" placeholder="Nombre de quien maneja u opera" autocomplete="off">
+        <datalist id="bit-chk-choferes-lista"></datalist>
+      </div>
+      <div class="form-group">
+        <label id="bit-chk-medicion-label">Km actual</label>
+        <input type="text" inputmode="decimal" id="bit-chk-medicion" placeholder="Ej: 45350">
+      </div>
+      <div class="chk-barra">
+        <span id="bit-chk-progreso"></span>
+        <button type="button" class="link-btn" onclick="chkTodoOk()">Marcar lo que falta como OK</button>
+      </div>
+      <div id="bit-chk-items"></div>
+      <div class="form-sec">Fotos generales (opcional)</div>
+      <div style="font-size:13.5px;color:var(--ink-soft);margin-bottom:6px">Por ejemplo, los 4 costados de la máquina o el tablero.</div>
+      <div id="bit-chk-fotos-generales" class="chk-fotos"></div>
+      <button type="button" class="action-btn" style="margin-top:8px;width:100%" onclick="chkTomarFoto('__gen')">+ Agregar foto general</button>
+      <div class="form-group" style="margin-top:14px">
+        <label>Observaciones</label>
+        <textarea id="bit-chk-obs" placeholder="Algo más que quieras dejar anotado..."></textarea>
+      </div>
+      <input type="file" id="bit-chk-file" accept="image/*" multiple style="display:none" onchange="chkFotoElegida(this)">
+    </div>
+  </div>
+
+  <!-- ── Panel: Detalle de un checklist ── -->
+  <div id="panel-bit-chk-detalle" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-bit-chk-detalle')">‹ Volver</button>
+      <span class="pnl-title">Checklist</span>
+    </div>
+    <div class="panel-body" id="bit-chk-det-body"></div>
   </div>
 
   <!-- ── Panel: Cerrar viaje en curso (bitácora) ── -->
@@ -2650,6 +2704,7 @@
 <script src="app-v2.js"></script>
 <script src="inventario.js"></script>
 <script src="bitacora.js"></script>
+<script src="checklist.js"></script>
 <script src="arriendos.js"></script>
 <script>
 // ══ DESKTOP LAYOUT JS ════════════════════════════════════════════
