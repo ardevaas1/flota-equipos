@@ -311,6 +311,7 @@ function _bitMetricasVehiculo(patente, mes) {
     .sort((a, b) => a.km - b.km);
 
   let kmEntreCargas = 0, litrosConDelta = 0;
+  let tramosCerrados = 0, tramosDelMes = 0, tramosKmMalo = 0;
   let anclaIdx = 0;       // índice de la última carga usada como punto de referencia (llenado completo, o la primera carga del historial si todavía no hay ninguno)
   let litrosPendientes = 0; // litros acumulados desde el ancla, en espera de que llegue el próximo llenado completo
   for (let i = 1; i < todasLasCargas.length; i++) {
@@ -319,6 +320,9 @@ function _bitMetricasVehiculo(patente, mes) {
     if (!c.lleno) continue; // carga parcial: se suma a lo pendiente, pero todavía no se puede cerrar el tramo
     const anterior = todasLasCargas[anclaIdx];
     const delta = c.km - anterior.km;
+    tramosCerrados++;
+    if (!mes || _bitEsDelMes(c.fecha, mes)) tramosDelMes++;
+    if (delta <= 0) tramosKmMalo++;
     if (delta > 0 && (!mes || _bitEsDelMes(c.fecha, mes))) {
       kmEntreCargas += delta;
       litrosConDelta += litrosPendientes;
@@ -328,7 +332,15 @@ function _bitMetricasVehiculo(patente, mes) {
   }
   const rendimiento = litrosConDelta > 0 ? (kmEntreCargas / litrosConDelta) : null;
 
-  return { kmRecorridos, litros, rendimiento, nViajes: viajes.length, nCargas: cargasDelMes.length };
+  // Si no hay rendimiento, se explica por qué (se muestra en la ficha)
+  let motivoSinRendimiento = '';
+  if (rendimiento === null) {
+    if (todasLasCargas.length < 2) motivoSinRendimiento = 'Se necesitan al menos 2 cargas de combustible con km/horas registrados para calcular el rendimiento.';
+    else if (!tramosCerrados) motivoSinRendimiento = 'Ninguna carga posterior completó el estanque: el rendimiento se calcula cuando se vuelve a llenar el estanque completo.';
+    else if (!tramosDelMes) motivoSinRendimiento = 'En este mes ninguna carga completó el estanque. Prueba con otro mes (el rendimiento se cuenta en el mes en que se completa el estanque).';
+    else if (tramosKmMalo) motivoSinRendimiento = 'Hay cargas cuyo km/horas es igual o menor al de la carga anterior: revisa que estén bien escritos.';
+  }
+  return { motivoSinRendimiento, kmRecorridos, litros, rendimiento, nViajes: viajes.length, nCargas: cargasDelMes.length };
 }
 
 function bitRenderLista() {
@@ -425,6 +437,7 @@ function bitRenderMetricasYHistorial() {
           <div style="font-size: 12.5px;color:var(--ink-soft)">${t.rendimiento}</div>
         </div>
       </div>
+      ${m.rendimiento === null && m.motivoSinRendimiento ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:8px">ℹ️ ${m.motivoSinRendimiento}</div>` : ''}
     </div>
   `;
 
