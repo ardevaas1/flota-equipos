@@ -949,7 +949,10 @@ function toast(msg, type = 'ok') {
   // que el propio código llame a toast() de nuevo (éxito o error), porque
   // algunas acciones (migrar fichas, generar documentos) tardan más que eso.
   if (type !== 'loading') {
-    t._timer = setTimeout(() => t.classList.add('hidden'), 6000);
+    // Los mensajes de error (y los largos) se quedan más tiempo para poder leerlos completos; tocar el aviso lo cierra
+    const ms = type === 'error' ? Math.min(20000, 8000 + String(msg).length * 60) : 6000;
+    t._timer = setTimeout(() => t.classList.add('hidden'), ms);
+    t.onclick = () => t.classList.add('hidden');
   }
 }
 
