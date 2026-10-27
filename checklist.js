@@ -267,7 +267,7 @@ function chkAbrir(opts) {
   _chkLuegoViaje = !!(opts && opts.luegoViaje);
   if (typeof _bitSoloLectura === 'function' && _bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   const patente = _bitPatenteActual;
-  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  const eq = (typeof _bitEquipoPorId === 'function') ? _bitEquipoPorId(patente) : (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
   if (!eq) return;
   _chkPatente = patente;
   _chkTipo = _chkDetectarTipo(eq);

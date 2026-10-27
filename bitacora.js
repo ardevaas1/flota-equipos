@@ -44,6 +44,36 @@ function _bitSoloLectura() {
   return true;
 }
 
+// ── Generadores en Bitácora (solo combustible y checklist) ────────────
+// Los generadores viven en Inventario, no en Flota. Para reusar TODO lo que
+// ya existe (cargas de combustible, rendimiento, historial, checklist) se
+// los trata como un "equipo" más, identificado por su código (ej. GE-001) en
+// el lugar de la patente, y siempre medido en horas.
+let _bitVista = 'veh'; // 'veh' = vehículos de Flota · 'gen' = generadores
+function _bitGenId(g) { return (g.codigo || '').toString().trim().toUpperCase() || ('GEN-' + g.num); }
+function _bitGeneradoresComoEquipos() {
+  return (typeof allGeneradores !== 'undefined' ? allGeneradores : []).map(g => ({
+    patente: _bitGenId(g), equipo: g.equipo || 'GENERADOR', marca: g.marca, modelo: g.modelo,
+    unidadUso: 'HORAS', esGenerador: true, horometro: g.horometro, potencia: g.potencia, fotoRef: '',
+  }));
+}
+// Busca un equipo por su identificador (patente de Flota o código de generador)
+function _bitEquipoPorId(id) {
+  const v = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === id);
+  if (v) return v;
+  return _bitGeneradoresComoEquipos().find(e => e.patente === id);
+}
+function bitCambiarVista(v) {
+  _bitVista = v;
+  bitRenderLista();
+}
+function _bitTabsVista() {
+  return `<div class="bit-vista-tabs">
+    <button type="button" class="${_bitVista === 'veh' ? 'on' : ''}" onclick="bitCambiarVista('veh')">Vehículos</button>
+    <button type="button" class="${_bitVista === 'gen' ? 'on' : ''}" onclick="bitCambiarVista('gen')">Generadores</button>
+  </div>`;
+}
+
 // Algunos equipos (generadores, cierta maquinaria) se miden por horómetro
 // (horas), no por kilometraje — se marca por vehículo en la ficha de Flota
 // (campo "Unidad de medida"). Todo lo que se muestra en Bitácora se adapta
@@ -51,7 +81,7 @@ function _bitSoloLectura() {
 // vs "horas trabajadas", etc. Por defecto (equipo no encontrado, o sin el
 // campo cargado) se asume KM, que es el caso más común.
 function _bitUnidad(patente) {
-  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  const eq = _bitEquipoPorId(patente);
   return (eq && eq.unidadUso === 'HORAS') ? 'HORAS' : 'KM';
 }
 function _bitEsHoras(patente) { return _bitUnidad(patente) === 'HORAS'; }
@@ -252,6 +282,7 @@ function _bitFechaLocalISO(d) { return d.getFullYear() + '-' + String(d.getMonth
 function _bitRenderUso(patente, t) {
   const el = document.getElementById('bit-ficha-uso');
   if (!el) return;
+  if ((_bitEquipoPorId(patente) || {}).esGenerador) { el.innerHTML = ''; return; } // los generadores solo llevan combustible
   const cerrados = allBitacora.filter(b => b.patente === patente && !b.enCurso)
     .map(b => ({ ...b, usado: Math.max(0, b.kmFinal - b.kmInicial) }));
   const ahora = new Date();
@@ -352,14 +383,14 @@ function bitRenderLista() {
 
   // Sin ordenar de nuevo: allEquipos ya viene en el mismo orden en que las
   // filas aparecen en la hoja MAQUINARIA (así se pidió específicamente).
-  let vehiculos = (typeof allEquipos !== 'undefined' ? allEquipos : []).slice();
+  let vehiculos = _bitVista === 'gen' ? _bitGeneradoresComoEquipos() : (typeof allEquipos !== 'undefined' ? allEquipos : []).slice();
   if (txt) {
     vehiculos = vehiculos.filter(e => ((e.patente || '') + (e.marca || '') + (e.modelo || '')).toLowerCase().includes(txt));
   }
 
   let html;
   if (!vehiculos.length) {
-    html = emptyState('Sin vehículos', 'No hay vehículos cargados en Flota todavía');
+    html = _bitVista === 'gen' ? emptyState('Sin generadores', 'No hay generadores cargados en Inventario todavía') : emptyState('Sin vehículos', 'No hay vehículos cargados en Flota todavía');
   } else {
     html = vehiculos.map(eq => {
       const m = _bitMetricasVehiculo(eq.patente, mes);
@@ -374,20 +405,23 @@ function bitRenderLista() {
           ${_bitViajeEnCurso(eq.patente) ? '<div class="bit-en-curso-chip">● Viaje en curso</div>' : ''}
         </div>
         <div class="card-right">
-          <div class="card-stat-num">${m.kmRecorridos.toLocaleString('es-CL')} ${_bitTextos(eq.patente).unidadCorta}<br>${m.litros.toLocaleString('es-CL')} L</div>
+          <div class="card-stat-num">${eq.esGenerador ? '' : m.kmRecorridos.toLocaleString('es-CL') + ' ' + _bitTextos(eq.patente).unidadCorta + '<br>'}${m.litros.toLocaleString('es-CL')} L</div>
           <div class="card-stat-label">Este mes</div>
         </div>
       </div>`;
     }).join('');
   }
-  if (cont)   cont.innerHTML   = html;
-  if (contDt) contDt.innerHTML = html;
+  const tabs = _bitTabsVista();
+  if (cont)   cont.innerHTML   = tabs + html;
+  if (contDt) contDt.innerHTML = tabs + html;
   _actualizarContadorBuscador(['bit-search', 'bit-dt-search'], vehiculos.length);
 }
 
 function bitAbrirFicha(patente) {
   _bitPatenteActual = patente;
-  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  const eq = _bitEquipoPorId(patente);
+  const btnViaje = document.getElementById('bit-btn-viaje');
+  if (btnViaje) btnViaje.style.display = (eq && eq.esGenerador) ? 'none' : '';
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
   const esHoras = _bitEsHoras(patente);
 
@@ -424,10 +458,10 @@ function bitRenderMetricasYHistorial() {
     <div class="ficha-section">
       <div class="ficha-sec-title">${nombreMes}</div>
       <div style="display:flex;gap:10px;margin-top:6px">
-        <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
+        ${(_bitEquipoPorId(patente) || {}).esGenerador ? '' : `<div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.kmRecorridos.toLocaleString('es-CL')}</div>
           <div style="font-size: 12.5px;color:var(--ink-soft)">${t.unidadLarga} recorridos</div>
-        </div>
+        </div>`}
         <div style="flex:1;background:var(--accent-soft);border-radius:12px;padding:12px;text-align:center">
           <div style="font-size: 22px;font-weight:800;color:var(--accent-dark)">${m.litros.toLocaleString('es-CL')}</div>
           <div style="font-size: 12.5px;color:var(--ink-soft)">litros cargados</div>
@@ -577,7 +611,11 @@ function _bitUltimoKmConocido(patente) {
   const candidatos = [];
   if (viajes[0]) candidatos.push({ fecha: viajes[0].fecha, km: viajes[0].enCurso ? viajes[0].kmInicial : viajes[0].kmFinal });
   if (cargas[0]) candidatos.push({ fecha: cargas[0].fecha, km: cargas[0].km });
-  if (!candidatos.length) return 0;
+  if (!candidatos.length) {
+    // Sin registros todavía: para un generador se parte del horómetro de su ficha de Inventario
+    const eqG = _bitEquipoPorId(patente);
+    return (eqG && eqG.esGenerador) ? (_parseNumeroSheet(eqG.horometro) || 0) : 0;
+  }
   candidatos.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   return candidatos[0].km;
 }
@@ -640,7 +678,7 @@ function bitAbrirViaje(checklistRecienHecho) {
     chkAbrir({ luegoViaje: true });
     return;
   }
-  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  const eq = _bitEquipoPorId(patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
   const t = _bitTextos(patente);
 
@@ -725,7 +763,7 @@ function _bitPoblarChoferesConocidos() {
 function bitAbrirCombustible() {
   if (_bitSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   const patente = _bitPatenteActual;
-  const eq = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === patente);
+  const eq = _bitEquipoPorId(patente);
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
   const t = _bitTextos(patente);
 
