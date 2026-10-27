@@ -54,7 +54,7 @@ function _bitGenId(g) { return (g.codigo || '').toString().trim().toUpperCase() 
 function _bitGeneradoresComoEquipos() {
   return (typeof allGeneradores !== 'undefined' ? allGeneradores : []).map(g => ({
     patente: _bitGenId(g), equipo: g.equipo || 'GENERADOR', marca: g.marca, modelo: g.modelo,
-    unidadUso: 'HORAS', esGenerador: true, horometro: g.horometro, potencia: g.potencia, fotoRef: '',
+    unidadUso: 'HORAS', esGenerador: true, horometro: g.horometro, potencia: g.potencia, fotoRef: '', imagen: g.imagen || '',
   }));
 }
 // Busca un equipo por su identificador (patente de Flota o código de generador)
@@ -62,6 +62,46 @@ function _bitEquipoPorId(id) {
   const v = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === id);
   if (v) return v;
   return _bitGeneradoresComoEquipos().find(e => e.patente === id);
+}
+// Foto del generador (columna "imagen" de Inventario): puede ser un nombre de
+// archivo de Drive, un ID, o un link. Se resuelve a una URL de miniatura y se
+// guarda en memoria para no volver a buscarla.
+const _bitFotoGenCache = {};
+async function _bitUrlFotoGen(imagen) {
+  const v = (imagen || '').toString().trim();
+  if (!v) return '';
+  if (_bitFotoGenCache[v] !== undefined) return _bitFotoGenCache[v];
+  let id = '';
+  if (v.startsWith('http')) {
+    const mPath = v.match(/\/file\/d\/([a-zA-Z0-9_-]+)/), mQ = v.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    id = (mPath && mPath[1]) || (mQ && mQ[1]) || '';
+  } else if (!v.includes('.') && /^[a-zA-Z0-9_-]{20,}$/.test(v)) {
+    id = v;
+  } else {
+    try {
+      const cache = (typeof _fotoIdPorNombre !== 'undefined') ? _fotoIdPorNombre[v] : null;
+      const data = cache ? { files: [cache] } : await driveSearch('inventario', `title = '${_qEsc(v)}' and trashed = false`, { orderBy: 'createdTime desc', pageSize: 1 });
+      if (data.files && data.files[0]) {
+        if (typeof _fotoIdPorNombre !== 'undefined') _fotoIdPorNombre[v] = data.files[0];
+        id = data.files[0].id;
+      }
+    } catch (e) { console.warn('[BIT FOTO GEN]', e.message); }
+  }
+  const url = id ? `https://drive.google.com/thumbnail?id=${id}&sz=w800` : (v.startsWith('http') ? v : '');
+  _bitFotoGenCache[v] = url;
+  return url;
+}
+function _bitIdDom(s) { return 'bit-gfoto-' + String(s).replace(/[^a-zA-Z0-9]/g, '_'); }
+// Pinta, en la lista de generadores, la foto de cada uno cuando ya se resolvió
+function _bitPintarFotosGeneradores(lista) {
+  lista.filter(e => e.esGenerador && e.imagen).forEach(async e => {
+    const url = await _bitUrlFotoGen(e.imagen);
+    if (!url) return;
+    document.querySelectorAll('img[data-bit-gfoto="' + _bitIdDom(e.patente) + '"]').forEach(img => {
+      img.onload = () => { img.style.display = ''; const ic = img.nextElementSibling; if (ic && ic.classList.contains('bit-gfoto-ph')) ic.style.display = 'none'; };
+      img.src = url;
+    });
+  });
 }
 function bitCambiarVista(v) {
   _bitVista = v;
@@ -398,7 +438,9 @@ function bitRenderLista() {
       return `<div class="card" onclick="bitAbrirFicha('${eq.patente}')">
         ${eq.fotoRef
           ? `<img class="card-photo" src="${eq.fotoRef}" alt="Foto de ${nombre}" loading="lazy">`
-          : `<div class="card-icon">${_BIT_ICONO_VEHICULO}</div>`}
+          : (eq.esGenerador && eq.imagen
+              ? `<img class="card-photo" data-bit-gfoto="${_bitIdDom(eq.patente)}" alt="Foto de ${nombre}" style="display:none"><div class="card-icon bit-gfoto-ph">${_BIT_ICONO_VEHICULO}</div>`
+              : `<div class="card-icon">${_BIT_ICONO_VEHICULO}</div>`)}
         <div class="card-body">
           <div class="card-title">${nombre}</div>
           <div class="card-sub card-sub--patente">${eq.patente}</div>
@@ -415,6 +457,7 @@ function bitRenderLista() {
   if (cont)   cont.innerHTML   = tabs + html;
   if (contDt) contDt.innerHTML = tabs + html;
   _actualizarContadorBuscador(['bit-search', 'bit-dt-search'], vehiculos.length);
+  if (_bitVista === 'gen') _bitPintarFotosGeneradores(vehiculos);
 }
 
 function bitAbrirFicha(patente) {
@@ -422,6 +465,8 @@ function bitAbrirFicha(patente) {
   const eq = _bitEquipoPorId(patente);
   const btnViaje = document.getElementById('bit-btn-viaje');
   if (btnViaje) btnViaje.style.display = (eq && eq.esGenerador) ? 'none' : '';
+  const btnChk = document.getElementById('bit-btn-chk');
+  if (btnChk) btnChk.style.display = (eq && eq.esGenerador) ? 'none' : '';
   const nombre = eq ? ([eq.marca, eq.modelo].filter(Boolean).join(' ') || eq.equipo) : patente;
   const esHoras = _bitEsHoras(patente);
 
@@ -436,6 +481,19 @@ function bitAbrirFicha(patente) {
     </div>
     <div style="font-size: 14.5px;color:var(--ink-soft);margin-bottom:4px">${patente}</div>
   `;
+  // Generador con foto: se arma el mismo bloque de foto que tienen los vehículos
+  if (eq && eq.esGenerador && eq.imagen) {
+    _bitUrlFotoGen(eq.imagen).then(url => {
+      if (!url || _bitPatenteActual !== patente) return;
+      const hdr = document.getElementById('bit-ficha-header');
+      const bloque = document.createElement('div');
+      bloque.className = 'ficha-section';
+      bloque.style.cssText = 'padding:0;overflow:hidden;border-radius:14px;cursor:pointer;margin-bottom:12px';
+      bloque.onclick = () => invAbrirFotoModal(eq.imagen);
+      bloque.innerHTML = `<img src="${url}" alt="Foto de referencia" style="width:100%;height:190px;object-fit:cover;display:block;border-radius:14px">`;
+      hdr.insertBefore(bloque, hdr.firstChild);
+    });
+  }
 
   const selFicha = document.getElementById('bit-ficha-mes-select');
   if (selFicha) selFicha.value = _bitMesSeleccionado || _bitMesActual();
@@ -596,7 +654,7 @@ function bitRenderMetricasYHistorial() {
           rc ? ` · ${rc.delta.toLocaleString('es-CL')} ${t.unidadCorta} desde el llenado completo anterior (${rc.litros} L en total, incluye cargas parciales en el medio)`
           : (esParcial ? ' · rendimiento se calcula cuando se complete el estanque de nuevo' : ' · primera carga registrada, sin anterior con qué comparar')
         }</div>
-        ${ev.chofer ? `<div class="evento-desc">Chofer: ${ev.chofer}</div>` : ''}
+        ${ev.chofer ? `<div class="evento-desc">${(_bitEquipoPorId(patente) || {}).esGenerador ? 'Persona encargada' : 'Chofer'}: ${ev.chofer}</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -773,6 +831,9 @@ function bitAbrirCombustible() {
   document.getElementById('bit-comb-km').value = _numeroParaInput(_bitUltimoKmConocido(patente));
   document.getElementById('bit-comb-litros').value = '';
   document.getElementById('bit-comb-chofer').value = '';
+  const esGenC = !!(eq && eq.esGenerador);
+  document.getElementById('bit-comb-chofer-label').textContent = esGenC ? 'Persona encargada' : 'Chofer';
+  document.getElementById('bit-comb-chofer').placeholder = esGenC ? 'Nombre de la persona encargada' : 'Nombre de quien maneja';
   document.getElementById('bit-comb-lleno').checked = true;
   document.getElementById('bit-comb-km-label').textContent = `${t.unidadLargaCap} actual`;
   document.getElementById('bit-comb-km').placeholder = t.unidadLarga === 'horas' ? 'Ej: 1215' : 'Ej: 45350';
@@ -809,7 +870,7 @@ async function bitGuardarCombustible() {
   if (!fecha)                    { toast('La fecha es obligatoria', 'error'); return; }
   if (isNaN(km))                 { toast('Completa el km actual', 'error'); return; }
   if (isNaN(litros) || litros <= 0) { toast('Completa los litros cargados', 'error'); return; }
-  if (!chofer)                   { toast('Indica quién maneja', 'error'); return; }
+  if (!chofer)                   { toast((_bitEquipoPorId(patente) || {}).esGenerador ? 'Indica la persona encargada' : 'Indica quién maneja', 'error'); return; }
 
   const btn = document.querySelector('#panel-bit-combustible .pnl-action');
   if (btn) btnEstado(btn, 'cargando');

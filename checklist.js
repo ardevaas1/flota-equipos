@@ -246,6 +246,8 @@ function chkRequerido(patente) { return _chkDeHoy(patente).length === 0; }
 function chkRenderBanner(patente) {
   const el = document.getElementById('bit-ficha-chk-estado');
   if (!el) return;
+  const eqB = (typeof _bitEquipoPorId === 'function') ? _bitEquipoPorId(patente) : null;
+  if (eqB && eqB.esGenerador) { el.innerHTML = ''; return; } // los generadores no llevan checklist
   const hechos = _chkDeHoy(patente);
   if (!hechos.length) {
     el.innerHTML = `<div class="chk-banner chk-banner--pend">

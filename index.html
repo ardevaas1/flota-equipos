@@ -1495,7 +1495,7 @@
         <button class="action-btn" id="bit-btn-viaje" style="margin-top:0;flex:1" onclick="bitAbrirViaje()">+ Registrar viaje</button>
         <button class="action-btn" style="margin-top:0;flex:1;background:var(--accent);color:#fff;border:none" onclick="bitAbrirCombustible()">+ Registrar combustible</button>
       </div>
-      <button class="action-btn" style="margin:0 0 14px;width:100%" onclick="chkAbrir()">Checklist de inicio (con fotos)</button>
+      <button class="action-btn" id="bit-btn-chk" style="margin:0 0 14px;width:100%" onclick="chkAbrir()">Checklist de inicio (con fotos)</button>
       <div class="ficha-sec-title">Historial</div>
       <div id="bit-ficha-historial"></div>
     </div>
@@ -1623,7 +1623,7 @@
         <input type="text" inputmode="decimal" id="bit-comb-litros" min="0" step="0.1" placeholder="Ej: 45,5">
       </div>
       <div class="form-group">
-        <label>Chofer</label>
+        <label id="bit-comb-chofer-label">Chofer</label>
         <input type="text" id="bit-comb-chofer" list="bit-comb-choferes-lista" placeholder="Nombre de quien maneja" autocomplete="off">
         <datalist id="bit-comb-choferes-lista"></datalist>
       </div>
