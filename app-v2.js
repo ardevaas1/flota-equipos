@@ -158,6 +158,9 @@ let tokenClient  = null;
 let accessToken  = null;
 let tokenExpiry  = 0;
 let isRenewing   = false;  // evita múltiples renovaciones simultáneas
+let _ultimaActividad = Date.now();
+['pointerdown','keydown','touchstart','wheel'].forEach(ev =>
+  window.addEventListener(ev, () => { _ultimaActividad = Date.now(); }, { passive: true, capture: true }));
 
 const TOKEN_KEY  = 'lst_access_token';
 const EXPIRY_KEY = 'lst_token_expiry';
@@ -285,8 +288,12 @@ function initOAuth() {
     if (isRenewing) return;
     if (!accessToken) return;
     const faltan = tokenExpiry - Date.now();
-    if (faltan > 10 * 60 * 1000) return; // todavía falta demasiado, ni vale la pena mirar
-    if (document.visibilityState === 'visible' && faltan > 60 * 1000) return; // a la vista y no es urgente: esperar a que se oculte
+    if (faltan > 15 * 60 * 1000) return; // todavía falta demasiado, ni vale la pena mirar
+    // A la vista y no urgente: solo renovar si la persona lleva un rato sin
+    // tocar nada (o la ventana perdió el foco, ej. está en otra ventana del PC).
+    // Así la ventanita no le salta en medio de lo que está haciendo.
+    const quieta = (Date.now() - _ultimaActividad) > 20 * 1000;
+    if (document.visibilityState === 'visible' && document.hasFocus() && !quieta && faltan > 60 * 1000) return;
 
     isRenewing = true;
     const prevCb = tokenClient.callback;
@@ -316,7 +323,13 @@ function initOAuth() {
     tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
   }
 
-  setInterval(_intentarRenovacionSilenciosa, 30 * 1000);
+  setInterval(_intentarRenovacionSilenciosa, 15 * 1000);
+  // Pierde el foco (cambia a otra ventana/app en el PC): buen momento para renovar
+  window.addEventListener('blur', () => setTimeout(_intentarRenovacionSilenciosa, 500));
+  // Vuelve el PC de suspensión / se vuelve a la pestaña: si el token venció, renovar ya
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && accessToken && tokenExpiry - Date.now() < 60 * 1000) _intentarRenovacionSilenciosa();
+  });
   // En cuanto la pestaña/app pasa a segundo plano, se aprovecha ESE
   // instante para renovar de una — es la mejor oportunidad de que el
   // flash de la ventanita pase completamente inadvertido, en vez de
