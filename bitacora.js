@@ -58,6 +58,23 @@ function _bitGeneradoresComoEquipos() {
   }));
 }
 // Busca un equipo por su identificador (patente de Flota o código de generador)
+// Códigos de generador numéricos (ej. 001): la hoja los guarda como número y
+// los devuelve como "1", así que los registros no calzaban con el generador.
+// Se compara sin ceros a la izquierda y se deja cada registro con el código real.
+function _bitNormId(x) {
+  const u = String(x == null ? '' : x).trim().toUpperCase();
+  return /^\d+$/.test(u) ? u.replace(/^0+(?=\d)/, '') : u;
+}
+function _bitCanonizarPatentes() {
+  const gens = (typeof allGeneradores !== 'undefined' ? allGeneradores : []);
+  if (!gens.length) return;
+  const mapa = {};
+  gens.forEach(g => { mapa[_bitNormId(_bitGenId(g))] = _bitGenId(g); });
+  [allCombustible, allBitacora].forEach(arr => (arr || []).forEach(r => {
+    const id = mapa[_bitNormId(r.patente)];
+    if (id) r.patente = id;
+  }));
+}
 function _bitEquipoPorId(id) {
   const v = (typeof allEquipos !== 'undefined' ? allEquipos : []).find(e => e.patente === id);
   if (v) return v;
@@ -415,6 +432,7 @@ function _bitMetricasVehiculo(patente, mes) {
 }
 
 function bitRenderLista() {
+  _bitCanonizarPatentes();
   const cont   = document.getElementById('bit-lista');
   const contDt = document.getElementById('bit-dt-lista');
   if (!cont && !contDt) return;
@@ -461,6 +479,7 @@ function bitRenderLista() {
 }
 
 function bitAbrirFicha(patente) {
+  _bitCanonizarPatentes();
   _bitPatenteActual = patente;
   const eq = _bitEquipoPorId(patente);
   const btnViaje = document.getElementById('bit-btn-viaje');
@@ -877,7 +896,7 @@ async function bitGuardarCombustible() {
   try {
     await _bitAsegurarHojas();
     const id = 'COMB-' + Date.now();
-    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:H`, [[id, _bitFechaParaGuardar(fecha), patente, km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : ''), lleno ? 'SI' : 'NO']]);
+    await appendSheet(`'${CONFIG.SHEET_COMBUSTIBLE}'!A:H`, [[id, _bitFechaParaGuardar(fecha), (/^\d+$/.test(patente) ? "'" + patente : patente), km, litros, chofer, (typeof userEmail !== 'undefined' ? userEmail : ''), lleno ? 'SI' : 'NO']]);
     toast('✓ Carga de combustible registrada');
     if (btn) btnEstado(btn, 'ok');
     _origClosePanel('panel-bit-combustible');

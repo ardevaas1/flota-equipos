@@ -1697,21 +1697,28 @@ function _reqReemplazarRango(rango, textoNuevo) {
   ];
 }
 
+// Núcleo: actualiza el Doc de UN vehículo (sin toasts). Lo usan el botón de
+// cada vehículo y el de "actualizar todas".
+async function _actualizarFichaCore(e) {
+  const docId = _extraerDocId(e.linkFicha);
+  if (!docId) throw new Error('no se pudo leer el link de la ficha');
+  await _actualizarDocumentacionFicha(docId, e);
+  await _actualizarUbicacionFicha(docId, e);
+  await _actualizarFallasFicha(docId, e);
+  if (e.fotoRef) await _actualizarFotoFicha(docId, e);
+  await _actualizarLinkCarpetaFicha(docId, e);
+  await _actualizarHistorialFicha(docId, e);
+}
+
 async function actualizarFichaTecnica(patente) {
   const e = allEquipos.find(x => x.patente === patente);
   if (!e || !e.linkFicha) { toast('Este vehículo no tiene ficha técnica vinculada', 'error'); return; }
-  const docId = _extraerDocId(e.linkFicha);
-  if (!docId) { toast('No se pudo leer el link de la ficha técnica', 'error'); return; }
+  if (!_extraerDocId(e.linkFicha)) { toast('No se pudo leer el link de la ficha técnica', 'error'); return; }
 
   toast('Actualizando ficha técnica...', 'loading');
   try {
     if (!allEventos.length) await loadEventos(); // por si no se visitó Mantenciones en esta sesión
-    await _actualizarDocumentacionFicha(docId, e);
-    await _actualizarUbicacionFicha(docId, e);
-    await _actualizarFallasFicha(docId, e);
-    if (e.fotoRef) await _actualizarFotoFicha(docId, e);
-    await _actualizarLinkCarpetaFicha(docId, e);
-    await _actualizarHistorialFicha(docId, e);
+    await _actualizarFichaCore(e);
     toast('✓ Ficha técnica actualizada');
   } catch (err) {
     console.error('[FICHA TECNICA]', err);
@@ -1720,6 +1727,49 @@ async function actualizarFichaTecnica(patente) {
     } else {
       toast('No se pudo actualizar la ficha técnica: ' + err.message, 'error');
     }
+  }
+}
+
+// Actualiza las fichas técnicas de TODOS los vehículos que tengan una vinculada,
+// de a una (no en paralelo, para no saturar la API de Docs). Si una falla sigue
+// con las demás y al final avisa cuáles fallaron. Solo admin.
+let _fichasMasivaCorriendo = false;
+async function actualizarTodasLasFichas() {
+  if (_fichasMasivaCorriendo) return;
+  if (userRole !== 'admin') { toast('Solo el administrador puede hacer esto', 'error'); return; }
+  const lista = allEquipos.filter(e => e.linkFicha && _extraerDocId(e.linkFicha));
+  if (!lista.length) { toast('No hay vehículos con ficha técnica vinculada', 'error'); return; }
+  if (!confirm(`Se van a actualizar ${lista.length} fichas técnicas (documentación, ubicación, fallas, foto, link de carpeta e historial). Tarda unos minutos: no cierres la app mientras corre. ¿Seguir?`)) return;
+
+  _fichasMasivaCorriendo = true;
+  const btn = document.getElementById('btn-fichas-todas');
+  const textoOriginal = btn ? btn.textContent : '';
+  const fallas = [];
+  let hechas = 0;
+  try {
+    if (!allEventos.length) await loadEventos();
+    for (const e of lista) {
+      if (btn) { btn.disabled = true; btn.textContent = `Actualizando ${hechas + 1} de ${lista.length}… (${e.patente})`; }
+      try {
+        await _actualizarFichaCore(e);
+        hechas++;
+      } catch (err) {
+        console.error('[FICHAS TODAS]', e.patente, err);
+        fallas.push({ patente: e.patente, error: err.message });
+        if (err.message.includes('403')) break; // sin permiso de Docs: no tiene sentido seguir
+      }
+      await new Promise(r => setTimeout(r, 1200));
+    }
+  } finally {
+    _fichasMasivaCorriendo = false;
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+  }
+  if (!fallas.length) {
+    toast(`✓ ${hechas} fichas técnicas actualizadas`);
+  } else if (fallas.some(f => /403/.test(f.error))) {
+    toast('Sin permiso para editar Docs — cierra sesión y vuelve a entrar para autorizarlo', 'error');
+  } else {
+    toast(`${hechas} actualizadas. Fallaron ${fallas.length}: ${fallas.map(f => f.patente).join(', ')}`, 'error');
   }
 }
 
