@@ -583,6 +583,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
     <a class="ficha-link-btn" onclick="invAbrirCarpetaDrive()" style="cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:8px;background:#e8f4fd;color:#1a73e8;border:1px solid #c5e0f5;padding:10px 14px;border-radius:10px;font-size: 15.5px;font-weight:500;text-decoration:none">
       <svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M3 8l1-3h6l1 2h9v12H3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Ver fotos en Drive
     </a>
+    <button class="action-btn" onclick="invFichaTecnica()" style="margin-top:8px;width:100%${soloLectura ? ';display:none' : ''}">Ficha técnica (Google Doc)</button>
   `;
 
   openPanel('panel-inv-detalle');

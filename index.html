@@ -1042,6 +1042,7 @@
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn admin-only-btn btn-fichas-inv" onclick="invGenerarTodasLasFichas()" style="display:none;margin-top:6px">Crear fichas técnicas de todos los equipos</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
     </div>
@@ -1091,6 +1092,7 @@
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
+      <button class="action-btn admin-only-btn btn-fichas-inv" onclick="invGenerarTodasLasFichas()" style="display:none;margin:0 0 12px;width:100%">Crear fichas técnicas de todos los equipos</button>
       <div id="inv-lista"></div>
     </div>
 
@@ -2701,6 +2703,7 @@
 <script src="config.js"></script>
 <script src="app-v2.js"></script>
 <script src="inventario.js"></script>
+<script src="fichas-inventario.js"></script>
 <script src="bitacora.js"></script>
 <script src="checklist.js"></script>
 <script src="arriendos.js"></script>
