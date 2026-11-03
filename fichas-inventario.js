@@ -80,8 +80,16 @@ function _fiHtml(modId, modLabel, item, linkCarpeta) {
       + (fab.nota ? `<div class="obs-caja" style="margin-top:8px">⚠ ${_fiEsc(fab.nota)}</div>` : '')
       + (fab.fuente ? `<div class="nota">Fuente: ${lnk(fab.fuente[0], fab.fuente[1])}. Datos de referencia del modelo: verifica con la placa de tu equipo.</div>` : '');
   } else {
-    htmlFab = `<div class="obs-caja">${fab && fab.nota ? _fiEsc(fab.nota) : 'No se encontraron especificaciones publicadas por el fabricante para este modelo.'}</div>`
-      + (busqueda ? `<div class="nota">${lnk('Buscar especificaciones en internet', busqueda)}</div>` : '');
+    // Sin datos publicados del fabricante: se arma con lo registrado en la app
+    const tec = [];
+    const t = (l, v) => { if (v !== undefined && v !== null && String(v).trim() !== '' && !/^[\s¿?\-]*$/.test(String(v))) tec.push([l, v]); };
+    if (modId === 'generadores') { t('Potencia', item.potencia); t('Año', item.anio); t('Horómetro actual', item.horometro); t('Color', item.color); }
+    else if (modId === 'topografico') { t('N° de serie', item.motor); t('Color', item.color); t('Última calibración', item.ultCal); t('Próxima calibración', item.proxCal); }
+    else { t('Motor / potencia', item.motor); t('Color', item.color); }
+    htmlFab = (tec.length
+      ? `<table class="datos-tabla">${tec.map(([l, v]) => `<tr><td class="etiqueta">${_fiEsc(l)}</td><td class="valor">${_fiEsc(v)}</td></tr>`).join('')}</table>`
+      : `<div class="obs-caja">Este equipo no tiene características técnicas registradas en la app.</div>`)
+      + `<div class="nota">${fab && fab.nota ? _fiEsc(fab.nota) + ' ' : ''}No se encontraron especificaciones publicadas por el fabricante: estas características son las registradas en la app de Flota y Equipos.${busqueda ? ' ' + lnk('Buscar especificaciones en internet', busqueda) : ''}</div>`;
   }
   const recs = (fab && fab.recs && fab.recs.length) ? `<ul>${fab.recs.map(r => `<li>${_fiEsc(r)}</li>`).join('')}</ul>` : '';
   const manualLink = fab && fab.manual ? `<div class="link-caja">📘 Manual: ${lnk(fab.manual[0], fab.manual[1])}</div>`
@@ -119,7 +127,7 @@ function _fiHtml(modId, modLabel, item, linkCarpeta) {
   </td></tr></table>
   <div class="seccion" style="margin-top:20px"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DATOS DEL EQUIPO</span></div>
   <table class="datos-tabla">${filas}</table>
-  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES DEL FABRICANTE</span></div>
+  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
   ${htmlFab}
   <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">MANUAL Y RECOMENDACIONES</span></div>
   ${htmlManual}
