@@ -221,7 +221,25 @@ function _tokensDeRol(email) {
   const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues();
   const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
   const celda = fila ? (fila[1] || '').toString().toLowerCase().trim() : '';
-  return celda.split(',').map(t => t.trim()).filter(Boolean);
+  // Mismos alias que acepta la app (ver ALIAS_ROL en app-v2.js): si en USUARIOS
+  // alguien quedó con "bitacora", "combustible" o "movimientos" (el nombre
+  // visible del módulo en vez del rol real), cuenta como "chofer" / "mover".
+  const ALIAS = { 'bitacora': 'chofer', 'bitácora': 'chofer', 'combustible': 'chofer', 'movimientos': 'mover', 'movimiento': 'mover' };
+  return celda.split(',').map(t => t.trim()).filter(Boolean).map(t => ALIAS[t] || t);
+}
+// Texto de diagnóstico para los mensajes de "sin permiso": dice qué roles
+// leyó realmente el script para ese correo en USUARIOS (y si el correo está
+// repetido, caso en el que solo cuenta la PRIMERA fila encontrada).
+function _diagnosticoRoles(email) {
+  try {
+    const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
+    if (!sh || sh.getLastRow() < 2) return ' [USUARIOS vacía]';
+    const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues()
+      .filter(r => (r[0] || '').toString().toLowerCase().trim() === email);
+    if (!filas.length) return ' [este correo NO está en USUARIOS]';
+    const roles = filas.map(r => '"' + (r[1] || '').toString().trim() + '"').join(' / ');
+    return ' [roles en USUARIOS: ' + roles + (filas.length > 1 ? ' — OJO: el correo está repetido ' + filas.length + ' veces, solo cuenta la primera fila' : '') + ']';
+  } catch (e) { return ''; }
 }
 function _esAdmin(email) { return _tokensDeRol(email).includes('admin'); }
 
@@ -478,7 +496,7 @@ function manejarDriveGenerico(p) {
     }
     const esSoloLectura = ACCIONES_DRIVE_SOLO_LECTURA.includes(p.accion);
     if (!esSoloLectura && !_tienePermisoParaModulo(email, p.modulo)) {
-      return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar archivos de "' + (p.modulo || '') + '".' });
+      return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para modificar archivos de "' + (p.modulo || '') + '".' + _diagnosticoRoles(email) });
     }
 
     switch (p.accion) {
