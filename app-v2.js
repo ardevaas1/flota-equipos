@@ -3461,7 +3461,14 @@ function onFotoRefSelected(input) {
   // previsualización ya sale de la versión chica, y al guardar el
   // archivo ya está listo para subir sin tener que releerlo/comprimirlo
   // de nuevo en ese momento.
-  _comprimirImagen(file).then(c => {
+  // Precalienta la carpeta destino en segundo plano mientras se comprime:
+  // así al guardar ya está lista y no hay que esperar 2 idas y vueltas.
+  try {
+    const pat = (currentEquipo && currentEquipo.patente) || '';
+    if (pat) { window._fotoRefCarpetaP = getSubfolder(pat, 'FotoRef'); window._fotoRefCarpetaP.catch(() => {}); }
+  } catch (_) {}
+  // 1100px basta: se muestra como miniatura w800 — menos peso, subida más rápida.
+  _comprimirImagen(file, 1100, 0.72).then(c => {
     _editFotoRefFile = c;
     const prevImg   = document.getElementById('edit-foto-ref-img');
     const prevWrap  = document.getElementById('edit-foto-ref-preview');
@@ -3595,43 +3602,37 @@ async function saveEquipo() {
     toast('Guardando datos...', 'loading');
     console.log('[SAVE] Escribiendo fila', row, 'en Sheet...');
 
-    // Determinar URL final de foto de referencia (Drive)
+    // Determinar URL final de foto de referencia (Drive). La subida corre
+    // EN PARALELO con las demás escrituras (antes iban una tras otra).
     let fotoRefVal = currentEquipo?.fotoRef || '';
-    if (_editFotoRef === 'QUITAR') {
-      fotoRefVal = '';
-    } else if (_editFotoRef === 'NUEVA' && _editFotoRefFile) {
-      toast('Subiendo foto de referencia a Drive...', 'loading');
-      try {
-        const fotoFolderId = await getSubfolder(patente, 'FotoRef');
-        const ext = _editFotoRefFile.name.split('.').pop();
-        const fileName = `FOTOREF_${patente}.${ext}`;
-        // Ya viene comprimida y en base64 desde onFotoRefSelected — no
-        // hace falta releer ni recomprimir nada acá.
-        const fileData = await driveUpload('flota', fotoFolderId, fileName, _editFotoRefFile.mimeType, _editFotoRefFile.b64, false);
-        fotoRefVal = `https://drive.google.com/thumbnail?id=${fileData.id}&sz=w800`;
-        console.log('[FOTOREF] Subida OK:', fotoRefVal);
-      } catch(fe) {
-        console.error('[FOTOREF] Error subiendo foto:', fe);
-        toast('\u26a0\ufe0f No se pudo subir la foto de referencia');
-        fotoRefVal = currentEquipo?.fotoRef || '';
+    const subirFoto = (async () => {
+      if (_editFotoRef === 'QUITAR') return '';
+      if (_editFotoRef === 'NUEVA' && _editFotoRefFile) {
+        toast('Subiendo foto de referencia a Drive...', 'loading');
+        try {
+          const fotoFolderId = await (window._fotoRefCarpetaP || getSubfolder(patente, 'FotoRef'));
+          const ext = _editFotoRefFile.name.split('.').pop();
+          const fileName = `FOTOREF_${patente}.${ext}`;
+          const fileData = await driveUpload('flota', fotoFolderId, fileName, _editFotoRefFile.mimeType, _editFotoRefFile.b64, false);
+          console.log('[FOTOREF] Subida OK:', fileData.id);
+          return `https://drive.google.com/thumbnail?id=${fileData.id}&sz=w800`;
+        } catch(fe) {
+          console.error('[FOTOREF] Error subiendo foto:', fe);
+          toast('\u26a0\ufe0f No se pudo subir la foto de referencia');
+          return currentEquipo?.fotoRef || '';
+        }
       }
-    }
+      return fotoRefVal;
+    })();
+    window._fotoRefCarpetaP = null;
 
+    const wr = (col, v) => writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!${col}${row}`, [[v]]);
     await Promise.all([
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!J${row}`, [[estado]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!K${row}`, [[ubicacion]]),
-      // Columna L (km/horómetro) y M (próxima mantención) nunca se tocan
-      // desde este panel — se actualizan solas al registrar una mantención.
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!N${row}`, [[ultima]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!P${row}`, [[soap]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Q${row}`, [[permiso]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!R${row}`, [[revision]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!S${row}`, [[obs]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!V${row}`, [[fotoRefVal]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!W${row}`, [[fallaOp]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!X${row}`, [[fallaEst]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!Y${row}`, [[unidadUso]]),
-      writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!O${row}`, [[mantCada]]),
+      wr('J', estado), wr('K', ubicacion),
+      // Columna L y M nunca se tocan desde este panel.
+      wr('N', ultima), wr('P', soap), wr('Q', permiso), wr('R', revision),
+      wr('S', obs), wr('W', fallaOp), wr('X', fallaEst), wr('Y', unidadUso), wr('O', mantCada),
+      subirFoto.then(url => { fotoRefVal = url; return wr('V', url); }),
     ]);
     console.log('[SAVE] Sheet OK');
 

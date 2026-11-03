@@ -120,6 +120,20 @@ function _jsonOut(obj) {
 // "insufficient scope" aunque el token sea válido.
 function _emailVerificadoDesdeToken(accessToken) {
   if (!accessToken) return null;
+  // Caché 5 min por token (hash): evita 1 llamada a tokeninfo por cada
+  // escritura/subida — antes cada foto o guardado hacía 10+ verificaciones.
+  let ckey = null;
+  try {
+    ckey = 'tk_' + Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, accessToken));
+    const hit = CacheService.getScriptCache().get(ckey);
+    if (hit) return hit;
+  } catch (e) { ckey = null; }
+  const _email = _emailVerificadoSinCache(accessToken);
+  if (_email && ckey) { try { CacheService.getScriptCache().put(ckey, _email, 300); } catch (e) {} }
+  return _email;
+}
+function _emailVerificadoSinCache(accessToken) {
   try {
     const res = UrlFetchApp.fetch(
       'https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(accessToken),
