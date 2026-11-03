@@ -66,6 +66,28 @@ function _fiHtml(modId, modLabel, item, linkCarpeta) {
     ? eventos.map(e => `<tr><td>${_fiEsc(e.fechaEvento)}</td><td>${_fiEsc(e.horometro)}</td><td>${_fiEsc(e.tipo)}</td><td>${_fiEsc(e.descripcion)}</td></tr>`).join('')
     : `<tr><td colspan="4" style="text-align:center;color:#93a5b6">Sin eventos registrados todavía</td></tr>`;
   const hoy = new Date().toLocaleDateString('es-CL');
+  // ── Datos del fabricante (fichas-datos-fabricante.js) ──
+  const fab = (typeof fichaFabricanteDe === 'function') ? fichaFabricanteDe(item) : null;
+  const marcaOk = item.marca && !/^[\s¿?\-]*$/.test(item.marca);
+  const modeloOk = item.modelo && !/^[\s¿?\-]*$/.test(item.modelo) && !/^\d+(\.0)?$/.test(item.modelo);
+  const lnk = (t, u) => `<a href="${_fiEsc(u)}">${_fiEsc(t)}</a>`;
+  const busqueda = (marcaOk && modeloOk)
+    ? 'https://www.google.com/search?q=' + encodeURIComponent(`${item.marca} ${item.modelo} ${item.equipo} manual PDF ficha técnica`)
+    : '';
+  let htmlFab = '';
+  if (fab && fab.specs && fab.specs.length) {
+    htmlFab = `<table class="datos-tabla">${fab.specs.map(([l, v]) => `<tr><td class="etiqueta">${_fiEsc(l)}</td><td class="valor">${_fiEsc(v)}</td></tr>`).join('')}</table>`
+      + (fab.nota ? `<div class="obs-caja" style="margin-top:8px">⚠ ${_fiEsc(fab.nota)}</div>` : '')
+      + (fab.fuente ? `<div class="nota">Fuente: ${lnk(fab.fuente[0], fab.fuente[1])}. Datos de referencia del modelo: verifica con la placa de tu equipo.</div>` : '');
+  } else {
+    htmlFab = `<div class="obs-caja">${fab && fab.nota ? _fiEsc(fab.nota) : 'No se encontraron especificaciones publicadas por el fabricante para este modelo.'}</div>`
+      + (busqueda ? `<div class="nota">${lnk('Buscar especificaciones en internet', busqueda)}</div>` : '');
+  }
+  const recs = (fab && fab.recs && fab.recs.length) ? `<ul>${fab.recs.map(r => `<li>${_fiEsc(r)}</li>`).join('')}</ul>` : '';
+  const manualLink = fab && fab.manual ? `<div class="link-caja">📘 Manual: ${lnk(fab.manual[0], fab.manual[1])}</div>`
+    : (busqueda ? `<div class="link-caja">📘 Manual del fabricante: ${lnk('buscar manual en internet', busqueda)}</div>` : '<div class="obs-caja">Sin información de marca/modelo para buscar el manual.</div>');
+  const htmlManual = recs + manualLink
+    + `<div class="nota">Revisa siempre el manual del fabricante para el plan de mantención y las normas de seguridad del equipo.</div>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 14px; line-height: 1.4; }
   p, div { margin: 0; padding: 0; }
@@ -87,6 +109,7 @@ function _fiHtml(modId, modLabel, item, linkCarpeta) {
   .obs-caja { background: #fff2e2; border: 1px solid #f3d3a8; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
   .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
   .link-caja a { color: #0f3d66; font-weight: bold; text-decoration: underline; }
+  ul { margin: 6px 0 8px 18px; font-size: 13.5px; }
   .nota { font-size: 12px; color: #8697a8; margin-top: 12px; font-style: italic; }
   </style></head><body>
   <table class="header-tabla"><tr><td>
@@ -96,12 +119,16 @@ function _fiHtml(modId, modLabel, item, linkCarpeta) {
   </td></tr></table>
   <div class="seccion" style="margin-top:20px"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DATOS DEL EQUIPO</span></div>
   <table class="datos-tabla">${filas}</table>
-  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">OBSERVACIONES</span></div>
+  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES DEL FABRICANTE</span></div>
+  ${htmlFab}
+  <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">MANUAL Y RECOMENDACIONES</span></div>
+  ${htmlManual}
+  <div class="seccion"><span class="num">04&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">OBSERVACIONES</span></div>
   <div class="obs-caja">${item.obs ? _fiEsc(item.obs) : 'Sin observaciones'}</div>
-  <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">REGISTRO FOTOGRÁFICO</span></div>
+  <div class="seccion"><span class="num">05&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">REGISTRO FOTOGRÁFICO</span></div>
   <div class="link-caja">📁 ${linkCarpeta ? `<a href="${_fiEsc(linkCarpeta)}">Abrir carpeta de fotos</a>` : 'Las fotos de este equipo están en la carpeta de Inventario en Drive.'}</div>
   ${modId === 'generadores' ? `
-  <div class="seccion"><span class="num">04&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">HISTORIAL DE EVENTOS</span></div>
+  <div class="seccion"><span class="num">06&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">HISTORIAL DE EVENTOS</span></div>
   <table class="grilla">
     <tr><th>FECHA</th><th>HORÓMETRO</th><th>TIPO</th><th>DESCRIPCIÓN</th></tr>
     ${filasEv}
