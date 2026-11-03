@@ -1742,14 +1742,15 @@ async function actualizarTodasLasFichas() {
   if (!confirm(`Se van a actualizar ${lista.length} fichas técnicas (documentación, ubicación, fallas, foto, link de carpeta e historial). Tarda unos minutos: no cierres la app mientras corre. ¿Seguir?`)) return;
 
   _fichasMasivaCorriendo = true;
-  const btn = document.getElementById('btn-fichas-todas');
-  const textoOriginal = btn ? btn.textContent : '';
+  const btns = [...document.querySelectorAll('.btn-fichas-todas')];
+  const textoOriginal = 'Actualizar todas las fichas técnicas';
+  const setBtns = (txt, dis) => btns.forEach(b => { b.disabled = dis; b.textContent = txt; });
   const fallas = [];
   let hechas = 0;
   try {
     if (!allEventos.length) await loadEventos();
     for (const e of lista) {
-      if (btn) { btn.disabled = true; btn.textContent = `Actualizando ${hechas + 1} de ${lista.length}… (${e.patente})`; }
+      setBtns(`Actualizando ${hechas + 1} de ${lista.length}… (${e.patente})`, true);
       try {
         await _actualizarFichaCore(e);
         hechas++;
@@ -1762,7 +1763,7 @@ async function actualizarTodasLasFichas() {
     }
   } finally {
     _fichasMasivaCorriendo = false;
-    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+    setBtns(textoOriginal, false);
   }
   if (!fallas.length) {
     toast(`✓ ${hechas} fichas técnicas actualizadas`);

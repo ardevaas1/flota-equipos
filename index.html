@@ -356,6 +356,7 @@
     </nav>
     <div class="desktop-sidebar-footer">
       <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
+      <button class="desktop-refresh-btn admin-only-btn btn-fichas-todas" onclick="actualizarTodasLasFichas()" style="display:none;margin-top:6px">Actualizar todas las fichas técnicas</button>
       <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
     </div>
   </div>
@@ -531,7 +532,7 @@
             <div id="dash-mant"></div>
           </div>
         </div>
-        <button class="action-btn admin-only-btn" id="btn-fichas-todas" onclick="actualizarTodasLasFichas()" style="display:none;margin:18px 0 0;width:100%">Actualizar todas las fichas técnicas</button>
+        <button class="action-btn admin-only-btn btn-fichas-todas" id="btn-fichas-todas" onclick="actualizarTodasLasFichas()" style="display:none;margin:18px 0 0;width:100%">Actualizar todas las fichas técnicas</button>
       </div>
 
       <!-- Equipos -->
