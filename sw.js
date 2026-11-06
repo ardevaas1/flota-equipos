@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v13';
+const CACHE_NAME = 'lst-flota-shell-v14';
 const APP_SHELL = [
   './',
   './index.html',
@@ -67,7 +67,7 @@ self.addEventListener('fetch', (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       try {
-        const fresh = await fetch(event.request);
+        const fresh = await fetch(event.request, { cache: 'no-cache' });
         if (fresh && fresh.status === 200) cache.put(event.request, fresh.clone());
         return fresh;
       } catch (err) {
