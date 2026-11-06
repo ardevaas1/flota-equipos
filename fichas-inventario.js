@@ -13,7 +13,8 @@ const FICHA_INV_MODULOS = [
   { id: 'herramientas', label: 'Herramientas',         lista: () => allHerramientas },
   { id: 'topografico',  label: 'Equipos Topográficos', lista: () => allTopografico },
 ];
-const FICHA_INV_PREFIJO = 'Ficha técnica';
+const FICHA_INV_PREFIJO = 'Ficha técnica v2';       // formato nuevo
+const FICHA_INV_PREFIJO_VIEJO = 'Ficha técnica';    // formato anterior (se manda a la papelera al crear la nueva)
 
 function _fiEsc(s) {
   return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n+/g, '<br>');
@@ -146,10 +147,15 @@ async function _fiCrearUna(modulo, item, existentes) {
   const lista = existentes || await _fiListarExistentes(carpetaId);
   const ya = lista.find(f => (f.name || f.title || '').startsWith(prefijo));
   if (ya) return { id: ya.id, creada: false };
+  const prefViejo = prefijo.replace(FICHA_INV_PREFIJO, FICHA_INV_PREFIJO_VIEJO);
   const linkCarpeta = `https://drive.google.com/drive/folders/${DRIVE_INV_FOLDER}`;
   const file = await _crearDocDesdeHtml(_fiNombreDoc(modulo.label, item), _fiHtml(modulo.id, modulo.label, item, linkCarpeta), carpetaId);
   try { await fichaInsertarPortada(file.id, (typeof fichaImagenDe === 'function') ? fichaImagenDe(item) : ''); }
   catch (e) { console.warn('[FICHA INV] portada:', e.message); }
+  // La ficha del formato anterior de este mismo equipo va a la papelera (recuperable)
+  for (const v of lista.filter(f => (f.name || f.title || '').startsWith(prefViejo))) {
+    try { await driveTrash('inventario', v.id); } catch (e) { console.warn('[FICHA INV] no se pudo mandar a papelera la ficha vieja', e.message); }
+  }
   if (existentes) existentes.push({ id: file.id, name: _fiNombreDoc(modulo.label, item) });
   return { id: file.id, creada: true };
 }
@@ -185,7 +191,7 @@ async function invGenerarTodasLasFichas() {
     toast('Primero espera a que carguen los equipos', 'error'); return;
   }
   const total = FICHA_INV_MODULOS.reduce((n, m) => n + m.lista().length, 0);
-  if (!confirm(`Se van a crear las fichas técnicas de ${total} equipos (generadores, maquinaria menor, herramientas y equipos topográficos), cada una como un Google Doc dentro de Inventario › Fichas Técnicas. Las que ya existan no se duplican. Tarda varios minutos: no cierres la app mientras corre. ¿Seguir?`)) return;
+  if (!confirm(`Se van a crear las fichas técnicas de ${total} equipos (generadores, maquinaria menor, herramientas y equipos topográficos), cada una como un Google Doc dentro de Inventario › Fichas Técnicas. Las fichas del formato anterior se mandan a la papelera de Drive (se pueden recuperar). Tarda varios minutos: no cierres la app mientras corre. ¿Seguir?`)) return;
 
   _fichasInvCorriendo = true;
   const btns = [...document.querySelectorAll('.btn-fichas-inv')];
