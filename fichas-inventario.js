@@ -57,91 +57,74 @@ function _fiFilas(modId, item) {
 }
 
 function _fiHtml(modId, modLabel, item, linkCarpeta) {
-  const filas = _fiFilas(modId, item).map(([l, v]) =>
-    `<tr><td class="etiqueta">${_fiEsc(l)}</td><td class="valor">${_fiEsc(v)}</td></tr>`).join('');
   const nombre = [item.equipo, item.marca, item.modelo].filter(Boolean).join(' ');
-  const eventos = (modId === 'generadores' && typeof allGenEventos !== 'undefined')
-    ? allGenEventos.filter(e => e.codigo && e.codigo === item.codigo) : [];
-  const filasEv = eventos.length
-    ? eventos.map(e => `<tr><td>${_fiEsc(e.fechaEvento)}</td><td>${_fiEsc(e.horometro)}</td><td>${_fiEsc(e.tipo)}</td><td>${_fiEsc(e.descripcion)}</td></tr>`).join('')
-    : `<tr><td colspan="4" style="text-align:center;color:#93a5b6">Sin eventos registrados todavía</td></tr>`;
   const hoy = new Date().toLocaleDateString('es-CL');
-  // ── Datos del fabricante (fichas-datos-fabricante.js) ──
+  const ok = (v) => v !== undefined && v !== null && String(v).trim() !== '' && !/^[\s¿?\-]*$/.test(String(v));
   const fab = (typeof fichaFabricanteDe === 'function') ? fichaFabricanteDe(item) : null;
-  const marcaOk = item.marca && !/^[\s¿?\-]*$/.test(item.marca);
-  const modeloOk = item.modelo && !/^[\s¿?\-]*$/.test(item.modelo) && !/^\d+(\.0)?$/.test(item.modelo);
+  const tipo = fichaTipoDe(item.equipo);
   const lnk = (t, u) => `<a href="${_fiEsc(u)}">${_fiEsc(t)}</a>`;
+  const marcaOk = ok(item.marca), modeloOk = ok(item.modelo) && !/^\d+(\.0)?$/.test(item.modelo);
   const busqueda = (marcaOk && modeloOk)
-    ? 'https://www.google.com/search?q=' + encodeURIComponent(`${item.marca} ${item.modelo} ${item.equipo} manual PDF ficha técnica`)
-    : '';
-  let htmlFab = '';
-  if (fab && fab.specs && fab.specs.length) {
-    htmlFab = `<table class="datos-tabla">${fab.specs.map(([l, v]) => `<tr><td class="etiqueta">${_fiEsc(l)}</td><td class="valor">${_fiEsc(v)}</td></tr>`).join('')}</table>`
-      + (fab.nota ? `<div class="obs-caja" style="margin-top:8px">⚠ ${_fiEsc(fab.nota)}</div>` : '')
-      + (fab.fuente ? `<div class="nota">Fuente: ${lnk(fab.fuente[0], fab.fuente[1])}. Datos de referencia del modelo: verifica con la placa de tu equipo.</div>` : '');
-  } else {
-    // Sin datos publicados del fabricante: se arma con lo registrado en la app
-    const tec = [];
-    const t = (l, v) => { if (v !== undefined && v !== null && String(v).trim() !== '' && !/^[\s¿?\-]*$/.test(String(v))) tec.push([l, v]); };
-    if (modId === 'generadores') { t('Potencia', item.potencia); t('Año', item.anio); t('Horómetro actual', item.horometro); t('Color', item.color); }
-    else if (modId === 'topografico') { t('N° de serie', item.motor); t('Color', item.color); t('Última calibración', item.ultCal); t('Próxima calibración', item.proxCal); }
-    else { t('Motor / potencia', item.motor); t('Color', item.color); }
-    htmlFab = (tec.length
-      ? `<table class="datos-tabla">${tec.map(([l, v]) => `<tr><td class="etiqueta">${_fiEsc(l)}</td><td class="valor">${_fiEsc(v)}</td></tr>`).join('')}</table>`
-      : `<div class="obs-caja">Este equipo no tiene características técnicas registradas en la app.</div>`)
-      + `<div class="nota">${fab && fab.nota ? _fiEsc(fab.nota) + ' ' : ''}No se encontraron especificaciones publicadas por el fabricante: estas características son las registradas en la app de Flota y Equipos.${busqueda ? ' ' + lnk('Buscar especificaciones en internet', busqueda) : ''}</div>`;
+    ? 'https://www.google.com/search?q=' + encodeURIComponent(`${item.marca} ${item.modelo} ${item.equipo} manual PDF ficha técnica`) : '';
+
+  // 1. Identificación
+  const ident = _fiFilas(modId, item).map(([l, v]) => [l.charAt(0) + l.slice(1).toLowerCase(), v]);
+  const tIdent = fichaTabla(['Campo', 'Dato'], ident);
+
+  // 2. Datos técnicos (Característica / Valor / Fuente)
+  let filasTec = [];
+  if (fab && fab.specs && fab.specs.length) filasTec = fab.specs.map(([l, v]) => [l, v, 'Fabricante']);
+  const reg = (l, v) => { if (ok(v)) filasTec.push([l, v, 'Registro en la app']); };
+  if (!filasTec.length) {
+    if (modId === 'generadores') { reg('Potencia', item.potencia); reg('Año', item.anio); reg('Horómetro actual', item.horometro); }
+    else if (modId === 'topografico') { reg('N° de serie', item.motor); reg('Última calibración', item.ultCal); reg('Próxima calibración', item.proxCal); }
+    else reg('Motor / potencia', item.motor);
+    reg('Color', item.color);
   }
-  const recs = (fab && fab.recs && fab.recs.length) ? `<ul>${fab.recs.map(r => `<li>${_fiEsc(r)}</li>`).join('')}</ul>` : '';
-  const manualLink = fab && fab.manual ? `<div class="link-caja">📘 Manual: ${lnk(fab.manual[0], fab.manual[1])}</div>`
-    : (busqueda ? `<div class="link-caja">📘 Manual del fabricante: ${lnk('buscar manual en internet', busqueda)}</div>` : '<div class="obs-caja">Sin información de marca/modelo para buscar el manual.</div>');
-  const htmlManual = recs + manualLink
-    + `<div class="nota">Revisa siempre el manual del fabricante para el plan de mantención y las normas de seguridad del equipo.</div>`;
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-  body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 14px; line-height: 1.4; }
-  p, div { margin: 0; padding: 0; }
-  table.header-tabla { width: 100%; border-collapse: collapse; }
-  table.header-tabla td { background: #0f3d66; color: #ffffff; text-align: center; padding: 16px 20px; border: none; }
-  .header-tabla .empresa { font-size: 12.5px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
-  .header-tabla .titulo { font-size: 19px; font-weight: bold; letter-spacing: 1px; }
-  .header-tabla .subtitulo { font-size: 12.5px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
-  .datos-tabla { width: 100%; border-collapse: collapse; border: 1px solid #d7e2ec; }
-  .datos-tabla td { border: 1px solid #e3ebf3; padding: 8px 12px; font-size: 13.5px; }
-  .datos-tabla .etiqueta { background: #eef5fc; font-weight: bold; color: #0f3d66; width: 38%; letter-spacing: 0.3px; }
-  .datos-tabla .valor { background: #ffffff; color: #1f2d3a; font-weight: bold; }
-  .seccion { margin-top: 22px; margin-bottom: 9px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; }
-  .seccion .num { color: #6f8aa3; font-weight: bold; font-size: 13.5px; }
-  .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 14.5px; letter-spacing: 0.5px; }
-  table.grilla { width: 100%; border-collapse: collapse; }
-  table.grilla th { background: #0f3d66; color: #fff; font-size: 12px; text-align: left; padding: 8px 11px; }
-  table.grilla td { border: 1px solid #e3ebf3; padding: 8px 11px; font-size: 13.5px; }
-  .obs-caja { background: #fff2e2; border: 1px solid #f3d3a8; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
-  .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
-  .link-caja a { color: #0f3d66; font-weight: bold; text-decoration: underline; }
-  ul { margin: 6px 0 8px 18px; font-size: 13.5px; }
-  .nota { font-size: 12px; color: #8697a8; margin-top: 12px; font-style: italic; }
-  </style></head><body>
-  <table class="header-tabla"><tr><td>
-    <div class="empresa">CONSTRUCTORA LST</div>
-    <div class="titulo">FICHA TÉCNICA — ${_fiEsc(modLabel.toUpperCase())}</div>
-    <div class="subtitulo">${_fiEsc(nombre)}</div>
-  </td></tr></table>
-  <div class="seccion" style="margin-top:20px"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DATOS DEL EQUIPO</span></div>
-  <table class="datos-tabla">${filas}</table>
-  <div class="seccion"><span class="num">02&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
-  ${htmlFab}
-  <div class="seccion"><span class="num">03&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">MANUAL Y RECOMENDACIONES</span></div>
-  ${htmlManual}
-  <div class="seccion"><span class="num">04&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">OBSERVACIONES</span></div>
-  <div class="obs-caja">${item.obs ? _fiEsc(item.obs) : 'Sin observaciones'}</div>
-  <div class="seccion"><span class="num">05&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">REGISTRO FOTOGRÁFICO</span></div>
-  <div class="link-caja">📁 ${linkCarpeta ? `<a href="${_fiEsc(linkCarpeta)}">Abrir carpeta de fotos</a>` : 'Las fotos de este equipo están en la carpeta de Inventario en Drive.'}</div>
-  ${modId === 'generadores' ? `
-  <div class="seccion"><span class="num">06&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">HISTORIAL DE EVENTOS</span></div>
-  <table class="grilla">
-    <tr><th>FECHA</th><th>HORÓMETRO</th><th>TIPO</th><th>DESCRIPCIÓN</th></tr>
-    ${filasEv}
-  </table>` : ''}
-  <div class="nota">Ficha generada desde la app Flota y Equipos el ${hoy}. Los datos reflejan lo registrado en esa fecha.</div>
+  const tTec = filasTec.length
+    ? fichaTabla(['Característica', 'Valor', 'Fuente'], filasTec)
+    : `<p>Este equipo no tiene características técnicas registradas.</p>`;
+  const notaTec = (fab && fab.nota ? `<p class="nota">⚠ ${_fiEsc(fab.nota)}</p>` : '')
+    + `<p class="nota">${fab && fab.specs && fab.specs.length ? 'Datos de referencia del modelo' + (fab.fuente ? ' (fuente: ' + lnk(fab.fuente[0], fab.fuente[1]) + ')' : '') + ': confirmar con la placa del equipo.' : 'No se encontraron especificaciones publicadas por el fabricante; se muestra lo registrado en la app.' + (busqueda ? ' ' + lnk('Buscar en internet', busqueda) : '')}</p>`;
+
+  // 3. Requisitos de instalación y uso
+  const requisitos = [...(fab && fab.recs ? fab.recs : []), ...tipo.uso];
+  // 4. Riesgos y EPP
+  const tRiesgos = fichaTabla(['Riesgo', 'Control principal'], tipo.riesgos);
+  // 5. Plan de mantención
+  const tMant = fichaTabla(['Frecuencia', 'Actividad', 'Responsable'], tipo.mant);
+  // 6. Manual
+  const manual = fab && fab.manual ? lnk(fab.manual[0], fab.manual[1])
+    : (busqueda ? lnk('buscar el manual en internet', busqueda) : 'sin información de marca/modelo');
+
+  // Historial (solo generadores)
+  let histo = '';
+  if (modId === 'generadores') {
+    const ev = (typeof allGenEventos !== 'undefined') ? allGenEventos.filter(e => e.codigo && e.codigo === item.codigo) : [];
+    histo = fichaSec(7, 'Historial de eventos') + (ev.length
+      ? fichaTabla(['Fecha', 'Horómetro', 'Tipo', 'Descripción'], ev.map(e => [e.fechaEvento, e.horometro, e.tipo, e.descripcion]), false)
+      : '<p>Sin eventos registrados todavía.</p>');
+  }
+  const codigo = 'FT-' + _fiIdent(item).replace(/\s+/g, '');
+  const foto = (typeof fichaImagenDe === 'function') ? fichaImagenDe(item) : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${FICHA_CSS}</style></head><body>
+  ${fichaCabecera('FICHA TÉCNICA – ' + nombre.toUpperCase(), codigo, hoy)}
+  <div class="t1">FICHA TÉCNICA DEL EQUIPO</div>
+  <div class="t2">${_fiEsc(nombre)}</div>
+  ${fichaPortadaHtml(!!foto)}
+  ${fichaSec(1, 'Identificación')}${tIdent}
+  ${fichaSec(2, 'Datos técnicos')}${tTec}${notaTec}
+  ${fichaSec(3, 'Requisitos de instalación y uso')}${fichaVinetas(requisitos)}
+  ${fichaSec(4, 'Riesgos principales y EPP')}${tRiesgos}
+  <p style="margin-top:6px"><b>EPP obligatorio:</b> ${_fiEsc(tipo.epp)}</p>
+  ${fichaSec(5, 'Plan de mantención')}${tMant}
+  ${fichaSec(6, 'Manual y observaciones')}
+  <p><b>Manual del fabricante:</b> ${manual}</p>
+  <p><b>Observaciones:</b> ${item.obs ? _fiEsc(item.obs) : 'Sin observaciones'}</p>
+  <p><b>Fotos del equipo:</b> ${linkCarpeta ? lnk('abrir carpeta de fotos', linkCarpeta) : 'en la carpeta de Inventario en Drive'}</p>
+  ${histo}
+  <p class="firma">Elaboró: ______________________ · Aprobó: ______________________ · Fecha: ${hoy}</p>
+  <p class="nota">Ficha generada desde la app Flota y Equipos. Los requisitos, riesgos y plan de mantención son de referencia general del tipo de equipo: el manual del fabricante prevalece.</p>
   </body></html>`;
 }
 
@@ -165,6 +148,8 @@ async function _fiCrearUna(modulo, item, existentes) {
   if (ya) return { id: ya.id, creada: false };
   const linkCarpeta = `https://drive.google.com/drive/folders/${DRIVE_INV_FOLDER}`;
   const file = await _crearDocDesdeHtml(_fiNombreDoc(modulo.label, item), _fiHtml(modulo.id, modulo.label, item, linkCarpeta), carpetaId);
+  try { await fichaInsertarPortada(file.id, (typeof fichaImagenDe === 'function') ? fichaImagenDe(item) : ''); }
+  catch (e) { console.warn('[FICHA INV] portada:', e.message); }
   if (existentes) existentes.push({ id: file.id, name: _fiNombreDoc(modulo.label, item) });
   return { id: file.id, creada: true };
 }

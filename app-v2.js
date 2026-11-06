@@ -1923,7 +1923,7 @@ async function _actualizarFotoFicha(docId, e) {
     });
   })(doc.body.content);
 
-  const tamano = { height: { magnitude: 150, unit: 'PT' }, width: { magnitude: 195, unit: 'PT' } };
+  const tamano = { width: { magnitude: 280, unit: 'PT' } };
   const requests = [];
   if (imagenExistente) {
     requests.push({ deleteContentRange: { range: { startIndex: imagenExistente.startIndex, endIndex: imagenExistente.endIndex } } });
@@ -2267,48 +2267,46 @@ function _armarHtmlFichaTecnica(d) {
     : `<tr><td class="etiqueta">&nbsp;</td><td>&nbsp;</td></tr>`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-  body { font-family: 'Trebuchet MS', Arial, sans-serif; color: #263646; font-size: 14px; line-height: 1.4; }
+  body { font-family: Calibri, Arial, sans-serif; color: #1f2d3a; font-size: 13px; line-height: 1.35; }
   p, div { margin: 0; padding: 0; }
-  td p, th p { margin: 0; }
-  table.header-tabla { width: 100%; border-collapse: collapse; }
-  table.header-tabla td { background: #0f3d66; color: #ffffff; text-align: center; padding: 16px 20px; border: none; }
-  .header-tabla .empresa { font-size: 12.5px; letter-spacing: 3px; color: #9fc3e8; font-weight: bold; margin-bottom: 4px; }
-  .header-tabla .titulo { font-size: 19px; font-weight: bold; letter-spacing: 1px; }
-  .header-tabla .subtitulo { font-size: 12.5px; color: #cfe3f5; margin-top: 3px; letter-spacing: 1px; }
-  .datos-tabla { width: 100%; border-collapse: collapse; border: 1px solid #d7e2ec; }
-  .datos-tabla td { border: 1px solid #e3ebf3; padding: 8px 12px; font-size: 13.5px; }
-  .datos-tabla .etiqueta { background: #eef5fc; font-weight: bold; color: #0f3d66; width: 38%; letter-spacing: 0.3px; }
-  .datos-tabla .valor { background: #ffffff; color: #1f2d3a; font-weight: bold; }
-  .foto-caja { border: 1px solid #d7e2ec; background: #f7fafd; border-radius: 6px; padding: 12px; text-align: center; }
-  .foto-caja .rotulo { font-size: 11.5px; color: #6f8aa3; letter-spacing: 1.2px; font-weight: bold; margin-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; }
+  table.cab td { border: 1px solid #1f3864; padding: 8px 10px; text-align: center; vertical-align: middle; }
+  table.cab .emp { font-weight: bold; font-size: 13px; color: #1f3864; }
+  table.cab .tit { background: #dde6f5; font-weight: bold; font-size: 13px; color: #1f3864; }
+  table.cab .cod { font-size: 11px; text-align: left; }
+  .t1 { text-align: center; font-size: 20px; font-weight: bold; margin-top: 16px; }
+  .t2 { text-align: center; font-size: 14px; color: #44546a; margin-bottom: 8px; }
+  .datos-tabla td { border: 1px solid #1f3864; padding: 5px 8px; font-size: 12.5px; }
+  .datos-tabla .etiqueta { font-weight: bold; width: 30%; }
+  .datos-tabla .valor { font-weight: normal; }
+  .foto-caja { text-align: center; margin: 4px 0 6px 0; }
+  .foto-caja .rotulo { font-size: 11px; color: #8697a8; font-style: italic; }
   .foto-marcador { color: #b8641a; font-style: italic; font-size: 13px; }
-  .seccion { margin-top: 22px; margin-bottom: 9px; border-bottom: 2px solid #0f3d66; padding-bottom: 5px; }
-  .seccion .num { color: #6f8aa3; font-weight: bold; font-size: 13.5px; margin-right: 6px; }
-  .seccion .txt { color: #0f3d66; font-weight: bold; font-size: 14.5px; letter-spacing: 0.5px; }
-  table.grilla { width: 100%; border-collapse: collapse; }
-  table.grilla th { background: #0f3d66; color: #fff; font-size: 12px; letter-spacing: 0.4px; text-align: left; padding: 8px 11px; }
-  table.grilla td { border: 1px solid #e3ebf3; padding: 8px 11px; font-size: 13.5px; }
-  table.grilla tr:nth-child(even) td { background: #f7fafd; }
-  .marcador { color: #b8641a; font-style: italic; font-size: 13px; }
-  .fallas-grid { width: 100%; border-collapse: collapse; }
+  .seccion { margin-top: 18px; margin-bottom: 6px; }
+  .seccion .num { color: #2e75b6; font-weight: bold; font-size: 14px; }
+  .seccion .txt { color: #2e75b6; font-weight: bold; font-size: 14px; }
+  table.grilla th { background: #1f3864; color: #ffffff; font-size: 12px; text-align: center; padding: 6px 8px; border: 1px solid #1f3864; }
+  table.grilla td { border: 1px solid #1f3864; padding: 5px 8px; font-size: 12.5px; }
+  .marcador { color: #b8641a; font-style: italic; font-size: 12.5px; }
   .fallas-grid td { border: none; width: 50%; vertical-align: top; padding: 0; }
-  .falla-caja { border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
-  .falla-caja.operativa { background: #fff2e2; border: 1px solid #f3d3a8; margin-right: 8px; }
-  .falla-caja.estetica  { background: #eef5fc; border: 1px solid #cfe0f0; margin-left: 8px; }
-  .falla-caja .rotulo { font-weight: bold; font-size: 11.5px; letter-spacing: 1px; margin-bottom: 5px; display: block; }
-  .falla-caja.operativa .rotulo { color: #a05a10; }
-  .falla-caja.estetica .rotulo { color: #1a4d8f; }
-  .link-caja { background: #eef5fc; border: 1px solid #cfe0f0; border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
-  .link-caja a { color: #0f3d66; font-weight: bold; text-decoration: underline; }
-  .nota { font-size: 12px; color: #8697a8; margin-top: 5px; font-style: italic; }
-  .specs-caja { border: 1.5px dashed #9fb3d1; border-radius: 6px; padding: 14px; min-height: 60px; color: #6f8aa3; font-size: 13px; }
+  .falla-caja { border: 1px solid #1f3864; padding: 8px 10px; font-size: 12.5px; }
+  .falla-caja.operativa { margin-right: 6px; }
+  .falla-caja.estetica { margin-left: 6px; }
+  .falla-caja .rotulo { font-weight: bold; font-size: 11.5px; color: #1f3864; display: block; margin-bottom: 4px; }
+  .link-caja { border: 1px solid #1f3864; padding: 8px 10px; font-size: 12.5px; }
+  .link-caja a { color: #1f3864; font-weight: bold; text-decoration: underline; }
+  .nota { font-size: 11px; color: #6b7c8f; margin-top: 5px; font-style: italic; }
+  .firma { text-align: center; font-size: 11px; color: #44546a; margin-top: 18px; }
   </style></head><body>
-  <table class="header-tabla"><tr><td>
-    <div class="empresa">CONSTRUCTORA LST</div>
-    <div class="titulo">HOJA DE VIDA DE MAQUINARIA</div>
-    <div class="subtitulo">REGISTRO TÉCNICO Y ADMINISTRATIVO</div>
-  </td></tr></table>
-  <div class="seccion" style="margin-top:20px"><span class="num">00&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">DATOS GENERALES</span></div>
+  <table class="cab"><tr>
+    <td class="emp" style="width:24%">CONSTRUCTORA LST</td>
+    <td class="tit">HOJA DE VIDA DE MAQUINARIA — ${escapar(d.marcaModelo || d.equipo)}</td>
+    <td class="cod" style="width:24%">Código: ${escapar(d.patente || d.codigo)}<br>Versión: 00<br>Fecha: ${new Date().toLocaleDateString('es-CL')}</td>
+  </tr></table>
+  <div class="t1">FICHA TÉCNICA DEL VEHÍCULO</div>
+  <div class="t2">${escapar(d.equipo)} ${escapar(d.marcaModelo)}</div>
+  <div class="foto-caja"><div class="rotulo">FOTO DE REFERENCIA</div><span class="foto-marcador">{{FOTO_REFERENCIA}}</span></div>
+  <div class="seccion" style="margin-top:20px"><span class="num">00&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">IDENTIFICACIÓN — DATOS GENERALES</span></div>
   <table class="datos-tabla">
     <tr><td class="etiqueta">EQUIPO</td><td class="valor">${escapar(d.equipo)}</td></tr>
     <tr><td class="etiqueta">CÓDIGO</td><td class="valor">${escapar(d.codigo)}</td></tr>
@@ -2319,10 +2317,6 @@ function _armarHtmlFichaTecnica(d) {
     <tr><td class="etiqueta">UBICACIÓN</td><td class="valor"><span class="marcador">{{UBICACION}}</span></td></tr>
     <tr><td class="etiqueta">ENCARGADO</td><td class="valor">${escapar(d.encargado)}</td></tr>
   </table>
-  <div class="foto-caja" style="margin-top:12px">
-    <div class="rotulo">FOTO DE REFERENCIA</div>
-    <span class="foto-marcador">{{FOTO_REFERENCIA}}</span>
-  </div>
   <div style="height:16px">&nbsp;</div>
   <div class="seccion"><span class="num">01&nbsp;&nbsp;·&nbsp;&nbsp;</span><span class="txt">ESPECIFICACIONES TÉCNICAS</span></div>
   <table class="datos-tabla">${filasSpecs}</table>
