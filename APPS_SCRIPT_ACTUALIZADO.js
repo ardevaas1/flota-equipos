@@ -607,6 +607,41 @@ function manejarDriveGenerico(p) {
         return _jsonOut({ success: true, file: JSON.parse(res.getContentText()) });
       }
 
+      case 'drive_docx_to_doc': {
+        // Recibe un .docx en base64 y lo convierte a Google Doc. Con fileId
+        // reemplaza el contenido de ESE Doc (el link no cambia); si no se
+        // puede, crea un Doc nuevo en parentId.
+        const docxBytes = Utilities.base64Decode(p.docxB64);
+        const GDOC = 'application/vnd.google-apps.document';
+        const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        const subir = (url, method, meta) => {
+          const b = 'lst_docx_' + new Date().getTime();
+          const pre = Utilities.newBlob('--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + b + '\r\nContent-Type: ' + DOCX + '\r\n\r\n').getBytes();
+          const post = Utilities.newBlob('\r\n--' + b + '--').getBytes();
+          return UrlFetchApp.fetch(url, {
+            method: method,
+            contentType: 'multipart/related; boundary=' + b,
+            headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+            payload: pre.concat(docxBytes).concat(post),
+            muteHttpExceptions: true,
+          });
+        };
+        if (p.fileId) {
+          const r1 = subir('https://www.googleapis.com/upload/drive/v3/files/' + encodeURIComponent(p.fileId) + '?uploadType=multipart&fields=id,mimeType,name', 'patch', { mimeType: GDOC, name: p.name });
+          if (r1.getResponseCode() >= 200 && r1.getResponseCode() < 300) {
+            const f1 = JSON.parse(r1.getContentText());
+            if (f1.mimeType === GDOC) return _jsonOut({ success: true, replaced: true, file: f1 });
+          }
+        }
+        const meta = { name: p.name, mimeType: GDOC };
+        if (p.parentId) meta.parents = [p.parentId];
+        const r2 = subir('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,mimeType,name', 'post', meta);
+        if (r2.getResponseCode() < 200 || r2.getResponseCode() >= 300) {
+          return _jsonOut({ success: false, error: 'Drive API error ' + r2.getResponseCode() + ': ' + r2.getContentText().slice(0, 300) });
+        }
+        return _jsonOut({ success: true, replaced: false, file: JSON.parse(r2.getContentText()) });
+      }
+
       case 'drive_get_parents': {
         const file = DriveApp.getFileById(p.fileId);
         const parents = [];

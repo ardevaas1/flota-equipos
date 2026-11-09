@@ -76,3 +76,55 @@ function _fvDocx(e, specsRows, costos, linkCarpeta, eventos) {
   const codigo = 'FT-' + String(e.patente || e.rowIndex || '').replace(/\s+/g, '');
   return { bytes: _fdArmarDocx('FICHA TÉCNICA – ' + nombre.toUpperCase(), codigo, hoy, b, links), nombre: 'Ficha Técnica — ' + (e.patente || nombre) };
 }
+
+// Regenera la ficha de UN vehículo con el formato nuevo, a partir de los datos
+// de la app + lo que ya había en el Doc anterior (especificaciones y costos).
+// Reemplaza el contenido del MISMO Doc (el link no cambia); si Drive no lo
+// permite, crea uno nuevo, actualiza el link (col T) y manda el viejo a la papelera.
+async function fichaVehiculoRegenerar(e) {
+  const oldId = _extraerDocId(e.linkFicha);
+  if (!oldId) throw new Error('no se pudo leer el link de la ficha');
+  const oldDoc = await docsApiFetch('GET', oldId);
+
+  const specsRows = _extraerFilasTablaSpecs(_docTablaEntre(oldDoc, 'ESPECIFICACIONES TÉCNICAS', 'DOCUMENTACIÓN'))
+    .filter(r => !/^(CARACTER[ÍI]STICA|CAMPO)$/i.test(r.label) && !/^(VALOR|DATO)$/i.test(r.value))
+    .map(r => [r.label, r.value]);
+
+  // Costos ya anotados en el historial anterior: clave fecha|descripción
+  const costos = {};
+  const tabla = _docTablaEntre(oldDoc, 'HISTORIAL DE EVENTOS') || _docTablaEntre(oldDoc, 'REGISTRO DE MANTENCIONES');
+  if (tabla) tabla.table.tableRows.forEach((row, i) => {
+    const c = row.tableCells;
+    if (i === 0 || c.length < 5) return;
+    const t = (k) => _docCeldaTexto(c[k]).replace(/\n/g, ' ').trim();
+    const costo = t(c.length - 1);
+    if (costo && !/^sin eventos/i.test(t(0))) costos[t(0) + '|' + t(3)] = costo;
+  });
+
+  if (!allEventos.length) await loadEventos();
+  const eventos = allEventos.filter(ev => ev.patente === e.patente);
+
+  let linkCarpeta = '';
+  try {
+    const q = `mimeType='application/vnd.google-apps.folder' and title = '${_qEsc(e.patente)}' and '${CONFIG.DRIVE_ROOT_FOLDER}' in parents and trashed=false`;
+    const data = await driveSearch('flota', q, { pageSize: 1 });
+    if (data.files && data.files.length) linkCarpeta = `https://drive.google.com/drive/folders/${data.files[0].id}`;
+  } catch (err) { console.warn('[FICHA VEH] carpeta de fotos:', err.message); }
+
+  const d = _fvDocx(e, specsRows, costos, linkCarpeta, eventos);
+  const parentId = await _obtenerCarpetaPadre(oldId);
+  const r = await fichaSubirDocx('flota', d.nombre, d.bytes, parentId, oldId);
+  try { await fichaInsertarPortada(r.id, e.fotoRef || ''); }
+  catch (err) { console.warn('[FICHA VEH] portada:', err.message); }
+
+  if (r.id !== oldId) {
+    const url = `https://docs.google.com/document/d/${r.id}/edit`;
+    const rows = await fetchSheet(`'${CONFIG.SHEET_MAQUINARIA}'!E2:E500`);
+    const idx = (rows || []).findIndex(x => (x[0] || '').trim().toUpperCase() === String(e.patente).toUpperCase());
+    if (idx === -1) throw new Error('ficha nueva creada pero no se encontró la fila para actualizar el link: ' + url);
+    await writeSheet(`'${CONFIG.SHEET_MAQUINARIA}'!T${idx + 2}`, [[url]]);
+    e.linkFicha = url;
+    try { await driveTrash('flota', oldId); } catch (err) { console.warn('[FICHA VEH] no se pudo enviar a papelera la ficha vieja:', err.message); }
+  }
+  return r;
+}

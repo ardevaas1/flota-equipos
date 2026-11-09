@@ -1700,14 +1700,8 @@ function _reqReemplazarRango(rango, textoNuevo) {
 // Núcleo: actualiza el Doc de UN vehículo (sin toasts). Lo usan el botón de
 // cada vehículo y el de "actualizar todas".
 async function _actualizarFichaCore(e) {
-  const docId = _extraerDocId(e.linkFicha);
-  if (!docId) throw new Error('no se pudo leer el link de la ficha');
-  await _actualizarDocumentacionFicha(docId, e);
-  await _actualizarUbicacionFicha(docId, e);
-  await _actualizarFallasFicha(docId, e);
-  if (e.fotoRef) await _actualizarFotoFicha(docId, e);
-  await _actualizarLinkCarpetaFicha(docId, e);
-  await _actualizarHistorialFicha(docId, e);
+  // Formato nuevo (.docx): se regenera todo el Doc con los datos actuales de la app
+  await fichaVehiculoRegenerar(e);
 }
 
 async function actualizarFichaTecnica(patente) {
