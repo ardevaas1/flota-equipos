@@ -19,6 +19,9 @@ function doGet(e) {
     if (e.parameter.accion === 'sheet_write' || e.parameter.accion === 'sheet_append') {
       return manejarEscrituraGenerica(e.parameter);
     }
+    if (e.parameter.accion === 'mi_rol' || e.parameter.accion === 'sheet_read' || e.parameter.accion === 'comb_equipos') {
+      return manejarLecturaBodeguero(e.parameter);
+    }
     if (e.parameter.accion.indexOf('drive_') === 0) {
       return manejarDriveGenerico(e.parameter);
     }
@@ -271,6 +274,62 @@ function _tienePermisoParaModulo(email, modulo) {
   if (tokens.includes('admin')) return true;
   if (!modulo) return false;
   return tokens.includes(modulo.toLowerCase());
+}
+
+
+// ============================================================
+// LECTURA PARA EL ROL 'bodeguero' (no necesita acceso a la planilla)
+// ------------------------------------------------------------
+// El bodeguero no tiene que estar compartido en el Google Sheet: todo lo que
+// ve el módulo "Combustible en obra" lo lee este script con los permisos del
+// dueño, después de verificar el email real contra el token de Google.
+//   mi_rol        → los roles de quien llama (para poder iniciar sesión)
+//   sheet_read    → filas de COMB-OBRA / EQUIPOS-EXTERNOS (solo esas dos)
+//   comb_equipos  → lista de equipos propios (SOLO identificación y nombre:
+//                   nada de costos, RUT, ubicaciones ni documentos)
+// ============================================================
+function manejarLecturaBodeguero(p) {
+  try {
+    const email = _emailVerificadoDesdeToken(p.accessToken);
+    if (!email) return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
+    if (p.accion === 'mi_rol') return _jsonOut({ success: true, tokens: _tokensDeRol(email) });
+
+    if (!_tienePermisoParaModulo(email, 'bodeguero')) {
+      return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para esta función.' + _diagnosticoRoles(email) });
+    }
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+
+    if (p.accion === 'sheet_read') {
+      const m = (p.range || '').match(/^'([^']+)'!/);
+      const nombre = m ? m[1] : '';
+      if (nombre !== 'COMB-OBRA' && nombre !== 'EQUIPOS-EXTERNOS') return _jsonOut({ success: false, error: 'Hoja no permitida: ' + nombre });
+      const sh = ss.getSheetByName(nombre);
+      if (!sh || sh.getLastRow() < 2) return _jsonOut({ success: true, values: [] });
+      return _jsonOut({ success: true, values: sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() });
+    }
+
+    if (p.accion === 'comb_equipos') {
+      const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(sh.getLastColumn(), 25)).getDisplayValues() : []; };
+      const out = [];
+      const txt = (v) => (v == null ? '' : String(v)).trim();
+      leer('MAQUINARIA').forEach(r => {
+        if (!txt(r[1]) || txt(r[1]).toUpperCase() === 'EQUIPO' || !txt(r[4])) return;
+        out.push({ grupo: 'Flota', ident: txt(r[4]), desc: [r[1], r[2], r[3]].map(txt).filter(Boolean).join(' '), uso: txt(r[24]).toUpperCase() === 'HORAS' ? 'horas' : 'km' });
+      });
+      leer('GENERADORES').forEach(r => {
+        if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
+        out.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
+      });
+      leer('MAQUINARIA MENOR').forEach(r => {
+        if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
+        out.push({ grupo: 'Maquinaria menor', ident: txt(r[10]) || ('MM-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
+      });
+      return _jsonOut({ success: true, equipos: out });
+    }
+    return _jsonOut({ success: false, error: 'Acción desconocida' });
+  } catch (err) {
+    return _jsonOut({ success: false, error: 'Error al leer: ' + err.toString() });
+  }
 }
 
 // Handler genérico de "sheet_write" / "sheet_append" — reemplaza escribir

@@ -478,6 +478,33 @@ function _normalizarTokenRol(token) {
   return esViewer ? baseReal + '-viewer' : baseReal;
 }
 
+function _asignarRolDesdeTokens(celdaTokens) {
+  // La celda puede traer varios roles separados por coma (ej: "flota,containers")
+  // para dar acceso a más de un módulo a la misma persona.
+  const tokens = celdaTokens.map(t => _normalizarTokenRol(t.trim())).filter(Boolean);
+  if (tokens.includes('admin')) {
+    userRole  = 'admin';
+    userRoles = ['admin'];
+    return;
+  }
+  const validos = tokens.filter(t => ROLES_DE_MODULO.includes(t) || ROLES_DE_MODULO_VIEWER.includes(t));
+  if (validos.length) {
+    userRoles = validos;
+    // userRole (singular) se mantiene por compatibilidad con chequeos
+    // puntuales que solo miran un valor — guarda el primero de la lista.
+    userRole = validos[0];
+  } else {
+    userRole  = 'viewer';
+    userRoles = [];
+  }
+}
+
+// Personas cuyo único rol es 'bodeguero' (o su versión de solo lectura): no
+// necesitan acceso a la planilla — todo lo suyo pasa por el Apps Script.
+function _esSoloBodeguero() {
+  return userRole !== 'admin' && userRoles.length > 0 && userRoles.every(r => r === 'bodeguero' || r === 'bodeguero-viewer');
+}
+
 async function checkUserRole() {
   try {
     const sheet = CONFIG.SHEET_USUARIOS || 'USUARIOS';
@@ -488,31 +515,19 @@ async function checkUserRole() {
     const rows = data.values || [];
     const match = rows.find(r => (r[0]||'').toLowerCase().trim() === userEmail);
     const celda = match ? (match[1]||'').toLowerCase().trim() : '';
-
-    // La celda puede traer varios roles separados por coma (ej: "flota,containers")
-    // para dar acceso a más de un módulo a la misma persona.
-    const tokens = celda.split(',').map(t => _normalizarTokenRol(t.trim())).filter(Boolean);
-
-    if (tokens.includes('admin')) {
-      userRole  = 'admin';
-      userRoles = ['admin'];
-    } else {
-      const validos = tokens.filter(t => ROLES_DE_MODULO.includes(t) || ROLES_DE_MODULO_VIEWER.includes(t));
-      if (validos.length) {
-        userRoles = validos;
-        // userRole (singular) se mantiene por compatibilidad con chequeos
-        // puntuales que solo miran un valor — guarda el primero de la lista.
-        userRole = validos[0];
-      } else {
-        userRole  = 'viewer';
-        userRoles = [];
-      }
-    }
+    _asignarRolDesdeTokens(celda.split(','));
   } catch(e) {
-    // Si la hoja no existe o hay error, cualquier email desconocido es viewer
-    console.warn('[ROLE] No se pudo leer USUARIOS, asignando viewer:', e.message);
-    userRole  = 'viewer';
-    userRoles = [];
+    // Sin acceso directo a la planilla (caso del bodeguero): el rol se pide
+    // al Apps Script, que lo lee de USUARIOS con los permisos del dueño.
+    try {
+      const d = await _appsScriptCall('mi_rol', {});
+      _asignarRolDesdeTokens(d.tokens || []);
+    } catch (e2) {
+      // Si tampoco responde el script, cualquier email desconocido es viewer
+      console.warn('[ROLE] No se pudo leer USUARIOS, asignando viewer:', e.message, '/', e2.message);
+      userRole  = 'viewer';
+      userRoles = [];
+    }
   }
   try {
     localStorage.setItem(ROLE_KEY, userRole);
@@ -2860,6 +2875,12 @@ function onFotoSelected(input) {
 
 // ── Cargar datos ──────────────────────────────────────────────
 async function loadData(background = false) {
+  // El bodeguero no lee la planilla: se salta la carga de Flota/Inventario y
+  // entra directo a su módulo (sus datos los trae el Apps Script).
+  if (_esSoloBodeguero()) {
+    if (!background) { splash(100, '¡Listo!'); setTimeout(hideSplash, 300); }
+    return;
+  }
   const btn = document.getElementById('refresh-btn');
   if (btn) btn.style.opacity = '0.4';
 

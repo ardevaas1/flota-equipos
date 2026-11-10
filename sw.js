@@ -6,7 +6,7 @@
 // separado en localStorage desde app-v2.js.
 // ============================================
 
-const CACHE_NAME = 'lst-flota-shell-v17';
+const CACHE_NAME = 'lst-flota-shell-v18';
 const APP_SHELL = [
   './',
   './index.html',

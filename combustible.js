@@ -35,9 +35,20 @@ const _combEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replac
 const _combNum = (n) => (Math.round(n * 10) / 10).toLocaleString('es-CL');
 const _combHoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
+// Todo se lee a través del Apps Script (el bodeguero no necesita acceso al Sheet)
+async function _combLeer(range) {
+  const d = await _appsScriptCall('sheet_read', { range });
+  return d.values || [];
+}
+let _combEquiposCache = [];
+async function loadCombEquipos() {
+  try { const d = await _appsScriptCall('comb_equipos', {}); _combEquiposCache = d.equipos || []; }
+  catch (e) { console.warn('[COMB] equipos:', e.message); toast('No se pudo cargar la lista de equipos: ' + e.message, 'error'); }
+}
+
 async function loadCombObra() {
   try {
-    const rows = await fetchSheet(`'COMB-OBRA'!A2:M5000`);
+    const rows = await _combLeer(`'COMB-OBRA'!A2:M5000`);
     allCombObra = (rows || []).map((r, i) => ({ r, rowIndex: i + 2 })).filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
       rowIndex, id: r[0], fecha: _bitFechaDesdeHoja(r[1]), obra: r[2] || '', origen: (r[3] || '').toUpperCase(),
       ident: (r[4] || '').toString().trim(), desc: r[5] || '', empresa: r[6] || '', litros: _parseNumeroSheet(r[7]) || 0,
@@ -47,7 +58,7 @@ async function loadCombObra() {
 }
 async function loadEqExternos() {
   try {
-    const rows = await fetchSheet(`'EQUIPOS-EXTERNOS'!A2:H2000`);
+    const rows = await _combLeer(`'EQUIPOS-EXTERNOS'!A2:H2000`);
     allEqExternos = (rows || []).map((r, i) => ({ r, rowIndex: i + 2 })).filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
       rowIndex, id: r[0], empresa: r[1] || '', tipo: r[2] || '', ident: (r[3] || '').toString().trim(), desc: r[4] || '',
       obra: r[5] || '', estado: (r[6] || 'ACTIVO').toUpperCase(), registradoPor: r[7] || '',
@@ -58,11 +69,7 @@ async function loadEqExternos() {
 async function combInit() {
   const sub = document.getElementById('comb-sub');
   if (sub) sub.textContent = _combSoloLectura() ? 'Constructora LST · Solo lectura' : 'Constructora LST';
-  await Promise.all([
-    loadCombObra(), loadEqExternos(),
-    (typeof loadInventario === 'function' && typeof allGeneradores !== 'undefined' && !allGeneradores.length && !allMaqMenor.length)
-      ? loadInventario().catch(e => console.warn('[COMB] inventario:', e.message)) : Promise.resolve(),
-  ]);
+  await Promise.all([loadCombObra(), loadEqExternos(), loadCombEquipos()]);
   combRender();
 }
 async function combRecargar() { toast('Actualizando...', 'loading'); await combInit(); toast('✓ Datos actualizados'); }
@@ -75,13 +82,7 @@ function _combObras() {
 }
 
 // ── Equipos que se pueden elegir al cargar ──────────────────────
-function _combEquiposPropios() {
-  const out = [];
-  (typeof allEquipos !== 'undefined' ? allEquipos : []).forEach(e => out.push({ grupo: 'Flota', ident: e.patente, desc: [e.equipo, e.marca, e.modelo].filter(Boolean).join(' '), uso: (e.unidadUso || '').toUpperCase().startsWith('H') ? 'horas' : 'km' }));
-  (typeof allGeneradores !== 'undefined' ? allGeneradores : []).forEach(g => out.push({ grupo: 'Generadores', ident: (g.codigo || ('GEN-' + g.num)), desc: [g.equipo, g.marca, g.modelo].filter(Boolean).join(' '), uso: 'horas' }));
-  (typeof allMaqMenor !== 'undefined' ? allMaqMenor : []).forEach(m => out.push({ grupo: 'Maquinaria menor', ident: (m.numIdent || ('MM-' + m.num)), desc: [m.equipo, m.marca, m.modelo].filter(Boolean).join(' '), uso: 'horas' }));
-  return out.filter(x => x.ident);
-}
+function _combEquiposPropios() { return _combEquiposCache; }
 
 // ── Pantalla principal ──────────────────────────────────────────
 function combSetVista(v) {
