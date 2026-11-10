@@ -2969,6 +2969,7 @@ async function loadData(background = false) {
       setTimeout(() => {
         hideSplash();
         restoreState();
+        if (typeof etqAbrirPendiente === 'function') etqAbrirPendiente(); // viene de escanear un QR
       }, 300);
     }
     toast('Datos actualizados ✓');

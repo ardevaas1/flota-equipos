@@ -1066,6 +1066,7 @@
       </div>
       <div class="inv-desktop-sidebar-footer">
         <button class="desktop-refresh-btn" onclick="loadData(true)">↻ Actualizar datos</button>
+        <button class="desktop-refresh-btn admin-only-btn" onclick="etqAbrir()" style="display:none;margin-top:6px">Códigos y etiquetas QR</button>
         <button class="desktop-refresh-btn admin-only-btn btn-fichas-inv" onclick="invGenerarTodasLasFichas()" style="display:none;margin-top:6px">Crear o actualizar fichas técnicas de todos los equipos</button>
         <button class="desktop-refresh-btn" onclick="volverAInicio()" style="margin-top:6px;background:var(--neutral-soft);color:var(--ink-soft)">‹ Volver al inicio</button>
       </div>
@@ -1116,6 +1117,7 @@
       </div>
     </div>
     <div class="pages" style="padding:0 14px 80px" id="inv-mobile-list">
+      <button class="action-btn admin-only-btn" onclick="etqAbrir()" style="display:none;margin:0 0 8px;width:100%">Códigos y etiquetas QR</button>
       <button class="action-btn admin-only-btn btn-fichas-inv" onclick="invGenerarTodasLasFichas()" style="display:none;margin:0 0 12px;width:100%">Crear o actualizar fichas técnicas de todos los equipos</button>
       <div id="inv-lista"></div>
     </div>
@@ -1664,6 +1666,28 @@
   </div>
 
 
+
+  <!-- ── Panel: códigos y etiquetas QR (admin) ── -->
+  <div id="panel-etq" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-etq')">‹ Volver</button>
+      <span class="pnl-title">Códigos y etiquetas</span>
+      <span></span>
+    </div>
+    <div class="panel-body">
+      <div class="form-sec">1. Códigos</div>
+      <div id="etq-resumen" style="margin-bottom:10px"></div>
+      <div class="nota" style="margin-bottom:10px">Asigna un código único (ej. DM-021, BET-004) a los equipos que no tienen. Los que ya tienen código no se modifican.</div>
+      <button class="action-btn" id="etq-btn-asignar" style="width:100%" onclick="etqAsignarCodigos()">Asignar códigos a los equipos sin código</button>
+
+      <div class="form-sec" style="margin-top:22px">2. Etiquetas con QR</div>
+      <div class="nota" style="margin-bottom:10px">Al escanear el QR con el celular se abre la ficha del equipo en la app. Imprime y pega una etiqueta en cada equipo.</div>
+      <div class="form-group"><label>Tipo de equipo</label>
+        <select id="etq-mod"><option value="">Todos</option><option value="generadores">Generadores</option><option value="maqmenor">Maquinaria menor</option><option value="herramientas">Herramientas</option><option value="topografico">Equipos topográficos</option></select></div>
+      <div class="form-group"><label>Ubicación</label><select id="etq-ubic"></select></div>
+      <button class="action-btn" style="width:100%" onclick="etqImprimir()">Abrir etiquetas para imprimir</button>
+    </div>
+  </div>
 
   <!-- ══ MÓDULO COMBUSTIBLE EN OBRA ══ -->
   <div id="mod-combustible" class="main hidden">
@@ -2804,6 +2828,8 @@
 <script src="checklist.js"></script>
 <script src="arriendos.js"></script>
 <script src="combustible.js"></script>
+<script src="lib-qrcode.js"></script>
+<script src="etiquetas.js"></script>
 <script>
 // ══ DESKTOP LAYOUT JS ════════════════════════════════════════════
 
