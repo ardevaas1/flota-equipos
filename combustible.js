@@ -159,7 +159,9 @@ function _combHtmlResumen(lista, por) {
       <div class="comb-m">${v.n} carga${v.n === 1 ? '' : 's'} · este mes: ${_combNum(v.mes)} L</div></div>`).join('');
 }
 function _combHtmlExternos() {
-  const lista = allEqExternos.filter(e => !_combObraFiltro || (e.obra || '').toUpperCase() === _combObraFiltro);
+  // Con una obra elegida se muestran los que tienen esa obra como habitual o que ya recibieron combustible ahí
+  const lista = allEqExternos.filter(e => !_combObraFiltro || (e.obra || '').toUpperCase() === _combObraFiltro
+    || allCombObra.some(c => c.origen === 'EXTERNO' && c.obra.toUpperCase() === _combObraFiltro && c.ident.toUpperCase() === e.ident.toUpperCase() && (c.empresa || '').toUpperCase() === (e.empresa || '').toUpperCase()));
   const btn = _combSoloLectura() ? '' : `<button class="action-btn" style="width:100%;margin-bottom:10px" onclick="combAbrirExterno()">+ Agregar equipo de otra empresa</button>`;
   if (!lista.length) return btn + emptyState('Sin equipos externos', 'Aquí se registran camiones y máquinas de otras empresas');
   const litrosDe = (e) => allCombObra.filter(c => c.origen === 'EXTERNO' && c.ident.toUpperCase() === e.ident.toUpperCase() && (c.empresa || '').toUpperCase() === (e.empresa || '').toUpperCase()).reduce((a, c) => a + c.litros, 0);
