@@ -67,8 +67,6 @@ async function loadEqExternos() {
 }
 
 async function combInit() {
-  const sub = document.getElementById('comb-sub');
-  if (sub) sub.textContent = _combSoloLectura() ? 'Constructora LST · Solo lectura' : 'Constructora LST';
   await Promise.all([loadCombObra(), loadEqExternos(), loadCombEquipos()]);
   combRender();
 }
