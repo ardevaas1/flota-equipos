@@ -3,7 +3,7 @@
 // ============================================
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwTA6K-06sHdYM9ztZQ5hwcxQoLM4XVO-eZaXGxvs_e5furH90HWNJLY5sMNVTE1hpC/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzfmF5VyA0qLCvagViCb9l3N_d89UgHObTqnFyCSKEkA4IQ6xL6kMRtCrb9eaX7vJQ7Sw/exec';
 
 let allEquipos    = [];
 let currentEquipo = null;
