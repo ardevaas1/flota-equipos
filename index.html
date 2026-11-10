@@ -221,6 +221,20 @@
       font-size: 11.5px;
     }
 
+    /* ── Rol 'bodeguero': acceso total dentro del módulo Combustible en obra
+       (#panel-comb-form y #panel-comb-ext son paneles HERMANOS de #mod-combustible). */
+    body.bodeguero-mode #mod-combustible .action-btn,
+    body.bodeguero-mode #mod-combustible .pnl-action,
+    body.bodeguero-mode #mod-combustible .viewer-hidden,
+    body.bodeguero-mode #mod-combustible .fab-btn,
+    body.bodeguero-mode #panel-comb-form .pnl-action,
+    body.bodeguero-mode #panel-comb-form .action-btn,
+    body.bodeguero-mode #panel-comb-ext .pnl-action,
+    body.bodeguero-mode #panel-comb-ext .action-btn {
+      display: inline-flex !important;
+    }
+    body.bodeguero-mode #mod-combustible .fab-btn.viewer-hidden { display: flex !important; }
+
     body.chofer-mode .header-sub::after {
       content: '';
     }
@@ -968,6 +982,16 @@
         </div>
         <span class="modulo-arrow">›</span>
       </div>
+      <div class="modulo-card modulo-card--comb" onclick="irAModulo('combustible')">
+        <div class="modulo-icon modulo-icon--comb">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M15 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M8 8h4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Combustible en obra</div>
+          <div class="modulo-desc">Cargas por obra y equipos externos</div>
+        </div>
+        <span class="modulo-arrow">›</span>
+      </div>
       <div class="modulo-card modulo-card--arr" onclick="irAModulo('arriendos')">
         <div class="modulo-icon modulo-icon--arr">
           <svg viewBox="0 0 24 24" fill="white"><path d="M11 6H14L17.29 2.7A1 1 0 0 1 18.71 2.7L21.29 5.29A1 1 0 0 1 21.29 6.7L19 9H11V11A1 1 0 0 1 10 12A1 1 0 0 1 9 11V8A2 2 0 0 1 11 6M5 11V15L2.71 17.29A1 1 0 0 0 2.71 18.7L5.29 21.29A1 1 0 0 0 6.71 21.29L11 17H15A1 1 0 0 0 16 16V15H17A1 1 0 0 0 18 14V13H19A1 1 0 0 0 20 12V11H13V12A2 2 0 0 1 11 14H9A2 2 0 0 1 7 12V9Z"/></svg>
@@ -1640,6 +1664,72 @@
   </div>
 
 
+
+  <!-- ══ MÓDULO COMBUSTIBLE EN OBRA ══ -->
+  <div id="mod-combustible" class="main hidden">
+    <header class="header header--comb">
+      <button class="header-btn" onclick="volverAInicio()" style="font-size: 21px">‹</button>
+      <div class="header-logo-wrap"><img src="logo-white.png" class="header-logo" alt="LST"></div>
+      <div class="header-center">
+        <div class="header-title">Combustible en obra</div>
+        <div class="header-sub" id="comb-sub">Constructora LST</div>
+      </div>
+      <button class="header-btn" onclick="combRecargar()">↻</button>
+    </header>
+    <div class="comb-wrap">
+      <div class="inv-stats">
+        <div class="inv-stat amber"><div class="inv-stat-n" id="comb-stat-hoy">0</div><div class="inv-stat-l">Litros hoy</div></div>
+        <div class="inv-stat blue"><div class="inv-stat-n" id="comb-stat-mes">0</div><div class="inv-stat-l">Litros del mes</div></div>
+        <div class="inv-stat green"><div class="inv-stat-n" id="comb-stat-n">0</div><div class="inv-stat-l">Cargas hoy</div></div>
+      </div>
+      <div style="padding:8px 14px 0">
+        <select id="comb-obra-sel" onchange="combSetObra(this.value)" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff"></select>
+        <div class="chips-wrap" style="margin:10px 0"><div class="chips">
+          <button class="chip active" id="comb-chip-cargas" onclick="combSetVista('cargas')">Cargas</button>
+          <button class="chip" id="comb-chip-obra" onclick="combSetVista('obra')">Por obra</button>
+          <button class="chip" id="comb-chip-equipo" onclick="combSetVista('equipo')">Por equipo</button>
+          <button class="chip" id="comb-chip-externos" onclick="combSetVista('externos')">Otras empresas</button>
+        </div></div>
+      </div>
+      <div class="pages" style="padding:0 14px 90px"><div id="comb-lista"></div></div>
+    </div>
+    <button class="fab-btn viewer-hidden" id="comb-fab" onclick="combAbrirNueva()">+</button>
+  </div>
+
+  <!-- ── Panel: registrar carga de combustible en obra ── -->
+  <div id="panel-comb-form" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-comb-form')">‹ Cancelar</button>
+      <span class="pnl-title">Cargar combustible</span>
+      <button class="pnl-action" onclick="combGuardar()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <div class="form-group"><label>Fecha</label><input type="date" id="comb-fecha"></div>
+      <div class="form-group"><label>Obra</label><input type="text" id="comb-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"><datalist id="comb-obras-lista"></datalist></div>
+      <div class="form-group"><label>Equipo</label><select id="comb-equipo" onchange="combEquipoCambio()"></select></div>
+      <div class="form-group"><label>Litros</label><input type="text" inputmode="decimal" id="comb-litros" placeholder="Ej: 45,5"></div>
+      <div class="form-group"><label id="comb-km-label">Km u horas del equipo (opcional)</label><input type="text" inputmode="decimal" id="comb-km" placeholder="Ej: 45350"></div>
+      <div class="form-group"><label>Quién recibió</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>
+      <div class="form-group"><label>Observaciones (opcional)</label><input type="text" id="comb-obs" placeholder="Ej: vale N° 123"></div>
+    </div>
+  </div>
+
+  <!-- ── Panel: equipo de otra empresa ── -->
+  <div id="panel-comb-ext" class="panel hidden">
+    <div class="panel-bar">
+      <button class="pnl-back" onclick="closePanel('panel-comb-ext')">‹ Cancelar</button>
+      <span class="pnl-title" id="comb-ext-titulo">Nuevo equipo externo</span>
+      <button class="pnl-action" onclick="combGuardarExterno()">Guardar</button>
+    </div>
+    <div class="panel-body">
+      <div class="form-group"><label>Empresa dueña</label><input type="text" id="comb-ext-empresa" list="comb-empresas-lista" autocomplete="off" placeholder="Ej: Transportes Pérez"><datalist id="comb-empresas-lista"></datalist></div>
+      <div class="form-group"><label>Tipo de equipo</label><select id="comb-ext-tipo"></select></div>
+      <div class="form-group"><label>Patente o identificación</label><input type="text" id="comb-ext-ident" placeholder="Ej: KXYZ-12" style="text-transform:uppercase"></div>
+      <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="comb-ext-desc" placeholder="Ej: Camión tolva 12 m³"></div>
+      <div class="form-group"><label>Obra donde trabaja</label><input type="text" id="comb-ext-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"></div>
+      <label class="checklist-1000h-item" id="comb-ext-retirado-wrap" style="margin-top:6px"><input type="checkbox" id="comb-ext-retirado"><span>Ya se retiró de la obra</span></label>
+    </div>
+  </div>
 
   <!-- ══ MÓDULO ARRIENDOS (equipos de terceros arrendados para una obra) ══ -->
   <div id="mod-arriendos" class="main hidden">
@@ -2713,6 +2803,7 @@
 <script src="bitacora.js"></script>
 <script src="checklist.js"></script>
 <script src="arriendos.js"></script>
+<script src="combustible.js"></script>
 <script>
 // ══ DESKTOP LAYOUT JS ════════════════════════════════════════════
 

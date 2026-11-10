@@ -448,7 +448,7 @@ function ensureToken(forzar) {
 // 'viewer' pero acotado a uno solo en vez de a los 6. 'viewer' a secas
 // (cualquier otro valor o ausencia de match) sigue viendo TODO en solo
 // lectura, sin restricción de módulo.
-const ROLES_DE_MODULO = ['mover', 'andamios', 'flota', 'chofer', 'inventario', 'containers', 'arriendos'];
+const ROLES_DE_MODULO = ['mover', 'andamios', 'flota', 'chofer', 'inventario', 'containers', 'arriendos', 'bodeguero'];
 // Versión "solo lectura" de cada rol de módulo: mismo acceso a UN solo
 // módulo en la pantalla de inicio, pero sin desbloquear edición ahí adentro
 // — a diferencia de 'flota', 'andamios', etc. (que si dan permiso de
@@ -543,7 +543,7 @@ async function checkUserRole() {
 const MODO_CLASE = {
   mover: 'mover-mode', andamios: 'andamios-mode', flota: 'flota-mode',
   chofer: 'chofer-mode', inventario: 'inventario-mode', containers: 'containers-mode',
-  arriendos: 'arriendos-mode',
+  arriendos: 'arriendos-mode', bodeguero: 'bodeguero-mode',
 };
 // Clase distintiva de cada tarjeta de módulo en la pantalla de inicio, para
 // saber cuáles mostrar según los roles de la persona. Los roles "-viewer"
@@ -552,14 +552,14 @@ const MODO_CLASE = {
 const MODO_TARJETA_CLASE = {
   mover: 'modulo-card--mov', andamios: 'modulo-card--and', flota: 'modulo-card--flota',
   chofer: 'modulo-card--bit', inventario: 'modulo-card--inv', containers: 'modulo-card--cont',
-  arriendos: 'modulo-card--arr',
+  arriendos: 'modulo-card--arr', bodeguero: 'modulo-card--comb',
   'mover-viewer': 'modulo-card--mov', 'andamios-viewer': 'modulo-card--and', 'flota-viewer': 'modulo-card--flota',
   'chofer-viewer': 'modulo-card--bit', 'inventario-viewer': 'modulo-card--inv', 'containers-viewer': 'modulo-card--cont',
-  'arriendos-viewer': 'modulo-card--arr',
+  'arriendos-viewer': 'modulo-card--arr', 'bodeguero-viewer': 'modulo-card--comb',
 };
 
 function applyViewerMode() {
-  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode', 'inventario-mode', 'containers-mode', 'arriendos-mode');
+  document.body.classList.remove('viewer-mode', 'mover-mode', 'andamios-mode', 'flota-mode', 'chofer-mode', 'inventario-mode', 'containers-mode', 'arriendos-mode', 'bodeguero-mode');
 
   if (userRole !== 'admin') {
     document.body.classList.add('viewer-mode');

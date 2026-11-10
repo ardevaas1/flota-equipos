@@ -1859,19 +1859,20 @@ function irAModulo(modulo) {
   document.getElementById('mod-flota').classList.add('hidden');
 
   // Ocultar instantáneamente cualquier módulo que no sea el destino (no participa en la animación)
-  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'mod-arriendos', 'main'].forEach(id => {
+  ['mod-inventario', 'mod-containers', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'mod-arriendos', 'mod-combustible', 'main'].forEach(id => {
     const el = document.getElementById(id);
     if (el && id !== _moduloElId(modulo)) el.classList.add('hidden');
   });
 
   // Tema de color por módulo — aplicado en <body> para que también
   // alcance a los paneles de editar/agregar (viven fuera del contenedor del módulo)
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit', 'tema-arr');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit', 'tema-arr', 'tema-comb');
   if (modulo === 'containers') document.body.classList.add('tema-cont');
   else if (modulo === 'movimientos') document.body.classList.add('tema-mov');
   else if (modulo === 'andamios') document.body.classList.add('tema-and');
   else if (modulo === 'bitacora') document.body.classList.add('tema-bit');
   else if (modulo === 'arriendos') document.body.classList.add('tema-arr');
+  else if (modulo === 'combustible') document.body.classList.add('tema-comb');
   else if (modulo !== 'flota') document.body.classList.add('tema-inv');
 
   if (modulo === 'flota') {
@@ -1907,6 +1908,10 @@ function irAModulo(modulo) {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-bitacora'), 'forward');
     requestAnimationFrame(() => { _invActivarDesktop('bitacora'); bitInit(); });
+  } else if (modulo === 'combustible') {
+    _setDesktopSidebarFlota(false);
+    _pgTransition(homeEl, document.getElementById('mod-combustible'), 'forward');
+    requestAnimationFrame(() => { combInit(); });
   } else if (modulo === 'arriendos') {
     _setDesktopSidebarFlota(false);
     _pgTransition(homeEl, document.getElementById('mod-arriendos'), 'forward');
@@ -1932,6 +1937,7 @@ function _moduloElId(modulo) {
   if (modulo === 'andamios') return 'mod-andamios';
   if (modulo === 'bitacora') return 'mod-bitacora';
   if (modulo === 'arriendos') return 'mod-arriendos';
+  if (modulo === 'combustible') return 'mod-combustible';
   return 'mod-inventario';
 }
 
@@ -2031,12 +2037,12 @@ function volverAInicio() {
   if (typeof invCerrarFotoModal === 'function') invCerrarFotoModal();
 
   const homeEl = document.getElementById('modulos-home');
-  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'mod-arriendos', 'main']
+  const candidatos = ['mod-inventario', 'mod-containers', 'mod-flota', 'mod-movimientos', 'mod-andamios', 'mod-bitacora', 'mod-arriendos', 'mod-combustible', 'main']
     .map(id => document.getElementById(id));
   const saliente = candidatos.find(el => el && !el.classList.contains('hidden'));
 
   candidatos.forEach(el => { if (el && el !== saliente) el.classList.add('hidden'); });
-  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit', 'tema-arr');
+  document.body.classList.remove('tema-inv', 'tema-cont', 'tema-mov', 'tema-and', 'tema-bit', 'tema-arr', 'tema-comb');
   // Ocultar sidebar de Flota (con el mismo fundido con el que aparece)
   // para que no quede sobre la home
   _setDesktopSidebarFlota(false);

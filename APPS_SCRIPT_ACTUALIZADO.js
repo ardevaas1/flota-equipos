@@ -200,6 +200,8 @@ const ROL_REQUERIDO_POR_HOJA = {
   'COMBUSTIBLE':           'chofer',
   'CHECKLIST':             'chofer',
   'ARRIENDOS':             'arriendos',
+  'COMB-OBRA':             'bodeguero',
+  'EQUIPOS-EXTERNOS':      'bodeguero',
   'ANDAMIOS':              'andamios',
   'AND-UBICACIONES':       'andamios',
   'AND-HISTORIAL':         'andamios',
@@ -207,6 +209,8 @@ const ROL_REQUERIDO_POR_HOJA = {
 
 // Hojas que el Apps Script crea solo (con su fila de encabezados) si no existen.
 const HOJAS_AUTOCREAR = {
+  'COMB-OBRA': ['ID','FECHA','OBRA','ORIGEN','IDENT','DESCRIPCION','EMPRESA','LITROS','KM_HORAS','RECIBIO','OBSERVACIONES','REGISTRADO_POR','HORA'],
+  'EQUIPOS-EXTERNOS': ['ID','EMPRESA','TIPO','IDENT','DESCRIPCION','OBRA','ESTADO','REGISTRADO_POR'],
   'CHECKLIST': ['ID','FECHA','HORA','PATENTE','TIPO_CHECKLIST','CHOFER','KM_HORAS','RESULTADO','N_FALLAS','DETALLE','FOTOS_GENERALES','OBSERVACIONES','REGISTRADO_POR'],
 };
 
