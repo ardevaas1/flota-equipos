@@ -43,12 +43,20 @@ async function _combLeer(range) {
 // Equipos propios vistos en las búsquedas (el servidor NUNCA entrega el listado completo)
 let _combEquiposCache = [];
 const _combBusquedas = {};
+let _combUltQ = '', _combUltLista = null;
 async function _combBuscarPropios(q) {
   if (_combBusquedas[q]) return _combBusquedas[q];
+  // Si ya se buscó algo más corto y el servidor devolvió TODOS los que coinciden (menos de 15),
+  // la nueva búsqueda es un subconjunto: se filtra acá mismo, sin ir al servidor.
+  if (_combUltLista && _combUltLista.length < 15 && q.startsWith(_combUltQ)) {
+    const lista = _combUltLista.filter(e => _combClave(e.ident).includes(q) || _combClave(e.desc).includes(q));
+    _combBusquedas[q] = lista; return lista;
+  }
   const d = await _appsScriptCall('comb_equipos', { q });
   const lista = d.equipos || [];
   lista.forEach(e => { if (!_combEquiposCache.some(x => x.ident === e.ident && x.grupo === e.grupo)) _combEquiposCache.push(e); });
   _combBusquedas[q] = lista;
+  _combUltQ = q; _combUltLista = lista;
   return lista;
 }
 
@@ -244,7 +252,7 @@ function combFiltrarEquipos() {
     if (seq !== _combSeq) return;   // llegó una respuesta vieja: se ignora
     const lista = [...propios, ...ext];
     pinta(`${lista.length} resultado${lista.length === 1 ? '' : 's'}`, lista, 'Sin resultados. Si es de otra empresa, agrégalo con el botón de abajo.');
-  }, 350);
+  }, 220);
 }
 function combElegirEquipo(v) {
   const e = _combTodosLosEquipos().find(x => x.v === v);
@@ -286,6 +294,7 @@ function combAbrirNueva() {
   document.getElementById('comb-km-label').textContent = 'Km u horas del equipo (opcional)';
   _combLimpiarErrores('panel-comb-form'); combResumen();
   openPanel('panel-comb-form');
+  _appsScriptCall('comb_equipos', { q: '' }).catch(() => {});   // despierta el script y arma la caché para que la 1.ª búsqueda sea rápida
 }
 // Resumen en vivo (para revisar antes de guardar y evitar errores)
 function _combEquipoElegido() {
@@ -411,3 +420,10 @@ async function combGuardarExterno() {
   } catch (e) { toast('Error: ' + e.message, 'error'); }
   finally { btns.forEach(b => btnEstado(b, 'reset')); }
 }
+
+// Clic en el fondo oscuro = cerrar. Se hace por JS (no con onclick en el HTML) porque
+// la regla global `[onclick]:active` dejaba toda la ventana translúcida al tocar cualquier cosa.
+['panel-comb-form', 'panel-comb-ext'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', (ev) => { if (ev.target === el && typeof isDesktop === 'function' && isDesktop()) closePanel(id); });
+});

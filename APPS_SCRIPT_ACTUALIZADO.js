@@ -237,6 +237,15 @@ function _tienePermisoParaHoja(email, sheetName) {
 // ("flota,containers"). Se usa tanto para hojas (_tienePermisoParaHoja)
 // como para Drive (_tienePermisoParaModulo) — una sola fuente de verdad.
 function _tokensDeRol(email) {
+  // Caché de 60 s: cada acción hacía abrir la planilla y leer USUARIOS entera
+  // (lo que hacía lentas las búsquedas). Un cambio de rol tarda como máximo 1 minuto en aplicarse.
+  const ckey = 'rol_' + email;
+  try { const hit = CacheService.getScriptCache().get(ckey); if (hit !== null) return JSON.parse(hit); } catch (e) { /* sin caché */ }
+  const res = _tokensDeRolSinCache(email);
+  try { CacheService.getScriptCache().put(ckey, JSON.stringify(res), 60); } catch (e) { /* sin caché */ }
+  return res;
+}
+function _tokensDeRolSinCache(email) {
   const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
   if (!sh || sh.getLastRow() < 2) return [];
   const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues();
@@ -297,7 +306,8 @@ function manejarLecturaBodeguero(p) {
     if (!_tienePermisoParaModulo(email, 'bodeguero')) {
       return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para esta función.' + _diagnosticoRoles(email) });
     }
-    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let _ss = null;
+    const ss = { getSheetByName: (n) => (_ss || (_ss = SpreadsheetApp.openById(SHEET_ID))).getSheetByName(n) };
 
     if (p.accion === 'sheet_read') {
       const m = (p.range || '').match(/^'([^']+)'!/);
@@ -313,18 +323,25 @@ function manejarLecturaBodeguero(p) {
       // escribir al menos 2 caracteres y se devuelven como máximo 15 equipos.
       const clave = (v) => String(v == null ? '' : v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
       const q = clave(p.q);
-      if (q.length < 2) return _jsonOut({ success: true, equipos: [] });
-      const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() : []; };
-      const txt = (v) => (v == null ? '' : String(v)).trim();
-      const cand = [];
-      leer('MAQUINARIA').forEach(r => {
-        if (!txt(r[1]) || txt(r[1]).toUpperCase() === 'EQUIPO' || !txt(r[4])) return;
-        cand.push({ grupo: 'Flota', ident: txt(r[4]), desc: [r[1], r[2], r[3]].map(txt).filter(Boolean).join(' '), uso: 'km' });
-      });
-      leer('GENERADORES').forEach(r => {
-        if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
-        cand.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
-      });
+      // Índice mínimo (patente/código + nombre) en caché 10 min: así cada búsqueda
+      // no vuelve a leer la planilla. Un equipo nuevo aparece como máximo en 10 min.
+      let cand = null;
+      try { const hit = CacheService.getScriptCache().get('comb_idx_v1'); if (hit) cand = JSON.parse(hit); } catch (e) { cand = null; }
+      if (!cand) {
+        const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() : []; };
+        const txt = (v) => (v == null ? '' : String(v)).trim();
+        cand = [];
+        leer('MAQUINARIA').forEach(r => {
+          if (!txt(r[1]) || txt(r[1]).toUpperCase() === 'EQUIPO' || !txt(r[4])) return;
+          cand.push({ grupo: 'Flota', ident: txt(r[4]), desc: [r[1], r[2], r[3]].map(txt).filter(Boolean).join(' '), uso: 'km' });
+        });
+        leer('GENERADORES').forEach(r => {
+          if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
+          cand.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
+        });
+        try { CacheService.getScriptCache().put('comb_idx_v1', JSON.stringify(cand), 600); } catch (e) { /* >100 KB: sin caché */ }
+      }
+      if (q.length < 2) return _jsonOut({ success: true, equipos: [] });   // (calienta la caché y no devuelve nada)
       const out = [];
       cand.forEach(c => {
         const ci = clave(c.ident), cd = clave(c.desc);
