@@ -2086,3 +2086,11 @@ body.is-offline #app { padding-top: 30px; }
   #mod-combustible .fab-btn { position: fixed; bottom: 28px; right: 28px; z-index: 90; }
   #mod-combustible .comb-wrap { overflow-y: auto; }
 }
+
+.comb-res { margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.comb-res-t { font-size: 11.5px; color: #888; padding: 8px 12px 4px; text-transform: uppercase; letter-spacing: .4px; }
+.comb-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid #f0f0f0; cursor: pointer; }
+.comb-opt:active { background: var(--accent-soft, #fef3c7); }
+.comb-opt b { font-size: 15px; }
+.comb-opt-nuevo { color: var(--accent-dark, #92400e); font-weight: 600; justify-content: center; }
+#comb-eq-q.comb-elegido { border-color: var(--accent, #d97706); background: var(--accent-soft, #fef3c7); font-weight: 600; }

@@ -320,10 +320,6 @@ function manejarLecturaBodeguero(p) {
         if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
         out.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
       });
-      leer('MAQUINARIA MENOR').forEach(r => {
-        if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
-        out.push({ grupo: 'Maquinaria menor', ident: txt(r[10]) || ('MM-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
-      });
       return _jsonOut({ success: true, equipos: out });
     }
     return _jsonOut({ success: false, error: 'Acción desconocida' });

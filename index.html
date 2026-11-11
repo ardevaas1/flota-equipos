@@ -1730,7 +1730,16 @@
     <div class="panel-body">
       <div class="form-group"><label>Fecha</label><input type="date" id="comb-fecha"></div>
       <div class="form-group"><label>Obra</label><input type="text" id="comb-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"><datalist id="comb-obras-lista"></datalist></div>
-      <div class="form-group"><label>Equipo</label><select id="comb-equipo" onchange="combEquipoCambio()"></select></div>
+      <div class="form-group"><label>Equipo</label>
+        <input type="text" id="comb-eq-q" autocomplete="off" placeholder="Busca por patente o código (ej. KXYZ12, GEN-02)" oninput="combEquipoEscribe()" onfocus="combFiltrarEquipos()">
+        <input type="hidden" id="comb-equipo">
+        <div class="chips" style="margin:8px 0 0;flex-wrap:wrap">
+          <button type="button" class="chip active" id="comb-g-todos" onclick="combSetGrupo('')">Todos</button>
+          <button type="button" class="chip" id="comb-g-Flota" onclick="combSetGrupo('Flota')">Flota</button>
+          <button type="button" class="chip" id="comb-g-Generadores" onclick="combSetGrupo('Generadores')">Generadores</button>
+          <button type="button" class="chip" id="comb-g-Otrasempresas" onclick="combSetGrupo('Otras empresas')">Otras empresas</button>
+        </div>
+        <div id="comb-eq-res" class="comb-res" style="display:none"></div></div>
       <div class="form-group"><label>Litros</label><input type="text" inputmode="decimal" id="comb-litros" placeholder="Ej: 45,5"></div>
       <div class="form-group"><label id="comb-km-label">Km u horas del equipo (opcional)</label><input type="text" inputmode="decimal" id="comb-km" placeholder="Ej: 45350"></div>
       <div class="form-group"><label>Quién recibió</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>

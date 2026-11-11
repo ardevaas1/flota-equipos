@@ -80,7 +80,7 @@ function _combObras() {
 }
 
 // ── Equipos que se pueden elegir al cargar ──────────────────────
-function _combEquiposPropios() { return _combEquiposCache; }
+function _combEquiposPropios() { return _combEquiposCache.filter(e => e.grupo === 'Flota' || e.grupo === 'Generadores'); }
 
 // ── Pantalla principal ──────────────────────────────────────────
 function combSetVista(v) {
@@ -172,20 +172,70 @@ function _combHtmlExternos() {
 }
 
 // ── Registrar carga ─────────────────────────────────────────────
-function _combPoblarEquipos(valorSel) {
-  const sel = document.getElementById('comb-equipo');
-  const propios = _combEquiposPropios(), grupos = {};
-  propios.forEach(p => { (grupos[p.grupo] = grupos[p.grupo] || []).push(p); });
-  let html = '<option value="">Elige el equipo…</option>';
-  Object.entries(grupos).forEach(([g, arr]) => {
-    html += `<optgroup label="${_combEsc(g)}">` + arr.sort((a, b) => a.ident.localeCompare(b.ident, 'es', { numeric: true })).map(p => `<option value="P|${_combEsc(p.ident)}">${_combEsc(p.ident)} — ${_combEsc(p.desc)}</option>`).join('') + '</optgroup>';
-  });
-  const ext = allEqExternos.filter(e => e.estado !== 'RETIRADO');
-  if (ext.length) html += '<optgroup label="Otras empresas">' + ext.map(e => `<option value="X|${e.rowIndex}">${_combEsc(e.ident)} — ${_combEsc(e.empresa)} (${_combEsc(e.tipo)})</option>`).join('') + '</optgroup>';
-  html += '<option value="NUEVO">＋ Equipo de otra empresa (nuevo)…</option>';
-  sel.innerHTML = html;
-  if (valorSel) sel.value = valorSel;
+// ── Buscador de equipo (por patente / código / nombre) ──────────
+let _combGrupoFiltro = '';   // '' | 'Flota' | 'Generadores' | 'Otras empresas'
+const _combNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const _combClave = (s) => _combNorm(s).replace(/[^a-z0-9]/g, '');   // "KXYZ-12" y "kxyz 12" → "kxyz12"
+
+function _combTodosLosEquipos() {
+  const out = _combEquiposPropios().map(p => ({ v: 'P|' + p.ident, ident: p.ident, desc: p.desc, grupo: p.grupo }));
+  allEqExternos.filter(e => e.estado !== 'RETIRADO').forEach(e => out.push({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' }));
+  return out;
 }
+function _combRecientes() {
+  const vistos = new Set(), out = [];
+  [...allCombObra].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex).forEach(c => {
+    const k = c.origen + '|' + c.ident.toUpperCase();
+    if (vistos.has(k) || out.length >= 6) return;
+    vistos.add(k); out.push(c);
+  });
+  const todos = _combTodosLosEquipos();
+  return out.map(c => todos.find(t => t.ident.toUpperCase() === c.ident.toUpperCase() && (c.origen === 'EXTERNO') === (t.grupo === 'Otras empresas'))).filter(Boolean);
+}
+function combSetGrupo(g) {
+  _combGrupoFiltro = g;
+  ['', 'Flota', 'Generadores', 'Otras empresas'].forEach(k => { const b = document.getElementById('comb-g-' + (k || 'todos').replace(' ', '')); if (b) b.classList.toggle('active', k === g); });
+  combFiltrarEquipos();
+}
+function combFiltrarEquipos() {
+  const q = _combClave(document.getElementById('comb-eq-q').value);
+  const res = document.getElementById('comb-eq-res');
+  let lista = _combTodosLosEquipos().filter(e => !_combGrupoFiltro || e.grupo === _combGrupoFiltro);
+  let titulo = '';
+  if (q) {
+    lista = lista.map(e => {
+      const ci = _combClave(e.ident), cd = _combClave(e.desc);
+      const pts = ci === q ? 0 : ci.startsWith(q) ? 1 : ci.includes(q) ? 2 : cd.includes(q) ? 3 : 9;
+      return { e, pts };
+    }).filter(x => x.pts < 9).sort((a, b) => a.pts - b.pts || a.e.ident.localeCompare(b.e.ident, 'es', { numeric: true })).map(x => x.e);
+    titulo = `${lista.length} resultado${lista.length === 1 ? '' : 's'}`;
+  } else {
+    const rec = _combRecientes().filter(e => !_combGrupoFiltro || e.grupo === _combGrupoFiltro);
+    lista = rec.length ? rec : lista.sort((a, b) => a.ident.localeCompare(b.ident, 'es', { numeric: true }));
+    titulo = rec.length ? 'Últimos equipos cargados' : 'Escribe la patente o el código para buscar';
+  }
+  const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b><div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div></div><span class="badge ${e.grupo === 'Otras empresas' ? 'amber' : e.grupo === 'Generadores' ? 'gray' : 'blue'}">${_combEsc(e.grupo)}</span></div>`;
+  res.innerHTML = `<div class="comb-res-t">${titulo}</div>` + (lista.length ? lista.slice(0, 40).map(fila).join('') : '<div class="comb-m" style="padding:10px 4px">Sin resultados. Si es de otra empresa, agrégalo con el botón de abajo.</div>')
+    + `<div class="comb-opt comb-opt-nuevo" onclick="combEquipoNuevoExterno()">＋ Equipo de otra empresa (nuevo)</div>`;
+  res.style.display = 'block';
+}
+function combElegirEquipo(v) {
+  const e = _combTodosLosEquipos().find(x => x.v === v);
+  document.getElementById('comb-equipo').value = v;
+  document.getElementById('comb-eq-q').value = e ? `${e.ident} — ${e.desc}` : '';
+  document.getElementById('comb-eq-res').style.display = 'none';
+  document.getElementById('comb-eq-q').classList.add('comb-elegido');
+  const p = v.startsWith('P|') ? _combEquiposPropios().find(x => x.ident === v.slice(2)) : null;
+  document.getElementById('comb-km-label').textContent = p ? (p.uso === 'horas' ? 'Horas actuales (opcional)' : 'Km actual (opcional)') : 'Km u horas del equipo (opcional)';
+}
+function combEquipoEscribe() {
+  // Si el usuario edita el texto, se anula la selección anterior
+  document.getElementById('comb-equipo').value = '';
+  document.getElementById('comb-eq-q').classList.remove('comb-elegido');
+  combFiltrarEquipos();
+}
+function combEquipoNuevoExterno() { document.getElementById('comb-eq-res').style.display = 'none'; combAbrirExterno(null, true); }
+
 function _combPoblarListas() {
   const dl = document.getElementById('comb-obras-lista'); if (dl) dl.innerHTML = _combObras().map(o => `<option value="${_combEsc(o)}"></option>`).join('');
   const nombres = {}; allCombObra.forEach(c => { const n = (c.recibio || '').trim(); if (n) nombres[n.toLowerCase()] = nombres[n.toLowerCase()] || n; });
@@ -193,20 +243,19 @@ function _combPoblarListas() {
 }
 function combAbrirNueva() {
   if (_combSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
-  _combPoblarEquipos(); _combPoblarListas();
+  _combPoblarListas();
+  _combGrupoFiltro = '';
+  document.getElementById('comb-equipo').value = '';
+  document.getElementById('comb-eq-q').value = '';
+  document.getElementById('comb-eq-q').classList.remove('comb-elegido');
+  document.getElementById('comb-eq-res').style.display = 'none';
+  ['todos', 'Flota', 'Generadores', 'Otrasempresas'].forEach(k => { const b = document.getElementById('comb-g-' + k); if (b) b.classList.toggle('active', k === 'todos'); });
   document.getElementById('comb-fecha').value = _combHoyISO();
   document.getElementById('comb-obra').value = _combObraFiltro || (localStorage.getItem('comb_ultima_obra') || COMB_OBRAS_BASE[0]);
   ['comb-litros', 'comb-km', 'comb-recibio', 'comb-obs'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('comb-km-label').textContent = 'Km u horas del equipo (opcional)';
   openPanel('panel-comb-form');
 }
-function combEquipoCambio() {
-  const v = document.getElementById('comb-equipo').value;
-  if (v === 'NUEVO') { document.getElementById('comb-equipo').value = ''; combAbrirExterno(null, true); return; }
-  const p = v.startsWith('P|') ? _combEquiposPropios().find(x => x.ident === v.slice(2)) : null;
-  document.getElementById('comb-km-label').textContent = p ? (p.uso === 'horas' ? 'Horas actuales (opcional)' : 'Km actual (opcional)') : 'Km u horas del equipo (opcional)';
-}
-
 async function combGuardar() {
   const fecha = document.getElementById('comb-fecha').value;
   const obra = document.getElementById('comb-obra').value.trim().toUpperCase();
@@ -278,8 +327,8 @@ async function combGuardarExterno() {
     closePanel('panel-comb-ext');
     await loadEqExternos(); combRender();
     if (document.getElementById('panel-comb-form') && !document.getElementById('panel-comb-form').classList.contains('hidden')) {
-      _combPoblarEquipos(); const nuevo = allEqExternos.find(x => x.ident === ident && x.empresa === empresa);
-      if (nuevo) document.getElementById('comb-equipo').value = 'X|' + nuevo.rowIndex;
+      const nuevo = allEqExternos.find(x => x.ident === ident && x.empresa === empresa);
+      if (nuevo) combElegirEquipo('X|' + nuevo.rowIndex);
     }
   } catch (e) { toast('Error: ' + e.message, 'error'); }
   finally { if (btn) btnEstado(btn, 'reset'); }
