@@ -309,7 +309,7 @@ function manejarLecturaBodeguero(p) {
     }
 
     if (p.accion === 'comb_equipos') {
-      const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(sh.getLastColumn(), 25)).getDisplayValues() : []; };
+      const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() : []; };
       const out = [];
       const txt = (v) => (v == null ? '' : String(v)).trim();
       leer('MAQUINARIA').forEach(r => {
