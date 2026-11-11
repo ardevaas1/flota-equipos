@@ -225,6 +225,9 @@ function combElegirEquipo(v) {
   document.getElementById('comb-eq-q').value = e ? `${e.ident} — ${e.desc}` : '';
   document.getElementById('comb-eq-res').style.display = 'none';
   document.getElementById('comb-eq-q').classList.add('comb-elegido');
+  document.getElementById('comb-eq-q').classList.remove('input-error');
+  const er = document.getElementById('comb-eq-q').closest('.form-group').querySelector('.comb-err'); if (er) er.remove();
+  combResumen();
   const p = v.startsWith('P|') ? _combEquiposPropios().find(x => x.ident === v.slice(2)) : null;
   document.getElementById('comb-km-label').textContent = p ? (p.uso === 'horas' ? 'Horas actuales (opcional)' : 'Km actual (opcional)') : 'Km u horas del equipo (opcional)';
 }
@@ -232,7 +235,7 @@ function combEquipoEscribe() {
   // Si el usuario edita el texto, se anula la selección anterior
   document.getElementById('comb-equipo').value = '';
   document.getElementById('comb-eq-q').classList.remove('comb-elegido');
-  combFiltrarEquipos();
+  combFiltrarEquipos(); combResumen();
 }
 function combEquipoNuevoExterno() { document.getElementById('comb-eq-res').style.display = 'none'; combAbrirExterno(null, true); }
 
@@ -254,9 +257,39 @@ function combAbrirNueva() {
   document.getElementById('comb-obra').value = _combObraFiltro || (localStorage.getItem('comb_ultima_obra') || COMB_OBRAS_BASE[0]);
   ['comb-litros', 'comb-km', 'comb-recibio', 'comb-obs'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('comb-km-label').textContent = 'Km u horas del equipo (opcional)';
+  _combLimpiarErrores('panel-comb-form'); combResumen();
   openPanel('panel-comb-form');
 }
+// Resumen en vivo (para revisar antes de guardar y evitar errores)
+function _combEquipoElegido() {
+  const v = document.getElementById('comb-equipo').value;
+  if (!v) return null;
+  return _combTodosLosEquipos().find(x => x.v === v) || null;
+}
+function combResumen() {
+  const el = document.getElementById('comb-resumen'); if (!el) return;
+  const eq = _combEquipoElegido();
+  const litros = _parseNumeroSheet(document.getElementById('comb-litros').value);
+  const obra = document.getElementById('comb-obra').value.trim().toUpperCase();
+  if (!eq && !(litros > 0)) { el.innerHTML = 'Completa los datos para ver el resumen'; return; }
+  el.innerHTML = `Vas a registrar <b>${litros > 0 ? _combNum(litros) + ' L' : '… L'}</b> para <b>${eq ? _combEsc(eq.ident) : 'el equipo…'}</b>${eq ? ' (' + _combEsc(eq.desc) + ')' : ''} en <b>${_combEsc(obra || '…')}</b>.`;
+}
+function _combErr(id, msg) {
+  const el = document.getElementById(id); if (!el) return;
+  el.classList.add('input-error');
+  const wrap = el.closest('.form-group') || el.parentNode;
+  let m = wrap.querySelector('.comb-err');
+  if (!m) { m = document.createElement('div'); m.className = 'comb-err'; wrap.appendChild(m); }
+  m.textContent = msg;
+  try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); } catch (e) { /* sin foco */ }
+}
+function _combLimpiarErrores(panelId) {
+  document.querySelectorAll(`#${panelId} .input-error`).forEach(e => e.classList.remove('input-error'));
+  document.querySelectorAll(`#${panelId} .comb-err`).forEach(e => e.remove());
+}
+
 async function combGuardar() {
+  _combLimpiarErrores('panel-comb-form');
   const fecha = document.getElementById('comb-fecha').value;
   const obra = document.getElementById('comb-obra').value.trim().toUpperCase();
   const eq = document.getElementById('comb-equipo').value;
@@ -264,27 +297,42 @@ async function combGuardar() {
   const km = document.getElementById('comb-km').value.trim();
   const recibio = document.getElementById('comb-recibio').value.trim();
   const obs = document.getElementById('comb-obs').value.trim();
-  if (!fecha) { toast('La fecha es obligatoria', 'error'); return; }
-  if (!obra) { toast('Indica la obra', 'error'); return; }
-  if (!eq) { toast('Elige el equipo', 'error'); return; }
-  if (isNaN(litros) || litros <= 0) { toast('Completa los litros', 'error'); return; }
-  if (!recibio) { toast('Indica quién recibió el combustible', 'error'); return; }
+  // Se revisan todos los campos y se marcan los que faltan (no solo el primero)
+  let primero = null;
+  const falla = (id, msg) => { if (!primero) primero = id; _combErr(id, msg); };
+  if (!recibio) falla('comb-recibio', 'Indica quién recibió el combustible');
+  if (isNaN(litros) || litros <= 0) falla('comb-litros', 'Ingresa los litros (mayor que 0)');
+  if (!eq) falla('comb-eq-q', 'Elige un equipo de la lista');
+  if (!obra) falla('comb-obra', 'Indica la obra');
+  if (!fecha) falla('comb-fecha', 'La fecha es obligatoria');
+  if (primero) { document.getElementById(primero).focus(); return; }
+
   let origen = 'PROPIO', ident = '', desc = '', empresa = '';
   if (eq.startsWith('P|')) { const p = _combEquiposPropios().find(x => x.ident === eq.slice(2)); ident = eq.slice(2); desc = p ? p.desc : ''; }
   else { const e = allEqExternos.find(x => String(x.rowIndex) === eq.slice(2)); if (!e) { toast('No se encontró el equipo externo', 'error'); return; } origen = 'EXTERNO'; ident = e.ident; desc = [e.tipo, e.desc].filter(Boolean).join(' '); empresa = e.empresa; }
-  const btn = document.querySelector('#panel-comb-form .pnl-action');
-  if (btn) btnEstado(btn, 'cargando');
+
+  // Advertencias para evitar errores de tipeo
+  const previas = allCombObra.filter(c => c.origen === origen && c.ident.toUpperCase() === ident.toUpperCase() && (c.empresa || '').toUpperCase() === empresa.toUpperCase());
+  if (litros > 400 && !confirm(`${_combNum(litros)} litros es mucho para una sola carga. ¿Está bien?`)) { document.getElementById('comb-litros').focus(); return; }
+  const dup = previas.find(c => c.fecha === fecha && c.litros === litros && c.obra.toUpperCase() === obra);
+  if (dup && !confirm(`Ya hay una carga de ${_combNum(litros)} L para ${ident} en ${obra} ese mismo día. ¿Registrar otra igual?`)) return;
+  const kmNum = _parseNumeroSheet(km);
+  if (!isNaN(kmNum)) {
+    const ult = previas.filter(c => !isNaN(_parseNumeroSheet(c.km)) && c.fecha <= fecha).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex)[0];
+    if (ult && kmNum < _parseNumeroSheet(ult.km) && !confirm(`El valor ingresado (${km}) es MENOR que el de la última carga de ${ident} (${ult.km}). ¿Está bien?`)) { document.getElementById('comb-km').focus(); return; }
+  }
+  const btns = document.querySelectorAll('#panel-comb-form .pnl-action, #panel-comb-form .comb-guardar');
+  btns.forEach(b => btnEstado(b, 'cargando'));
   try {
     const ahora = new Date();
     const hora = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
     await appendSheet(`'COMB-OBRA'!A:M`, [['CO-' + Date.now(), _bitFechaParaGuardar(fecha), obra, origen, (/^\d+$/.test(ident) ? "'" + ident : ident), desc, empresa, litros, km, recibio, obs, (typeof userEmail !== 'undefined' ? userEmail : ''), hora]]);
     try { localStorage.setItem('comb_ultima_obra', obra); } catch (e) { /* sin storage */ }
-    toast(`✓ ${_combNum(litros)} L registrados`);
-    if (btn) btnEstado(btn, 'ok');
+    toast(`✓ ${_combNum(litros)} L registrados en ${ident}`);
     closePanel('panel-comb-form');
     await loadCombObra(); combRender();
   } catch (e) { toast('Error: ' + e.message, 'error'); }
-  finally { if (btn) btnEstado(btn, 'reset'); }
+  finally { btns.forEach(b => btnEstado(b, 'reset')); }
 }
 
 // ── Equipos de otras empresas ───────────────────────────────────
@@ -313,17 +361,20 @@ async function combGuardarExterno() {
   const desc = document.getElementById('comb-ext-desc').value.trim();
   const obra = document.getElementById('comb-ext-obra').value.trim().toUpperCase();
   const estado = document.getElementById('comb-ext-retirado').checked ? 'RETIRADO' : 'ACTIVO';
-  if (!empresa) { toast('Indica la empresa dueña del equipo', 'error'); return; }
-  if (!ident) { toast('Indica la patente o identificación', 'error'); return; }
-  if (!_combEditExt && allEqExternos.some(x => x.ident.toUpperCase() === ident && x.empresa.toUpperCase() === empresa.toUpperCase())) { toast('Ese equipo ya está registrado para esa empresa', 'error'); return; }
-  const btn = document.querySelector('#panel-comb-ext .pnl-action');
-  if (btn) btnEstado(btn, 'cargando');
+  _combLimpiarErrores('panel-comb-ext');
+  let primero = null;
+  const falla = (id, msg) => { if (!primero) primero = id; _combErr(id, msg); };
+  if (!ident) falla('comb-ext-ident', 'Indica la patente o identificación');
+  else if (!_combEditExt && allEqExternos.some(x => x.ident.toUpperCase() === ident && x.empresa.toUpperCase() === empresa.toUpperCase())) falla('comb-ext-ident', 'Ese equipo ya está registrado para esa empresa');
+  if (!empresa) falla('comb-ext-empresa', 'Indica la empresa dueña del equipo');
+  if (primero) { document.getElementById(primero).focus(); return; }
+  const btns = document.querySelectorAll('#panel-comb-ext .pnl-action, #panel-comb-ext .comb-guardar');
+  btns.forEach(b => btnEstado(b, 'cargando'));
   try {
     const fila = [_combEditExt ? (allEqExternos.find(x => x.rowIndex === _combEditExt) || {}).id : 'EX-' + Date.now(), empresa, tipo, (/^\d+$/.test(ident) ? "'" + ident : ident), desc, obra, estado, (typeof userEmail !== 'undefined' ? userEmail : '')];
     if (_combEditExt) await writeSheet(`'EQUIPOS-EXTERNOS'!A${_combEditExt}:H${_combEditExt}`, [fila]);
     else await appendSheet(`'EQUIPOS-EXTERNOS'!A:H`, [fila]);
     toast('✓ Equipo guardado');
-    if (btn) btnEstado(btn, 'ok');
     closePanel('panel-comb-ext');
     await loadEqExternos(); combRender();
     if (document.getElementById('panel-comb-form') && !document.getElementById('panel-comb-form').classList.contains('hidden')) {
@@ -331,5 +382,5 @@ async function combGuardarExterno() {
       if (nuevo) combElegirEquipo('X|' + nuevo.rowIndex);
     }
   } catch (e) { toast('Error: ' + e.message, 'error'); }
-  finally { if (btn) btnEstado(btn, 'reset'); }
+  finally { btns.forEach(b => btnEstado(b, 'reset')); }
 }

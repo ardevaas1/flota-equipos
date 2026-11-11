@@ -1721,47 +1721,64 @@
   </div>
 
   <!-- ── Panel: registrar carga de combustible en obra ── -->
-  <div id="panel-comb-form" class="panel hidden">
+  <div id="panel-comb-form" class="panel hidden comb-panel" onclick="if(event.target===this)closePanel('panel-comb-form')">
+   <div class="comb-modal">
     <div class="panel-bar">
       <button class="pnl-back" onclick="closePanel('panel-comb-form')">‹ Cancelar</button>
       <span class="pnl-title">Cargar combustible</span>
       <button class="pnl-action" onclick="combGuardar()">Guardar</button>
     </div>
     <div class="panel-body">
-      <div class="form-group"><label>Fecha</label><input type="date" id="comb-fecha"></div>
-      <div class="form-group"><label>Obra</label><input type="text" id="comb-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"><datalist id="comb-obras-lista"></datalist></div>
-      <div class="form-group"><label>Equipo</label>
-        <input type="text" id="comb-eq-q" autocomplete="off" placeholder="Busca por patente o código (ej. KXYZ12, GEN-02)" oninput="combEquipoEscribe()" onfocus="combFiltrarEquipos()">
-        <input type="hidden" id="comb-equipo">
-        <div class="chips" style="margin:8px 0 0;flex-wrap:wrap">
-          <button type="button" class="chip active" id="comb-g-todos" onclick="combSetGrupo('')">Todos</button>
-          <button type="button" class="chip" id="comb-g-Flota" onclick="combSetGrupo('Flota')">Flota</button>
-          <button type="button" class="chip" id="comb-g-Generadores" onclick="combSetGrupo('Generadores')">Generadores</button>
-          <button type="button" class="chip" id="comb-g-Otrasempresas" onclick="combSetGrupo('Otras empresas')">Otras empresas</button>
+      <div class="comb-grid">
+        <div class="form-group"><label>Fecha</label><input type="date" id="comb-fecha"></div>
+        <div class="form-group"><label>Obra</label><input type="text" id="comb-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS" oninput="combResumen()"><datalist id="comb-obras-lista"></datalist></div>
+
+        <div class="form-group comb-full"><label>Equipo</label>
+          <input type="text" id="comb-eq-q" autocomplete="off" placeholder="Busca por patente o código (ej. KXYZ12, GEN-02)" oninput="combEquipoEscribe()" onfocus="combFiltrarEquipos()">
+          <input type="hidden" id="comb-equipo">
+          <div class="chips" style="margin:8px 0 0;flex-wrap:wrap">
+            <button type="button" class="chip active" id="comb-g-todos" onclick="combSetGrupo('')">Todos</button>
+            <button type="button" class="chip" id="comb-g-Flota" onclick="combSetGrupo('Flota')">Flota</button>
+            <button type="button" class="chip" id="comb-g-Generadores" onclick="combSetGrupo('Generadores')">Generadores</button>
+            <button type="button" class="chip" id="comb-g-Otrasempresas" onclick="combSetGrupo('Otras empresas')">Otras empresas</button>
+          </div>
+          <div id="comb-eq-res" class="comb-res" style="display:none"></div>
         </div>
-        <div id="comb-eq-res" class="comb-res" style="display:none"></div></div>
-      <div class="form-group"><label>Litros</label><input type="text" inputmode="decimal" id="comb-litros" placeholder="Ej: 45,5"></div>
-      <div class="form-group"><label id="comb-km-label">Km u horas del equipo (opcional)</label><input type="text" inputmode="decimal" id="comb-km" placeholder="Ej: 45350"></div>
-      <div class="form-group"><label>Quién recibió</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>
-      <div class="form-group"><label>Observaciones (opcional)</label><input type="text" id="comb-obs" placeholder="Ej: vale N° 123"></div>
+
+        <div class="form-group"><label>Litros</label>
+          <div class="comb-input-sufijo"><input type="text" inputmode="decimal" id="comb-litros" placeholder="0" oninput="combResumen()"><span>L</span></div></div>
+        <div class="form-group"><label id="comb-km-label">Km u horas del equipo (opcional)</label>
+          <input type="text" inputmode="decimal" id="comb-km" placeholder="Ej: 45350"></div>
+
+        <div class="form-group"><label>Quién recibió</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>
+        <div class="form-group"><label>Observaciones (opcional)</label><input type="text" id="comb-obs" placeholder="Ej: vale N° 123"></div>
+      </div>
+      <div class="comb-resumen" id="comb-resumen">Completa los datos para ver el resumen</div>
+      <button class="comb-guardar" onclick="combGuardar()">Guardar carga</button>
     </div>
+   </div>
   </div>
 
   <!-- ── Panel: equipo de otra empresa ── -->
-  <div id="panel-comb-ext" class="panel hidden">
+  <div id="panel-comb-ext" class="panel hidden comb-panel" onclick="if(event.target===this)closePanel('panel-comb-ext')">
+   <div class="comb-modal">
     <div class="panel-bar">
       <button class="pnl-back" onclick="closePanel('panel-comb-ext')">‹ Cancelar</button>
       <span class="pnl-title" id="comb-ext-titulo">Nuevo equipo externo</span>
       <button class="pnl-action" onclick="combGuardarExterno()">Guardar</button>
     </div>
     <div class="panel-body">
-      <div class="form-group"><label>Empresa dueña</label><input type="text" id="comb-ext-empresa" list="comb-empresas-lista" autocomplete="off" placeholder="Ej: Transportes Pérez"><datalist id="comb-empresas-lista"></datalist></div>
-      <div class="form-group"><label>Tipo de equipo</label><select id="comb-ext-tipo"></select></div>
-      <div class="form-group"><label>Patente o identificación</label><input type="text" id="comb-ext-ident" placeholder="Ej: KXYZ-12" style="text-transform:uppercase"></div>
-      <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="comb-ext-desc" placeholder="Ej: Camión tolva 12 m³"></div>
-      <div class="form-group"><label>Obra habitual (opcional)</label><input type="text" id="comb-ext-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"></div>
+      <div class="comb-grid">
+        <div class="form-group comb-full"><label>Empresa dueña</label><input type="text" id="comb-ext-empresa" list="comb-empresas-lista" autocomplete="off" placeholder="Ej: Transportes Pérez"><datalist id="comb-empresas-lista"></datalist></div>
+        <div class="form-group"><label>Tipo de equipo</label><select id="comb-ext-tipo"></select></div>
+        <div class="form-group"><label>Patente o identificación</label><input type="text" id="comb-ext-ident" placeholder="Ej: KXYZ-12" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="comb-ext-desc" placeholder="Ej: Camión tolva 12 m³"></div>
+        <div class="form-group"><label>Obra habitual (opcional)</label><input type="text" id="comb-ext-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS"></div>
+      </div>
       <label class="checklist-1000h-item" id="comb-ext-retirado-wrap" style="margin-top:6px"><input type="checkbox" id="comb-ext-retirado"><span>Ya se retiró de la obra</span></label>
+      <button class="comb-guardar" onclick="combGuardarExterno()">Guardar equipo</button>
     </div>
+   </div>
   </div>
 
   <!-- ══ MÓDULO ARRIENDOS (equipos de terceros arrendados para una obra) ══ -->
