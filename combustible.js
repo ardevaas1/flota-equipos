@@ -187,7 +187,6 @@ function _combHtmlExternos() {
 
 // ── Registrar carga ─────────────────────────────────────────────
 // ── Buscador de equipo (por patente / código / nombre) ──────────
-let _combGrupoFiltro = '';   // '' | 'Flota' | 'Generadores' | 'Otras empresas'
 const _combNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const _combClave = (s) => _combNorm(s).replace(/[^a-z0-9]/g, '');   // "KXYZ-12" y "kxyz 12" → "kxyz12"
 
@@ -213,11 +212,6 @@ function _combRecientes() {
   });
   return out;
 }
-function combSetGrupo(g) {
-  _combGrupoFiltro = g;
-  ['', 'Flota', 'Generadores', 'Otras empresas'].forEach(k => { const b = document.getElementById('comb-g-' + (k || 'todos').replace(' ', '')); if (b) b.classList.toggle('active', k === g); });
-  combFiltrarEquipos();
-}
 let _combTimer = null, _combSeq = 0;
 function combFiltrarEquipos() {
   clearTimeout(_combTimer);
@@ -230,7 +224,7 @@ function combFiltrarEquipos() {
   const pinta = (titulo, lista, vacio) => {
     res.innerHTML = `<div class="comb-res-t">${titulo}</div>` + (lista.length ? lista.map(fila).join('') : `<div class="comb-m" style="padding:10px 12px">${vacio || ''}</div>`) + nuevo;
   };
-  const grupoOk = (e) => !_combGrupoFiltro || e.grupo === _combGrupoFiltro;
+  const grupoOk = () => true;
   if (q.length < 2) {
     const rec = _combRecientes().filter(grupoOk);
     pinta(rec.length ? 'Últimos equipos cargados' : 'Escribe al menos 2 letras o números de la patente o código', rec,
@@ -238,9 +232,9 @@ function combFiltrarEquipos() {
     return;
   }
   // Externos: búsqueda local (los registra el propio bodeguero)
-  const ext = _combGrupoFiltro && _combGrupoFiltro !== 'Otras empresas' ? [] : allEqExternos.filter(e => e.estado !== 'RETIRADO' && (_combClave(e.ident).includes(q) || _combClave(e.empresa + e.tipo + e.desc).includes(q)))
+  const ext = allEqExternos.filter(e => e.estado !== 'RETIRADO' && (_combClave(e.ident).includes(q) || _combClave(e.empresa + e.tipo + e.desc).includes(q)))
     .map(e => ({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' }));
-  const soloExt = _combGrupoFiltro === 'Otras empresas';
+  const soloExt = false;
   const seq = ++_combSeq;
   res.innerHTML = `<div class="comb-res-t">Buscando…</div>` + nuevo;
   _combTimer = setTimeout(async () => {
@@ -282,12 +276,10 @@ function _combPoblarListas() {
 function combAbrirNueva() {
   if (_combSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   _combPoblarListas();
-  _combGrupoFiltro = '';
   document.getElementById('comb-equipo').value = '';
   document.getElementById('comb-eq-q').value = '';
   document.getElementById('comb-eq-q').classList.remove('comb-elegido');
   document.getElementById('comb-eq-res').style.display = 'none';
-  ['todos', 'Flota', 'Generadores', 'Otrasempresas'].forEach(k => { const b = document.getElementById('comb-g-' + k); if (b) b.classList.toggle('active', k === 'todos'); });
   document.getElementById('comb-fecha').value = _combHoyISO();
   document.getElementById('comb-obra').value = _combObraFiltro || (localStorage.getItem('comb_ultima_obra') || COMB_OBRAS_BASE[0]);
   ['comb-litros', 'comb-km', 'comb-recibio', 'comb-obs'].forEach(id => { document.getElementById(id).value = ''; });
