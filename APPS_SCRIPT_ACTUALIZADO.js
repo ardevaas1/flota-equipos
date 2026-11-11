@@ -309,18 +309,30 @@ function manejarLecturaBodeguero(p) {
     }
 
     if (p.accion === 'comb_equipos') {
+      // BÚSQUEDA: nunca se entrega el listado completo de la empresa. Hay que
+      // escribir al menos 2 caracteres y se devuelven como máximo 15 equipos.
+      const clave = (v) => String(v == null ? '' : v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const q = clave(p.q);
+      if (q.length < 2) return _jsonOut({ success: true, equipos: [] });
       const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() : []; };
-      const out = [];
       const txt = (v) => (v == null ? '' : String(v)).trim();
+      const cand = [];
       leer('MAQUINARIA').forEach(r => {
         if (!txt(r[1]) || txt(r[1]).toUpperCase() === 'EQUIPO' || !txt(r[4])) return;
-        out.push({ grupo: 'Flota', ident: txt(r[4]), desc: [r[1], r[2], r[3]].map(txt).filter(Boolean).join(' '), uso: txt(r[24]).toUpperCase() === 'HORAS' ? 'horas' : 'km' });
+        cand.push({ grupo: 'Flota', ident: txt(r[4]), desc: [r[1], r[2], r[3]].map(txt).filter(Boolean).join(' '), uso: 'km' });
       });
       leer('GENERADORES').forEach(r => {
         if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
-        out.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
+        cand.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
       });
-      return _jsonOut({ success: true, equipos: out });
+      const out = [];
+      cand.forEach(c => {
+        const ci = clave(c.ident), cd = clave(c.desc);
+        const pts = ci === q ? 0 : ci.indexOf(q) === 0 ? 1 : ci.indexOf(q) > 0 ? 2 : cd.indexOf(q) >= 0 ? 3 : 9;
+        if (pts < 9) { c.pts = pts; out.push(c); }
+      });
+      out.sort((a, b) => a.pts - b.pts || a.ident.localeCompare(b.ident));
+      return _jsonOut({ success: true, equipos: out.slice(0, 15) });
     }
     return _jsonOut({ success: false, error: 'Acción desconocida' });
   } catch (err) {
