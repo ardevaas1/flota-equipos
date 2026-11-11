@@ -44,9 +44,11 @@ async function _combLeer(range) {
 }
 // Obras que puede ver/usar esta persona. null = todas (admin). El control real lo hace el Apps Script.
 let _combObrasPermitidas = null;
+let _combRestrListo = false;
+const _combClaveCache = () => 'comb_obras_' + ((typeof userEmail !== 'undefined' && userEmail) || '');
 async function _combCargarRestriccion() {
-  if (typeof userRole !== 'undefined' && userRole === 'admin') { _combObrasPermitidas = null; return; }
-  try { const d = await _appsScriptCall('mi_rol', {}); _combObrasPermitidas = Array.isArray(d.obras) ? d.obras.map(o => String(o).trim().toUpperCase()).filter(Boolean) : null; }
+  if (typeof userRole !== 'undefined' && userRole === 'admin') { _combObrasPermitidas = null; _combRestrListo = true; return; }
+  try { const d = await _appsScriptCall('mi_rol', {}); _combObrasPermitidas = Array.isArray(d.obras) ? d.obras.map(o => String(o).trim().toUpperCase()).filter(Boolean) : null; _combRestrListo = true; try { localStorage.setItem(_combClaveCache(), JSON.stringify(_combObrasPermitidas)); } catch (e) {} }
   catch (e) { console.warn('[COMB] mi_rol:', e.message); }
 }
 const _combRestringido = () => Array.isArray(_combObrasPermitidas);
@@ -90,6 +92,11 @@ async function loadEqExternos() {
 }
 
 async function combInit() {
+  // Antes de saber la obra, usa la última conocida (guardada) o, si no hay, oculta selector y pestañas para no mostrar de más
+  if (!_combRestrListo && !(typeof userRole !== 'undefined' && userRole === 'admin')) {
+    try { const g = JSON.parse(localStorage.getItem(_combClaveCache())); if (Array.isArray(g)) _combObrasPermitidas = g; } catch (e) {}
+    combRender();
+  }
   await _combCargarRestriccion();
   if (_combRestringido() && _combObrasPermitidas.length) _combObraFiltro = _combObrasPermitidas[0];
   await Promise.all([loadCombObra(), loadEqExternos()]);
@@ -133,6 +140,9 @@ const _combIcono = (ext) => ext
   : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M15 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M8 8h4"/></svg>';
 
 function combRender() {
+  const esperando = !_combRestrListo && !_combRestringido() && !(typeof userRole !== 'undefined' && userRole === 'admin');
+  document.querySelector('#mod-combustible .comb-tabs').style.visibility = esperando ? 'hidden' : '';
+  document.getElementById('comb-obra-sel').style.visibility = esperando ? 'hidden' : '';
   const sel = document.getElementById('comb-obra-sel'), pill = document.getElementById('comb-obra-fija');
   const obras = _combObras();
   const unica = _combRestringido() && obras.length === 1;
