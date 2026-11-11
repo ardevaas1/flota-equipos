@@ -2072,28 +2072,38 @@ body.is-offline #app { padding-top: 30px; }
 .header--comb { background: radial-gradient(ellipse 320px 140px at 30% -40%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(135deg, #92400e 0%, #d97706 55%, #fbbf24 100%); box-shadow: 0 2px 10px rgba(217,119,6,0.25); }
 .modulo-icon--comb { background: linear-gradient(145deg, #fbbf24, #d97706); }
 .comb-wrap { width: 100%; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.comb-card { background: #fff; border-radius: 12px; border: 1px solid var(--line); padding: 11px 14px; }
-.comb-t { font-size: 14.5px; font-weight: 600; word-break: break-word; }
+.comb-scroll { flex: 1; overflow-y: auto; padding: 14px 14px 40px; -webkit-overflow-scrolling: touch; }
+.comb-hero { background: linear-gradient(140deg, #7c2d12 0%, #c2410c 48%, #f59e0b 130%); color: #fff; border-radius: 20px; padding: 16px 18px 14px; box-shadow: 0 10px 26px rgba(194,65,12,.28); }
+.comb-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
+.comb-obra-pill { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35); padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; letter-spacing: .5px; }
+#comb-obra-sel { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 7px 12px; font-weight: 600; font-size: 14px; max-width: 60%; }
+#comb-obra-sel option { color: #222; }
+.comb-hero-fecha { font-size: 12.5px; opacity: .85; text-transform: capitalize; }
+.comb-hero-main { margin: 12px 0 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.comb-hero-main span { font-size: 54px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+.comb-hero-main small { font-size: 14px; opacity: .9; }
+.comb-hero-row { display: flex; gap: 10px; }
+.comb-hero-row > div { flex: 1; background: rgba(255,255,255,.14); border-radius: 12px; padding: 9px 12px; display: flex; flex-direction: column; }
+.comb-hero-row b { font-size: 20px; font-weight: 700; }
+.comb-hero-row span { font-size: 12px; opacity: .85; }
+.comb-nueva { width: 100%; margin: 14px 0 6px; background: #fff; color: #b45309; border: 2px solid #f59e0b; border-radius: 16px; padding: 15px; font-size: 16.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(245,158,11,.2); }
+.comb-nueva:active { background: #fef3c7; }
+.comb-tabs { display: flex; gap: 4px; background: #e9ecf1; padding: 4px; border-radius: 14px; margin: 12px 0 10px; }
+.comb-tab { flex: 1; padding: 9px 4px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #667; background: transparent; white-space: nowrap; }
+.comb-tab.active { background: #fff; color: #b45309; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.comb-dia { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; font-weight: 700; color: #7a8599; margin: 16px 4px 8px; text-transform: uppercase; letter-spacing: .5px; }
+.comb-dia b { color: #b45309; font-size: 13px; }
+.comb-card { background: #fff; border-radius: 14px; border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+.comb-ic { width: 42px; height: 42px; border-radius: 12px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.comb-ic.ext { background: #e0e7ff; color: #4338ca; }
+.comb-body { flex: 1; min-width: 0; }
+.comb-t { font-size: 15px; font-weight: 700; word-break: break-word; }
 .comb-m { font-size: 12.5px; color: #777; margin-top: 3px; word-break: break-word; }
-
-/* Combustible en obra — en desktop ocupa toda la pantalla (como los demás módulos) */
-@media (min-width: 900px) {
-  #mod-combustible {
-    position: fixed; inset: 0; width: 100vw !important; max-width: 100%;
-    overflow: hidden; background: var(--bg); z-index: 5;
-  }
-  #mod-combustible > .header { width: 100%; }
-  #mod-combustible .fab-btn { position: fixed; bottom: 28px; right: 28px; z-index: 90; }
-  #mod-combustible .comb-wrap { overflow-y: auto; }
-}
-
-.comb-res { margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
-.comb-res-t { font-size: 11.5px; color: #888; padding: 8px 12px 4px; text-transform: uppercase; letter-spacing: .4px; }
-.comb-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid #f0f0f0; cursor: pointer; }
-.comb-opt:active { background: var(--accent-soft, #fef3c7); }
-.comb-opt b { font-size: 15px; }
-.comb-opt-nuevo { color: var(--accent-dark, #92400e); font-weight: 600; justify-content: center; }
-#comb-eq-q.comb-elegido { border-color: var(--accent, #d97706); background: var(--accent-soft, #fef3c7); font-weight: 600; }
+.comb-lt { text-align: right; flex-shrink: 0; font-size: 20px; font-weight: 800; color: #111; line-height: 1; }
+.comb-lt small { display: block; font-size: 11px; font-weight: 600; color: #999; margin-top: 3px; }
+.comb-vacio { text-align: center; padding: 38px 16px; color: #9aa3b2; }
+.comb-vacio b { display: block; font-size: 16px; color: #7a8599; margin-bottom: 4px; }
+.comb-aviso { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 14px; padding: 16px; font-size: 14px; line-height: 1.5; }
 
 /* ── Formularios del módulo Combustible ── */
 .comb-modal { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg); }
@@ -2131,3 +2141,15 @@ body.is-offline #app { padding-top: 30px; }
   .comb-res { max-height: 260px; }
 }
 @keyframes combFade { from { opacity: 0; } to { opacity: 1; } }
+
+.comb-fija{background:#f1f5f9 !important;color:#475569;font-weight:700}
+
+/* Combustible en obra — en desktop ocupa toda la pantalla (como los demás módulos) */
+@media (min-width: 900px) {
+  #mod-combustible {
+    position: fixed; inset: 0; width: 100vw !important; max-width: 100%;
+    overflow: hidden; background: var(--bg); z-index: 5;
+  }
+  #mod-combustible > .header { width: 100%; }
+  #mod-combustible .comb-wrap { overflow-y: auto; }
+}

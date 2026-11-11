@@ -1701,23 +1701,32 @@
       <button class="header-btn" onclick="combRecargar()">↻</button>
     </header>
     <div class="comb-wrap">
-      <div class="inv-stats">
-        <div class="inv-stat amber"><div class="inv-stat-n" id="comb-stat-hoy">0</div><div class="inv-stat-l">Litros hoy</div></div>
-        <div class="inv-stat blue"><div class="inv-stat-n" id="comb-stat-mes">0</div><div class="inv-stat-l">Litros del mes</div></div>
-        <div class="inv-stat green"><div class="inv-stat-n" id="comb-stat-n">0</div><div class="inv-stat-l">Cargas hoy</div></div>
+      <div class="comb-scroll">
+        <div class="comb-hero">
+          <div class="comb-hero-top">
+            <div class="comb-obra-pill" id="comb-obra-fija" style="display:none"></div>
+            <select id="comb-obra-sel" onchange="combSetObra(this.value)"></select>
+            <div class="comb-hero-fecha" id="comb-hero-fecha"></div>
+          </div>
+          <div class="comb-hero-main"><span id="comb-stat-hoy">0</span><small>litros entregados hoy</small></div>
+          <div class="comb-hero-row">
+            <div><b id="comb-stat-n">0</b><span>cargas hoy</span></div>
+            <div><b id="comb-stat-mes">0</b><span>litros este mes</span></div>
+          </div>
+        </div>
+        <button class="comb-nueva viewer-hidden" onclick="combAbrirNueva()">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Registrar carga de combustible
+        </button>
+        <div class="comb-tabs" id="comb-tabs">
+          <button class="comb-tab active" id="comb-chip-cargas" onclick="combSetVista('cargas')">Cargas</button>
+          <button class="comb-tab" id="comb-chip-obra" onclick="combSetVista('obra')">Por obra</button>
+          <button class="comb-tab" id="comb-chip-equipo" onclick="combSetVista('equipo')">Por equipo</button>
+          <button class="comb-tab" id="comb-chip-externos" onclick="combSetVista('externos')">Otras empresas</button>
+        </div>
+        <div id="comb-lista" class="comb-lista"></div>
       </div>
-      <div style="padding:8px 14px 0">
-        <select id="comb-obra-sel" onchange="combSetObra(this.value)" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff"></select>
-        <div class="chips-wrap" style="margin:10px 0"><div class="chips">
-          <button class="chip active" id="comb-chip-cargas" onclick="combSetVista('cargas')">Cargas</button>
-          <button class="chip" id="comb-chip-obra" onclick="combSetVista('obra')">Por obra</button>
-          <button class="chip" id="comb-chip-equipo" onclick="combSetVista('equipo')">Por equipo</button>
-          <button class="chip" id="comb-chip-externos" onclick="combSetVista('externos')">Otras empresas</button>
-        </div></div>
-      </div>
-      <div class="pages" style="padding:0 14px 90px"><div id="comb-lista"></div></div>
     </div>
-    <button class="fab-btn viewer-hidden" id="comb-fab" onclick="combAbrirNueva()">+</button>
   </div>
 
   <!-- ── Panel: registrar carga de combustible en obra ── -->

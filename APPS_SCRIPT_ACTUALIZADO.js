@@ -257,6 +257,30 @@ function _tokensDeRolSinCache(email) {
   const ALIAS = { 'bitacora': 'chofer', 'bitácora': 'chofer', 'combustible': 'chofer', 'movimientos': 'mover', 'movimiento': 'mover' };
   return celda.split(',').map(t => t.trim()).filter(Boolean).map(t => ALIAS[t] || t);
 }
+
+// ── OBRAS ASIGNADAS AL BODEGUERO ─────────────────────────────────────────
+// En la hoja USUARIOS, columna C ("OBRA") se anota la obra (o varias separadas
+// por coma) de cada bodeguero. Un bodeguero SOLO puede ver y registrar en esas
+// obras — se controla aquí, del lado del servidor, no en la app.
+// Devuelve null si la persona NO está restringida (admin u otro rol), o la lista
+// de obras permitidas (vacía = tiene rol bodeguero pero no se le asignó ninguna).
+function _restriccionObra(email) {
+  const tokens = _tokensDeRol(email);
+  if (tokens.indexOf('admin') >= 0) return null;
+  if (tokens.indexOf('bodeguero') < 0 && tokens.indexOf('bodeguero-viewer') < 0) return null;
+  const ckey = 'obra_' + email;
+  try { const hit = CacheService.getScriptCache().get(ckey); if (hit !== null) return JSON.parse(hit); } catch (e) { /* sin caché */ }
+  let obras = [];
+  const sh = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_USUARIOS);
+  if (sh && sh.getLastRow() >= 2) {
+    const filas = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+    const fila = filas.find(r => (r[0] || '').toString().toLowerCase().trim() === email);
+    if (fila) obras = (fila[2] || '').toString().split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  }
+  try { CacheService.getScriptCache().put(ckey, JSON.stringify(obras), 60); } catch (e) { /* sin caché */ }
+  return obras;
+}
+
 // Texto de diagnóstico para los mensajes de "sin permiso": dice qué roles
 // leyó realmente el script para ese correo en USUARIOS (y si el correo está
 // repetido, caso en el que solo cuenta la PRIMERA fila encontrada).
@@ -301,7 +325,7 @@ function manejarLecturaBodeguero(p) {
   try {
     const email = _emailVerificadoDesdeToken(p.accessToken);
     if (!email) return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
-    if (p.accion === 'mi_rol') return _jsonOut({ success: true, tokens: _tokensDeRol(email) });
+    if (p.accion === 'mi_rol') return _jsonOut({ success: true, tokens: _tokensDeRol(email), obras: _restriccionObra(email) });
 
     if (!_tienePermisoParaModulo(email, 'bodeguero')) {
       return _jsonOut({ success: false, error: 'Tu cuenta (' + email + ') no tiene permiso para esta función.' + _diagnosticoRoles(email) });
@@ -314,8 +338,18 @@ function manejarLecturaBodeguero(p) {
       const nombre = m ? m[1] : '';
       if (nombre !== 'COMB-OBRA' && nombre !== 'EQUIPOS-EXTERNOS') return _jsonOut({ success: false, error: 'Hoja no permitida: ' + nombre });
       const sh = ss.getSheetByName(nombre);
-      if (!sh || sh.getLastRow() < 2) return _jsonOut({ success: true, values: [] });
-      return _jsonOut({ success: true, values: sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() });
+      if (!sh || sh.getLastRow() < 2) return _jsonOut({ success: true, values: [], rows: [] });
+      const todo = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues();
+      const rest = _restriccionObra(email);
+      if (rest === null) return _jsonOut({ success: true, values: todo, rows: todo.map((_, i) => i + 2) });
+      // Bodeguero: solo las filas de SUS obras (y, en equipos externos, los que no tienen obra asignada).
+      const colObra = nombre === 'COMB-OBRA' ? 2 : 5;
+      const values = [], rows = [];
+      todo.forEach((r, i) => {
+        const o = (r[colObra] || '').toString().trim().toUpperCase();
+        if (rest.indexOf(o) >= 0 || (nombre === 'EQUIPOS-EXTERNOS' && !o)) { values.push(r); rows.push(i + 2); }
+      });
+      return _jsonOut({ success: true, values: values, rows: rows });
     }
 
     if (p.accion === 'comb_equipos') {
@@ -388,6 +422,27 @@ function manejarEscrituraGenerica(p) {
     try { values = JSON.parse(p.values); } catch (e) { return _jsonOut({ success: false, error: 'Valores inválidos' }); }
     if (!Array.isArray(values) || !values.length) {
       return _jsonOut({ success: false, error: 'Sin valores para guardar' });
+    }
+
+    // Bodeguero: solo puede escribir en SUS obras (se valida aquí, no en la app)
+    if (sheetName === 'COMB-OBRA' || sheetName === 'EQUIPOS-EXTERNOS') {
+      const rest = _restriccionObra(email);
+      if (rest !== null) {
+        if (!rest.length) return _jsonOut({ success: false, error: 'Tu usuario no tiene una obra asignada. Pide al administrador que la anote en USUARIOS, columna C.' });
+        const iObra = sheetName === 'COMB-OBRA' ? 2 : 5;
+        for (let i = 0; i < values.length; i++) {
+          let o = (values[i][iObra] || '').toString().trim().toUpperCase();
+          if (!o && sheetName === 'EQUIPOS-EXTERNOS') { o = rest[0]; values[i][iObra] = o; }
+          if (rest.indexOf(o) < 0) return _jsonOut({ success: false, error: 'No tienes permiso para registrar en la obra "' + o + '".' });
+        }
+        if (p.accion === 'sheet_write') {
+          // Editar un equipo externo: la fila existente tiene que ser de su obra (o no tener obra)
+          const fila = parseInt((celda.match(/\d+/) || ['0'])[0], 10);
+          if (fila < 2 || fila > sh.getLastRow()) return _jsonOut({ success: false, error: 'Fila inválida' });
+          const actual = (sh.getRange(fila, iObra + 1).getDisplayValue() || '').toString().trim().toUpperCase();
+          if (actual && rest.indexOf(actual) < 0) return _jsonOut({ success: false, error: 'Ese registro es de otra obra.' });
+        }
+      }
     }
 
     if (p.accion === 'sheet_write') {

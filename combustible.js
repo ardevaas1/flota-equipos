@@ -38,9 +38,18 @@ const _combHoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${S
 // Todo se lee a través del Apps Script (el bodeguero no necesita acceso al Sheet)
 async function _combLeer(range) {
   const d = await _appsScriptCall('sheet_read', { range });
-  return d.values || [];
+  const values = d.values || [];
+  const rows = d.rows || values.map((_, i) => i + 2);   // fila REAL en la hoja (el script puede devolver solo las filas de tu obra)
+  return values.map((r, i) => ({ r, rowIndex: rows[i] }));
 }
-// Equipos propios vistos en las búsquedas (el servidor NUNCA entrega el listado completo)
+// Obras que puede ver/usar esta persona. null = todas (admin). El control real lo hace el Apps Script.
+let _combObrasPermitidas = null;
+async function _combCargarRestriccion() {
+  if (typeof userRole !== 'undefined' && userRole === 'admin') { _combObrasPermitidas = null; return; }
+  try { const d = await _appsScriptCall('mi_rol', {}); _combObrasPermitidas = Array.isArray(d.obras) ? d.obras.map(o => String(o).trim().toUpperCase()).filter(Boolean) : null; }
+  catch (e) { console.warn('[COMB] mi_rol:', e.message); }
+}
+const _combRestringido = () => Array.isArray(_combObrasPermitidas);
 let _combEquiposCache = [];
 const _combBusquedas = {};
 let _combUltQ = '', _combUltLista = null;
@@ -63,7 +72,7 @@ async function _combBuscarPropios(q) {
 async function loadCombObra() {
   try {
     const rows = await _combLeer(`'COMB-OBRA'!A2:M5000`);
-    allCombObra = (rows || []).map((r, i) => ({ r, rowIndex: i + 2 })).filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
+    allCombObra = rows.filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
       rowIndex, id: r[0], fecha: _bitFechaDesdeHoja(r[1]), obra: r[2] || '', origen: (r[3] || '').toUpperCase(),
       ident: (r[4] || '').toString().trim(), desc: r[5] || '', empresa: r[6] || '', litros: _parseNumeroSheet(r[7]) || 0,
       km: r[8] || '', recibio: r[9] || '', obs: r[10] || '', registradoPor: r[11] || '', hora: r[12] || '',
@@ -73,7 +82,7 @@ async function loadCombObra() {
 async function loadEqExternos() {
   try {
     const rows = await _combLeer(`'EQUIPOS-EXTERNOS'!A2:H2000`);
-    allEqExternos = (rows || []).map((r, i) => ({ r, rowIndex: i + 2 })).filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
+    allEqExternos = rows.filter(({ r }) => r[0]).map(({ r, rowIndex }) => ({
       rowIndex, id: r[0], empresa: r[1] || '', tipo: r[2] || '', ident: (r[3] || '').toString().trim(), desc: r[4] || '',
       obra: r[5] || '', estado: (r[6] || 'ACTIVO').toUpperCase(), registradoPor: r[7] || '',
     }));
@@ -81,12 +90,15 @@ async function loadEqExternos() {
 }
 
 async function combInit() {
+  await _combCargarRestriccion();
+  if (_combRestringido() && _combObrasPermitidas.length) _combObraFiltro = _combObrasPermitidas[0];
   await Promise.all([loadCombObra(), loadEqExternos()]);
   combRender();
 }
 async function combRecargar() { toast('Actualizando...', 'loading'); await combInit(); toast('✓ Datos actualizados'); }
 
 function _combObras() {
+  if (_combRestringido()) return [..._combObrasPermitidas];
   const s = new Set(COMB_OBRAS_BASE);
   allCombObra.forEach(c => c.obra && s.add(c.obra.toUpperCase()));
   allEqExternos.forEach(e => e.obra && s.add(e.obra.toUpperCase()));
@@ -116,18 +128,32 @@ function _combRenderStats(lista) {
   el('comb-stat-n', lista.filter(c => c.fecha === hoy).length);
 }
 
+const _combIcono = (ext) => ext
+  ? '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a1.7 1.7 0 1 0 0-.01M17 19a1.7 1.7 0 1 0 0-.01"/></svg>'
+  : '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M15 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M8 8h4"/></svg>';
+
 function combRender() {
-  const sel = document.getElementById('comb-obra-sel');
-  if (sel) {
-    const obras = _combObras();
-    sel.innerHTML = '<option value="">Todas las obras</option>' + obras.map(o => `<option value="${_combEsc(o)}"${o === _combObraFiltro ? ' selected' : ''}>${_combEsc(o)}</option>`).join('');
+  const sel = document.getElementById('comb-obra-sel'), pill = document.getElementById('comb-obra-fija');
+  const obras = _combObras();
+  const unica = _combRestringido() && obras.length === 1;
+  // Bodeguero con UNA sola obra: solo se muestra el nombre de la obra (no hay nada que elegir)
+  pill.style.display = unica ? '' : 'none'; pill.textContent = unica ? obras[0] : '';
+  sel.style.display = unica ? 'none' : '';
+  if (!unica) sel.innerHTML = (_combRestringido() ? '' : '<option value="">Todas las obras</option>') + obras.map(o => `<option value="${_combEsc(o)}"${o === _combObraFiltro ? ' selected' : ''}>${_combEsc(o)}</option>`).join('');
+  document.getElementById('comb-chip-obra').style.display = _combRestringido() && obras.length <= 1 ? 'none' : '';
+  if (_combRestringido() && obras.length <= 1 && _combVista === 'obra') _combVista = 'cargas';
+  ['cargas', 'obra', 'equipo', 'externos'].forEach(k => { const b = document.getElementById('comb-chip-' + k); if (b) b.classList.toggle('active', k === _combVista); });
+  const f = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('comb-hero-fecha').textContent = f;
+  const cont = document.getElementById('comb-lista');
+  if (_combRestringido() && !obras.length) {
+    _combRenderStats([]);
+    cont.innerHTML = '<div class="comb-aviso"><b>Tu usuario no tiene una obra asignada.</b><br>Pídele al administrador que anote tu obra en la hoja USUARIOS (columna C) para poder registrar combustible.</div>';
+    document.querySelectorAll('#mod-combustible .comb-nueva').forEach(b => { b.style.display = 'none'; });
+    return;
   }
   const lista = _combFiltradas();
   _combRenderStats(lista);
-  const cont = document.getElementById('comb-lista');
-  if (!cont) return;
-  const fab = document.getElementById('comb-fab');
-  if (fab) fab.dataset.vista = _combVista;
   if (_combVista === 'cargas') cont.innerHTML = _combHtmlCargas(lista);
   else if (_combVista === 'obra') cont.innerHTML = _combHtmlResumen(lista, 'obra');
   else if (_combVista === 'equipo') cont.innerHTML = _combHtmlResumen(lista, 'equipo');
@@ -138,26 +164,33 @@ function _combEtiquetaEquipo(c) {
   const ext = c.origen === 'EXTERNO';
   return `${_combEsc(c.ident)}${c.desc ? ' · ' + _combEsc(c.desc) : ''}${ext && c.empresa ? ` <span class="badge amber" style="margin-left:4px">${_combEsc(c.empresa)}</span>` : ''}`;
 }
+const _combVacio = (t, s) => `<div class="comb-vacio"><b>${t}</b>${s}</div>`;
 function _combHtmlCargas(lista) {
-  if (!lista.length) return emptyState('Sin cargas', 'Toca + para registrar la primera carga de combustible');
+  if (!lista.length) return _combVacio('Sin cargas todavía', 'Toca "Registrar carga de combustible" para anotar la primera.');
   const ord = [...lista].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex).slice(0, 150);
-  let diaActual = '', html = '';
+  let diaActual = null, html = '';
   ord.forEach(c => {
     if (c.fecha !== diaActual) {
       diaActual = c.fecha;
       const tot = lista.filter(x => x.fecha === c.fecha).reduce((a, x) => a + x.litros, 0);
-      html += `<div style="font-weight:700;font-size:13px;color:var(--ink-soft);margin:14px 2px 6px;text-transform:uppercase;letter-spacing:.4px">${_combEsc(_bitFormatearFecha(c.fecha))} · ${_combNum(tot)} L</div>`;
+      html += `<div class="comb-dia"><span>${c.fecha === _combHoyISO() ? 'Hoy · ' : ''}${_combEsc(_bitFormatearFecha(c.fecha))}</span><b>${_combNum(tot)} L</b></div>`;
     }
-    html += `<div class="comb-card" style="margin-bottom:8px">
-      <div class="comb-t" style="display:flex;justify-content:space-between;gap:8px"><span>${_combEtiquetaEquipo(c)}</span><b>${_combNum(c.litros)} L</b></div>
-      <div class="comb-m">${_combEsc(c.obra)}${c.km ? ' · ' + _combEsc(c.km) : ''}${c.recibio ? ' · Recibió: ' + _combEsc(c.recibio) : ''}${c.hora ? ' · ' + _combEsc(c.hora) : ''}</div>
-      ${c.obs ? `<div class="comb-m">${_combEsc(c.obs)}</div>` : ''}
+    const ext = c.origen === 'EXTERNO';
+    html += `<div class="comb-card">
+      <div class="comb-ic${ext ? ' ext' : ''}">${_combIcono(ext)}</div>
+      <div class="comb-body">
+        <div class="comb-t">${_combEsc(c.ident)}${ext && c.empresa ? ` <span class="badge amber" style="margin-left:4px">${_combEsc(c.empresa)}</span>` : ''}</div>
+        <div class="comb-m">${_combEsc(c.desc || '')}</div>
+        <div class="comb-m">${c.recibio ? 'Recibió: ' + _combEsc(c.recibio) : ''}${c.hora ? ' · ' + _combEsc(c.hora) : ''}${c.km ? ' · ' + _combEsc(c.km) : ''}${(!_combObraFiltro && c.obra) ? ' · ' + _combEsc(c.obra) : ''}</div>
+        ${c.obs ? `<div class="comb-m">${_combEsc(c.obs)}</div>` : ''}
+      </div>
+      <div class="comb-lt">${_combNum(c.litros)}<small>litros</small></div>
     </div>`;
   });
   return html;
 }
 function _combHtmlResumen(lista, por) {
-  if (!lista.length) return emptyState('Sin datos', 'Todavía no hay cargas registradas');
+  if (!lista.length) return _combVacio('Sin datos', 'Todavía no hay cargas registradas.');
   const g = {};
   lista.forEach(c => {
     const k = por === 'obra' ? (c.obra || 'Sin obra') : `${c.ident}|${c.origen}|${c.empresa}`;
@@ -167,22 +200,25 @@ function _combHtmlResumen(lista, por) {
   });
   const filas = Object.entries(g).sort((a, b) => b[1].litros - a[1].litros);
   const total = filas.reduce((a, [, v]) => a + v.litros, 0);
-  return `<div class="comb-card" style="margin-bottom:10px"><div class="comb-t" style="display:flex;justify-content:space-between"><span>Total${_combObraFiltro ? ' · ' + _combEsc(_combObraFiltro) : ''}</span><b>${_combNum(total)} L</b></div></div>`
-    + filas.map(([k, v]) => `<div class="comb-card" style="margin-bottom:8px">
-      <div class="comb-t" style="display:flex;justify-content:space-between;gap:8px"><span>${por === 'obra' ? _combEsc(k) : _combEtiquetaEquipo(v.c)}</span><b>${_combNum(v.litros)} L</b></div>
-      <div class="comb-m">${v.n} carga${v.n === 1 ? '' : 's'} · este mes: ${_combNum(v.mes)} L</div></div>`).join('');
+  return `<div class="comb-dia"><span>Total${_combObraFiltro ? ' · ' + _combEsc(_combObraFiltro) : ''}</span><b>${_combNum(total)} L</b></div>`
+    + filas.map(([k, v]) => `<div class="comb-card">
+      <div class="comb-ic${v.c.origen === 'EXTERNO' && por === 'equipo' ? ' ext' : ''}">${_combIcono(v.c.origen === 'EXTERNO' && por === 'equipo')}</div>
+      <div class="comb-body"><div class="comb-t">${por === 'obra' ? _combEsc(k) : _combEtiquetaEquipo(v.c)}</div>
+      <div class="comb-m">${v.n} carga${v.n === 1 ? '' : 's'} · este mes: ${_combNum(v.mes)} L</div></div>
+      <div class="comb-lt">${_combNum(v.litros)}<small>litros</small></div></div>`).join('');
 }
 function _combHtmlExternos() {
   // Con una obra elegida se muestran los que tienen esa obra como habitual o que ya recibieron combustible ahí
   const lista = allEqExternos.filter(e => !_combObraFiltro || (e.obra || '').toUpperCase() === _combObraFiltro
     || allCombObra.some(c => c.origen === 'EXTERNO' && c.obra.toUpperCase() === _combObraFiltro && c.ident.toUpperCase() === e.ident.toUpperCase() && (c.empresa || '').toUpperCase() === (e.empresa || '').toUpperCase()));
   const btn = _combSoloLectura() ? '' : `<button class="action-btn" style="width:100%;margin-bottom:10px" onclick="combAbrirExterno()">+ Agregar equipo de otra empresa</button>`;
-  if (!lista.length) return btn + emptyState('Sin equipos externos', 'Aquí se registran camiones y máquinas de otras empresas');
+  if (!lista.length) return btn + _combVacio('Sin equipos externos', 'Aquí se registran camiones y máquinas de otras empresas.');
   const litrosDe = (e) => allCombObra.filter(c => c.origen === 'EXTERNO' && c.ident.toUpperCase() === e.ident.toUpperCase() && (c.empresa || '').toUpperCase() === (e.empresa || '').toUpperCase()).reduce((a, c) => a + c.litros, 0);
-  return btn + lista.sort((a, b) => a.empresa.localeCompare(b.empresa, 'es') || a.ident.localeCompare(b.ident)).map(e => `<div class="comb-card" style="margin-bottom:8px" onclick="combAbrirExterno(${e.rowIndex})">
-    <div class="comb-t" style="display:flex;justify-content:space-between;gap:8px"><span>${_combEsc(e.ident)} · ${_combEsc(e.tipo)}</span>${e.estado === 'RETIRADO' ? '<span class="badge gray">Retirado</span>' : '<span class="badge blue">Activo</span>'}</div>
-    <div class="comb-m">${_combEsc(e.empresa)}${e.desc ? ' · ' + _combEsc(e.desc) : ''}${e.obra ? ' · ' + _combEsc(e.obra) : ''}</div>
-    <div class="comb-m">Combustible entregado: <b>${_combNum(litrosDe(e))} L</b></div></div>`).join('');
+  return btn + lista.sort((a, b) => a.empresa.localeCompare(b.empresa, 'es') || a.ident.localeCompare(b.ident)).map(e => `<div class="comb-card" onclick="combAbrirExterno(${e.rowIndex})">
+    <div class="comb-ic ext">${_combIcono(true)}</div>
+    <div class="comb-body"><div class="comb-t">${_combEsc(e.ident)} · ${_combEsc(e.tipo)} ${e.estado === 'RETIRADO' ? '<span class="badge gray">Retirado</span>' : ''}</div>
+    <div class="comb-m">${_combEsc(e.empresa)}${e.desc ? ' · ' + _combEsc(e.desc) : ''}${e.obra ? ' · ' + _combEsc(e.obra) : ''}</div></div>
+    <div class="comb-lt">${_combNum(litrosDe(e))}<small>litros</small></div></div>`).join('');
 }
 
 // ── Registrar carga ─────────────────────────────────────────────
@@ -273,6 +309,12 @@ function _combPoblarListas() {
   const nombres = {}; allCombObra.forEach(c => { const n = (c.recibio || '').trim(); if (n) nombres[n.toLowerCase()] = nombres[n.toLowerCase()] || n; });
   const dr = document.getElementById('comb-recibio-lista'); if (dr) dr.innerHTML = Object.values(nombres).sort((a, b) => a.localeCompare(b, 'es')).map(n => `<option value="${_combEsc(n)}"></option>`).join('');
 }
+function _combBloquearObra(id) {
+  const el = document.getElementById(id); if (!el) return;
+  const fija = _combRestringido() && _combObrasPermitidas.length === 1;
+  el.readOnly = fija; el.classList.toggle('comb-fija', fija);
+  if (fija) el.value = _combObrasPermitidas[0];
+}
 function combAbrirNueva() {
   if (_combSoloLectura()) { toast('Sin permisos para registrar', 'error'); return; }
   _combPoblarListas();
@@ -284,6 +326,7 @@ function combAbrirNueva() {
   document.getElementById('comb-obra').value = _combObraFiltro || (localStorage.getItem('comb_ultima_obra') || COMB_OBRAS_BASE[0]);
   ['comb-litros', 'comb-km', 'comb-recibio', 'comb-obs'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('comb-km-label').textContent = 'Km u horas del equipo (opcional)';
+  _combBloquearObra('comb-obra');
   _combLimpiarErrores('panel-comb-form'); combResumen();
   openPanel('panel-comb-form');
   _appsScriptCall('comb_equipos', { q: '' }).catch(() => {});   // despierta el script y arma la caché para que la 1.ª búsqueda sea rápida
@@ -380,6 +423,7 @@ function combAbrirExterno(rowIndex, desdeCarga) {
   document.getElementById('comb-ext-obra').value = e ? e.obra : (_combObraFiltro || COMB_OBRAS_BASE[0]);
   document.getElementById('comb-ext-retirado').checked = !!(e && e.estado === 'RETIRADO');
   document.getElementById('comb-ext-retirado-wrap').style.display = e ? '' : 'none';
+  _combBloquearObra('comb-ext-obra');
   openPanel('panel-comb-ext');
 }
 async function combGuardarExterno() {
