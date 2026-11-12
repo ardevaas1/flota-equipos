@@ -3198,6 +3198,8 @@ function openFicha(patente, soloLectura) {
       <img src="${e.fotoRef}" alt="Foto de referencia" style="width:100%;height:220px;object-fit:cover;display:block;border-radius:14px">
     </div>` : ''}
 
+    ${docsEqSeccion({ modulo: 'flota', ident: e.patente, desc: `${e.equipo} ${e.marca} ${e.modelo}`, raiz: CONFIG.DRIVE_ROOT_FOLDER })}
+
     <div class="ficha-section">
       <div class="ficha-sec-title">Fotos</div>
       <div class="ficha-foto-row viewer-hidden">
@@ -3286,6 +3288,7 @@ function openFicha(patente, soloLectura) {
   `;
 
   openPanel('panel-ficha');
+  docsEqCargar();
 }
 
 // ── Abrir carpeta Drive de un equipo ─────────────────────────

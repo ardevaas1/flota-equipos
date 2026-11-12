@@ -2153,3 +2153,15 @@ body.is-offline #app { padding-top: 30px; }
   #mod-combustible > .header { width: 100%; }
   #mod-combustible .comb-wrap { overflow-y: auto; }
 }
+
+/* Documentos del equipo (Manual de uso / PTS) */
+.docs-eq-fila{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.docs-eq-fila:first-of-type{border-top:0}
+.docs-eq-ic{width:38px;height:38px;border-radius:10px;background:#f1f5f9;color:#64748b;display:flex;align-items:center;justify-content:center;flex:none}
+.docs-eq-fila.ok .docs-eq-ic{background:#e0f2fe;color:#0369a1}
+.docs-eq-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.docs-eq-txt b{font-size:15px;color:#0f172a;line-height:1.25}
+.docs-eq-txt small{font-size:13px;color:#64748b}
+.docs-eq-acc{display:flex;gap:6px;flex:none}
+.docs-eq-ver,.docs-eq-subir{border:1px solid #cbd5e1;background:#fff;color:#0f172a;font-weight:700;font-size:14px;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit}
+.docs-eq-ver{background:#0369a1;border-color:#0369a1;color:#fff}

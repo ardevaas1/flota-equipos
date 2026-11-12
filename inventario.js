@@ -577,6 +577,8 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
 
     ${secEventos}
 
+    ${docsEqSeccion({ modulo: 'inventario', ident: _fiIdent(item), desc: [item.equipo, item.marca, item.modelo].filter(Boolean).join(' '), raiz: DRIVE_INV_FOLDER })}
+
     ${modulo === 'topografico' ? '' : _renderHistorialMovimientos(item.codigo || item.numIdent || String(item.num || item.rowIndex), modulo === 'generadores' ? 'Generador' : modulo === 'maqmenor' ? 'Maq. Menor' : 'Herramienta')}
 
     <button class="action-btn" onclick="invAbrirEditar()" style="margin-top:8px${soloLectura ? ';display:none' : ''}"><svg viewBox="0 0 24 24" fill="none" class="inline-ic"><path d="M4 20l1-4 11-11 3 3-11 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 7l3 3" stroke="currentColor" stroke-width="1.7"/></svg> Editar información</button>
@@ -587,6 +589,7 @@ function invAbrirDetalle(modulo, rowIndex, soloLectura) {
   `;
 
   openPanel('panel-inv-detalle');
+  docsEqCargar();
 
   // Cargar miniatura si hay imagen
   if (imgSrc) {
