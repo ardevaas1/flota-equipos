@@ -223,6 +223,17 @@ function initOAuth() {
     // En Safari/iOS no aplica (Apple no soporta FedCM todavía), por eso
     // ahí puede seguir viéndose el flash puntualmente.
     use_fedcm_for_prompt: true,
+    // Si la ventana de Google se bloquea, se cierra o no llega a abrir, Google solo avisa por aquí
+    // (el callback normal nunca se dispara) — sin esto la pantalla quedaba pegada en "Conectando..."
+    error_callback: (err) => {
+      const t = (err && err.type) || '';
+      const hint = document.getElementById('login-hint');
+      if (hint && !isTokenValid()) hint.textContent = t === 'popup_failed_to_open'
+        ? 'El navegador bloqueó la ventana de Google — permite ventanas emergentes e intenta de nuevo'
+        : 'No se completó el inicio de sesión — toca el botón para intentar de nuevo';
+      const sp = document.getElementById('login-spinner'); if (sp) sp.classList.add('hidden');
+      const bt = document.getElementById('login-btn'); if (bt) { bt.disabled = false; bt.classList.remove('hidden'); }
+    },
     callback: async (response) => {
       if (response.error) {
         document.getElementById('login-hint').textContent = 'Error: ' + response.error;
@@ -375,6 +386,11 @@ function signIn() {
     };
   }
 
+  // Red de seguridad: si en 40 s no hubo sesión ni error (mala señal, ventana que no abrió), se libera el botón
+  setTimeout(() => {
+    const h = document.getElementById('login-hint');
+    if (!isTokenValid() && h && h.textContent.startsWith('Conectando')) h.textContent = 'No hubo respuesta de Google — revisa tu señal y toca el botón otra vez';
+  }, 40000);
   tokenClient.requestAccessToken(opts);
 }
 
