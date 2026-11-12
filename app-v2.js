@@ -208,6 +208,7 @@ function isTokenValid() {
   return accessToken && tokenExpiry > Date.now();
 }
 
+let _loginForzarConsent = false;
 function initOAuth() {
   if (typeof google === 'undefined') {
     setTimeout(initOAuth, 300);
@@ -227,10 +228,11 @@ function initOAuth() {
     // (el callback normal nunca se dispara) — sin esto la pantalla quedaba pegada en "Conectando..."
     error_callback: (err) => {
       const t = (err && err.type) || '';
+      _loginForzarConsent = true;   // el intento silencioso no alcanzó: el próximo toque abre la pantalla completa de Google (elegir cuenta / permitir)
       const hint = document.getElementById('login-hint');
       if (hint && !isTokenValid()) hint.textContent = t === 'popup_failed_to_open'
         ? 'El navegador bloqueó la ventana de Google — permite ventanas emergentes e intenta de nuevo'
-        : 'No se completó el inicio de sesión — toca el botón para intentar de nuevo' + (t ? ' (' + t + ')' : '');
+        : 'No se completó el inicio de sesión — toca el botón otra vez' + (t ? ' (' + t + ')' : '');
       const sp = document.getElementById('login-spinner'); if (sp) sp.classList.add('hidden');
       const bt = document.getElementById('login-btn'); if (bt) { bt.disabled = false; bt.classList.remove('hidden'); }
     },
@@ -358,7 +360,8 @@ function signIn() {
   const savedEmail  = localStorage.getItem(EMAIL_KEY) || '';
   // Primera vez: consent para obtener todos los permisos
   // Veces siguientes: silencioso con login_hint para evitar popup de cuenta
-  const esSilencioso = hadLogin && hasAllScopes;
+  const esSilencioso = hadLogin && hasAllScopes && !_loginForzarConsent;
+  _loginForzarConsent = false;
   const opts = esSilencioso
     ? { prompt: '', login_hint: savedEmail }
     : { prompt: 'consent', include_granted_scopes: 'true' };
