@@ -230,7 +230,7 @@ function initOAuth() {
       const hint = document.getElementById('login-hint');
       if (hint && !isTokenValid()) hint.textContent = t === 'popup_failed_to_open'
         ? 'El navegador bloqueó la ventana de Google — permite ventanas emergentes e intenta de nuevo'
-        : 'No se completó el inicio de sesión — toca el botón para intentar de nuevo';
+        : 'No se completó el inicio de sesión — toca el botón para intentar de nuevo' + (t ? ' (' + t + ')' : '');
       const sp = document.getElementById('login-spinner'); if (sp) sp.classList.add('hidden');
       const bt = document.getElementById('login-btn'); if (bt) { bt.disabled = false; bt.classList.remove('hidden'); }
     },
