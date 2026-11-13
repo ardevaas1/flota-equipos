@@ -38,6 +38,14 @@ tal cual (ej. GitHub Pages).
   `config.js`/`inventario.js`), con subcarpetas por módulo. Ver "Trampas
   conocidas" #3 — es la parte más frágil de toda la app.
 
+- **Documentos por obra** (solo admin): `docs-obra.js` + `docs-obra-indice.js`
+  + acción `docs_obra` del Apps Script. Arma un zip con ficha, manual, PTS y
+  registro de difusión de los modelos que están en una obra. El Apps Script lee
+  el zip maestro `Manuales-y-PTS-LST.zip` (hay que subirlo a Drive a mano; no se
+  puede desde el conector por tamaño) y se vuelve a implementar a mano al
+  editarlo. `docs-obra-indice.js` (equipo|marca|modelo → carpeta NNN) se
+  regenera cuando cambian los documentos.
+
 ## Roles
 
 4 roles vía hoja `USUARIOS` + clases en `<body>`: `admin`, `viewer`,

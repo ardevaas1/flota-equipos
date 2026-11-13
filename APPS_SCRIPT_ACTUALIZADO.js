@@ -22,6 +22,9 @@ function doGet(e) {
     if (e.parameter.accion === 'mi_rol' || e.parameter.accion === 'sheet_read' || e.parameter.accion === 'comb_equipos') {
       return manejarLecturaBodeguero(e.parameter);
     }
+    if (e.parameter.accion === 'docs_obra') {
+      return manejarDocsObra(e.parameter);
+    }
     if (e.parameter.accion.indexOf('drive_') === 0) {
       return manejarDriveGenerico(e.parameter);
     }
@@ -1303,4 +1306,82 @@ function exportarFichasZip() {
     Logger.log(nombre + ' → ' + g.length + ' fichas → ' + out.getUrl());
   });
   Logger.log('Listo: ' + blobs.length + ' fichas en ' + grupos.length + ' zips. Fallidas: ' + fallidas.length + (fallidas.length ? ' → ' + fallidas.join(' | ') : ''));
+}
+
+
+// ═════════════════════════════════════════════════
+// DOCUMENTOS POR OBRA (solo admin) — acción 'docs_obra'
+// Arma un zip con las carpetas de los modelos de equipo que están en una
+// obra (ficha técnica, manual, PTS y registro de difusión).
+// Requiere el zip maestro "Manuales-y-PTS-LST.zip" en tu Drive (cualquier
+// carpeta). Para actualizar los documentos: subir el zip nuevo con el mismo
+// nombre (se usa el más reciente). Cada carpeta del zip empieza con un
+// número de 3 dígitos ("004 Perforador hidráulico PERF"); la app manda esos
+// números en "carpetas".
+// ═════════════════════════════════════════════════
+const DOCS_ZIP_MAESTRO = 'Manuales-y-PTS-LST.zip';
+
+function manejarDocsObra(p) {
+  try {
+    const email = _emailVerificadoDesdeToken(p.accessToken);
+    if (!email) return _jsonOut({ success: false, error: 'Sesión de Google inválida o expirada. Vuelve a intentar.' });
+    if (_rolDe(email) !== 'admin') return _jsonOut({ success: false, error: 'Solo el administrador puede armar este zip.' });
+
+    const obra = String(p.obra || '').trim();
+    const carpetas = (typeof p.carpetas === 'string' ? JSON.parse(p.carpetas) : (p.carpetas || [])).map(String);
+    const items = typeof p.items === 'string' ? JSON.parse(p.items) : (p.items || []);
+    if (!obra || !carpetas.length) return _jsonOut({ success: false, error: 'Falta la obra o no hay equipos con documentos.' });
+
+    // zip maestro más reciente
+    let maestro = null;
+    const it = DriveApp.getFilesByName(DOCS_ZIP_MAESTRO);
+    while (it.hasNext()) {
+      const f = it.next();
+      if (f.isTrashed()) continue;
+      if (!maestro || f.getLastUpdated() > maestro.getLastUpdated()) maestro = f;
+    }
+    if (!maestro) return _jsonOut({ success: false, error: 'No encuentro "' + DOCS_ZIP_MAESTRO + '" en el Drive del administrador del script. Súbelo y vuelve a intentar.' });
+
+    const quiero = {};
+    carpetas.forEach(n => { quiero[n] = true; });
+    const encontradas = {};
+    const salida = [];
+    const limpio = obra.replace(/[\\\/:*?"<>|]/g, '-');
+    Utilities.unzip(maestro.getBlob()).forEach(b => {
+      const nombre = b.getName();
+      if (/\/$/.test(nombre)) return;
+      const m = nombre.match(/(?:^|\/)(\d{3}) [^\/]+\/([^\/]+)$/);
+      if (!m || !quiero[m[1]]) return;
+      const carpeta = nombre.split('/').slice(-2, -1)[0];
+      encontradas[m[1]] = true;
+      b.setName(limpio + '/' + carpeta + '/' + m[2]);
+      salida.push(b);
+    });
+    const faltantes = carpetas.filter(n => !encontradas[n]);
+    if (!salida.length) return _jsonOut({ success: false, error: 'Ninguna de las carpetas pedidas está en el zip maestro.' });
+
+    // listado de equipos de la obra
+    const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const csv = '\uFEFF' + ['Módulo,Código,Equipo,Marca,Modelo,Carpeta de documentos'].concat(
+      items.map(i => [i.modulo, i.codigo, i.equipo, i.marca, i.modelo, i.carpeta].map(esc).join(','))
+    ).join('\r\n');
+    salida.push(Utilities.newBlob(csv, 'text/csv', limpio + '/Equipos en ' + limpio + '.csv'));
+
+    const nombreZip = 'Documentos-' + limpio.replace(/\s+/g, '-') + '.zip';
+    const zip = Utilities.zip(salida, nombreZip);
+    const padre = maestro.getParents().hasNext() ? maestro.getParents().next() : DriveApp.getRootFolder();
+    const dest = padre.getFoldersByName('Documentos por obra');
+    const carpetaOut = dest.hasNext() ? dest.next() : padre.createFolder('Documentos por obra');
+    const viejos = carpetaOut.getFilesByName(nombreZip);
+    while (viejos.hasNext()) viejos.next().setTrashed(true);
+    const file = carpetaOut.createFile(zip);
+    try { file.addViewer(email); } catch (e) {}
+    return _jsonOut({
+      success: true, nombre: nombreZip, id: file.getId(),
+      url: file.getUrl(), downloadUrl: 'https://drive.google.com/uc?export=download&id=' + file.getId(),
+      modelos: Object.keys(encontradas).length, archivos: salida.length - 1, faltantes: faltantes,
+    });
+  } catch (err) {
+    return _jsonOut({ success: false, error: 'No se pudo armar el zip: ' + err.toString() });
+  }
 }
