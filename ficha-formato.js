@@ -108,7 +108,7 @@ function fichaTipoDe(equipo) {
 
 // Portada: marcador que luego se reemplaza por la imagen (ver fichaInsertarPortada)
 function fichaPortadaHtml(tieneFoto) {
-  return `<div class="portada"><span class="marcador">{{FOTO_PORTADA}}</span><br><span class="pie">${tieneFoto ? 'Imagen de referencia del modelo' : ''}</span></div>`;
+  return `<div class="portada"><span class="marcador">{{FOTO_PORTADA}}</span><br><span class="pie">${tieneFoto ? 'Imagen de referencia (modelo o equipo similar)' : ''}</span></div>`;
 }
 
 // Reemplaza {{FOTO_PORTADA}} por la imagen (URL pública). Si no hay foto o
