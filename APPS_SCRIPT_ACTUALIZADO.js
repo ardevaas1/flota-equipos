@@ -1240,3 +1240,57 @@ function instalarTriggerUbicacionGPS() {
     .everyMinutes(15)
     .create();
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// UTILIDAD DE UNA SOLA VEZ: junta TODAS las fichas técnicas (Google Docs)
+// en un solo .zip de Word (.docx), ordenado por módulo, y lo deja en la
+// raíz de tu Drive como "Fichas-Tecnicas-LST.zip".
+// Uso: en el editor de Apps Script elegir "exportarFichasZip" → Ejecutar.
+// Al terminar, el Registro de ejecución muestra el enlace del zip.
+// ══════════════════════════════════════════════════════════════
+function exportarFichasZip() {
+  const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const it = DriveApp.searchFiles(
+    "mimeType = 'application/vnd.google-apps.document' and trashed = false and " +
+    "(title contains 'Ficha técnica v2 -' or title contains 'Ficha Técnica —')"
+  );
+  const porTitulo = {};
+  while (it.hasNext()) {
+    const f = it.next();
+    const t = f.getName();
+    // Solo las fichas reales (no los EJEMPLO ni otras)
+    if (t.indexOf('Ficha técnica v2 - ') !== 0 && t.indexOf('Ficha Técnica — ') !== 0) continue;
+    const prev = porTitulo[t];
+    if (!prev || f.getLastUpdated() > prev.getLastUpdated()) porTitulo[t] = f;   // duplicados: queda la más nueva
+  }
+  const archivos = Object.keys(porTitulo).sort().map(t => porTitulo[t]);
+  Logger.log('Fichas encontradas: ' + archivos.length);
+
+  const limpiar = s => s.replace(/[\\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim();
+  const token = ScriptApp.getOAuthToken();
+  const blobs = [];
+  const fallidas = [];
+  const LOTE = 15;
+  for (let i = 0; i < archivos.length; i += LOTE) {
+    const lote = archivos.slice(i, i + LOTE);
+    const reqs = lote.map(f => ({
+      url: 'https://www.googleapis.com/drive/v3/files/' + f.getId() + '/export?mimeType=' + encodeURIComponent(DOCX),
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    }));
+    const resps = UrlFetchApp.fetchAll(reqs);
+    resps.forEach((r, k) => {
+      const nombre = lote[k].getName();
+      if (r.getResponseCode() !== 200) { fallidas.push(nombre); return; }
+      let carpeta = 'Flota (vehículos)';
+      const m = nombre.match(/^Ficha técnica v2 - (.+?) - /);
+      if (m) carpeta = m[1];
+      blobs.push(r.getBlob().setName(limpiar(carpeta) + '/' + limpiar(nombre) + '.docx').setContentType(DOCX));
+    });
+  }
+  const zip = Utilities.zip(blobs, 'Fichas-Tecnicas-LST.zip');
+  const out = DriveApp.createFile(zip);
+  Logger.log('Listo: ' + blobs.length + ' fichas en el zip. Fallidas: ' + fallidas.length + (fallidas.length ? ' → ' + fallidas.join(' | ') : ''));
+  Logger.log('Zip: ' + out.getUrl());
+}
