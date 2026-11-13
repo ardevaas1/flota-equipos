@@ -228,11 +228,12 @@ function initOAuth() {
     // (el callback normal nunca se dispara) — sin esto la pantalla quedaba pegada en "Conectando..."
     error_callback: (err) => {
       const t = (err && err.type) || '';
+      _loginUsarRedirect = true;    // el popup falló: el próximo toque entra por redirección (sin ventana emergente)
       _loginForzarConsent = true;   // el intento silencioso no alcanzó: el próximo toque abre la pantalla completa de Google (elegir cuenta / permitir)
       const hint = document.getElementById('login-hint');
       if (hint && !isTokenValid()) hint.textContent = t === 'popup_failed_to_open'
         ? 'El navegador bloqueó la ventana de Google — permite ventanas emergentes e intenta de nuevo'
-        : 'No se completó el inicio de sesión — toca el botón otra vez' + (t ? ' (' + t + ')' : '');
+        : 'No se completó — toca el botón otra vez, ahora entrará de otra forma' + (t ? ' (' + t + ')' : '');
       const sp = document.getElementById('login-spinner'); if (sp) sp.classList.add('hidden');
       const bt = document.getElementById('login-btn'); if (bt) { bt.disabled = false; bt.classList.remove('hidden'); }
     },
@@ -243,6 +244,15 @@ function initOAuth() {
         return;
       }
       saveToken(response.access_token, response.expires_in || 3600);
+      await _loginPostToken();
+    },
+  });
+  _initOAuthResto();
+}
+
+// Todo lo que pasa justo después de obtener un token (sirve tanto para el
+// popup de Google como para el inicio de sesión por redirección)
+async function _loginPostToken() {
       try { 
         localStorage.setItem('lst_had_login', '1');
         localStorage.setItem('lst_has_drive_scope', '1');
@@ -281,8 +291,63 @@ function initOAuth() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash').classList.remove('hidden');
       loadData();
-    },
-  });
+}
+
+// ── Inicio de sesión por REDIRECCIÓN (sin ventana emergente) ──
+// Alternativa al popup de Google: la página completa va a Google y vuelve con
+// el token en la URL. Funciona en celulares/navegadores donde el popup se
+// cierra solo (popup_closed). Requiere que la URL de la app esté en
+// "URIs de redireccionamiento autorizados" del cliente OAuth.
+let _loginUsarRedirect = false;
+function _redirectUri() { return location.origin + location.pathname; }
+function signInRedirect() {
+  try {
+    const st = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('lst_oauth_state', st);
+    const eq = sessionStorage.getItem('lst_eq_pend');
+    if (eq) localStorage.setItem('lst_oauth_eq', eq);
+    const q = new URLSearchParams({
+      client_id: CONFIG.CLIENT_ID,
+      redirect_uri: _redirectUri(),
+      response_type: 'token',
+      scope: CONFIG.SCOPES + ' https://www.googleapis.com/auth/userinfo.email',
+      include_granted_scopes: 'true',
+      prompt: 'select_account consent',
+      state: st
+    });
+    location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + q.toString();
+  } catch (e) {
+    const h = document.getElementById('login-hint'); if (h) h.textContent = 'No se pudo abrir Google: ' + e.message;
+  }
+}
+// Al volver de Google: #access_token=...&state=... → true si se procesó
+function _procesarRetornoOAuth() {
+  const h = location.hash || '';
+  if (!/access_token=|error=/.test(h)) return false;
+  const p = new URLSearchParams(h.replace(/^#/, ''));
+  const st = p.get('state');
+  let esperado = null; try { esperado = localStorage.getItem('lst_oauth_state'); } catch (e) {}
+  if (!st || !esperado || st !== esperado) return false;
+  try { localStorage.removeItem('lst_oauth_state'); } catch (e) {}
+  history.replaceState(null, '', location.pathname + location.search);
+  try {
+    const eq = localStorage.getItem('lst_oauth_eq');
+    if (eq) { sessionStorage.setItem('lst_eq_pend', eq); localStorage.removeItem('lst_oauth_eq'); }
+  } catch (e) {}
+  const tok = p.get('access_token');
+  if (!tok) {
+    mostrarLogin('Google no autorizó el acceso (' + (p.get('error') || 'error') + ') — toca el botón para reintentar', false);
+    return true;
+  }
+  saveToken(tok, parseInt(p.get('expires_in'), 10) || 3600);
+  try { localStorage.setItem('lst_login_redirect', '1'); } catch (e) {}
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('splash').classList.remove('hidden');
+  _loginPostToken();
+  return true;
+}
+
+function _initOAuthResto() {
 
   // Renueva silenciosamente el token 10 min antes de que expire.
   // OJO: aunque se pide "silencioso" (prompt:''), Google Identity Services
@@ -354,6 +419,8 @@ function initOAuth() {
 
 function signIn() {
   document.getElementById('login-hint').textContent = 'Conectando...';
+  let _pref = false; try { _pref = localStorage.getItem('lst_login_redirect') === '1'; } catch (e) {}
+  if (_loginUsarRedirect || _pref) { signInRedirect(); return; }
   if (!tokenClient) { initOAuth(); setTimeout(signIn, 600); return; }
   const hadLogin    = localStorage.getItem('lst_had_login');
   const hasAllScopes = localStorage.getItem('lst_has_drive_scope');
@@ -3967,6 +4034,9 @@ function enterApp() {
 
   initOAuth();
 
+  // Regreso desde Google por redirección (#access_token=...)
+  if (_procesarRetornoOAuth()) { history.replaceState({ lst: 'base' }, ''); return; }
+
   // Estado base en el historial → el botón Back no saldrá de la app
   history.replaceState({ lst: 'base' }, '');
 
@@ -4006,6 +4076,11 @@ function enterApp() {
   //    cuenta, mostrando el login con un spinner en vez del splash. Así el
   //    arranque usa siempre la misma pantalla liviana hasta que efectivamente
   //    hay datos que cargar (recién ahí aparece el splash con progreso). ──
+  let _prefRedir = false; try { _prefRedir = localStorage.getItem('lst_login_redirect') === '1'; } catch (e) {}
+  if (hadLogin && _prefRedir) {
+    mostrarLogin('Sesión vencida — toca el botón para entrar', false);
+    return;
+  }
   if (hadLogin) {
     mostrarLogin('Conectando...', true);
 
