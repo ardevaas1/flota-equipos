@@ -1245,7 +1245,7 @@ function instalarTriggerUbicacionGPS() {
 // ══════════════════════════════════════════════════════════════
 // UTILIDAD DE UNA SOLA VEZ: junta TODAS las fichas técnicas (Google Docs)
 // en un solo .zip de Word (.docx), ordenado por módulo, y lo deja en la
-// raíz de tu Drive como "Fichas-Tecnicas-LST.zip".
+// raíz de tu Drive en varios zips "Fichas-LST-parte-N-de-M.zip".
 // Uso: en el editor de Apps Script elegir "exportarFichasZip" → Ejecutar.
 // Al terminar, el Registro de ejecución muestra el enlace del zip.
 // ══════════════════════════════════════════════════════════════
@@ -1289,8 +1289,18 @@ function exportarFichasZip() {
       blobs.push(r.getBlob().setName(limpiar(carpeta) + '/' + limpiar(nombre) + '.docx').setContentType(DOCX));
     });
   }
-  const zip = Utilities.zip(blobs, 'Fichas-Tecnicas-LST.zip');
-  const out = DriveApp.createFile(zip);
-  Logger.log('Listo: ' + blobs.length + ' fichas en el zip. Fallidas: ' + fallidas.length + (fallidas.length ? ' → ' + fallidas.join(' | ') : ''));
-  Logger.log('Zip: ' + out.getUrl());
+  // Se parte en varios zips de ~7 MB (el conector de Drive solo baja archivos de hasta 10 MB)
+  const MAX = 7 * 1024 * 1024;
+  const grupos = [[]]; let acum = 0;
+  blobs.forEach(b => {
+    const n = b.getBytes().length;
+    if (acum + n > MAX && grupos[grupos.length - 1].length) { grupos.push([]); acum = 0; }
+    grupos[grupos.length - 1].push(b); acum += n;
+  });
+  grupos.forEach((g, i) => {
+    const nombre = 'Fichas-LST-parte-' + (i + 1) + '-de-' + grupos.length + '.zip';
+    const out = DriveApp.createFile(Utilities.zip(g, nombre));
+    Logger.log(nombre + ' → ' + g.length + ' fichas → ' + out.getUrl());
+  });
+  Logger.log('Listo: ' + blobs.length + ' fichas en ' + grupos.length + ' zips. Fallidas: ' + fallidas.length + (fallidas.length ? ' → ' + fallidas.join(' | ') : ''));
 }
