@@ -113,7 +113,7 @@ function _combObras() {
 }
 
 // ── Equipos que se pueden elegir al cargar ──────────────────────
-function _combEquiposPropios() { return _combEquiposCache.filter(e => e.grupo === 'Flota' || e.grupo === 'Generadores'); }
+function _combEquiposPropios() { return _combEquiposCache.filter(e => e.grupo === 'Flota' || e.grupo === 'Generadores' || e.grupo === 'Maquinaria menor'); }
 
 // ── Pantalla principal ──────────────────────────────────────────
 function combSetVista(v) {
@@ -252,8 +252,10 @@ function _combRecientes() {
       const e = allEqExternos.find(x => x.ident.toUpperCase() === c.ident.toUpperCase() && x.empresa.toUpperCase() === (c.empresa || '').toUpperCase() && x.estado !== 'RETIRADO');
       if (e) out.push({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' });
     } else {
-      const grupo = /^GEN/i.test(c.ident) ? 'Generadores' : 'Flota';
-      out.push({ v: 'P|' + c.ident, ident: c.ident, desc: c.desc || '', grupo, _uso: grupo === 'Generadores' ? 'horas' : 'km' });
+      // El grupo real sale de lo ya buscado; si no está en caché, se deduce del código.
+      const conocido = _combEquiposCache.find(x => x.ident === c.ident);
+      const grupo = conocido ? conocido.grupo : (/^GEN/i.test(c.ident) ? 'Generadores' : (/^N°|^[A-Z]{1,4}-\d+$/i.test(c.ident) ? 'Maquinaria menor' : 'Flota'));
+      out.push({ v: 'P|' + c.ident, ident: c.ident, desc: c.desc || '', grupo, _uso: grupo === 'Flota' ? 'km' : 'horas' });
     }
   });
   return out;
@@ -265,7 +267,7 @@ function combFiltrarEquipos() {
   const q = _combClave(qRaw);
   const res = document.getElementById('comb-eq-res');
   res.style.display = 'block';
-  const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b><div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div></div><span class="badge ${e.grupo === 'Otras empresas' ? 'amber' : e.grupo === 'Generadores' ? 'gray' : 'blue'}">${_combEsc(e.grupo)}</span></div>`;
+  const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b><div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div></div><span class="badge ${e.grupo === 'Otras empresas' ? 'amber' : e.grupo === 'Generadores' ? 'gray' : e.grupo === 'Maquinaria menor' ? 'gray' : 'blue'}">${_combEsc(e.grupo)}</span></div>`;
   const nuevo = `<div class="comb-opt comb-opt-nuevo" onclick="combEquipoNuevoExterno()">＋ Equipo de otra empresa (nuevo)</div>`;
   const pinta = (titulo, lista, vacio) => {
     res.innerHTML = `<div class="comb-res-t">${titulo}</div>` + (lista.length ? lista.map(fila).join('') : `<div class="comb-m" style="padding:10px 12px">${vacio || ''}</div>`) + nuevo;

@@ -321,7 +321,7 @@ function _tienePermisoParaModulo(email, modulo) {
 // dueño, después de verificar el email real contra el token de Google.
 //   mi_rol        → los roles de quien llama (para poder iniciar sesión)
 //   sheet_read    → filas de COMB-OBRA / EQUIPOS-EXTERNOS (solo esas dos)
-//   comb_equipos  → lista de equipos propios (SOLO identificación y nombre:
+//   comb_equipos  → lista de equipos propios (flota, generadores y maquinaria menor; SOLO identificación y nombre:
 //                   nada de costos, RUT, ubicaciones ni documentos)
 // ============================================================
 function manejarLecturaBodeguero(p) {
@@ -363,7 +363,7 @@ function manejarLecturaBodeguero(p) {
       // Índice mínimo (patente/código + nombre) en caché 10 min: así cada búsqueda
       // no vuelve a leer la planilla. Un equipo nuevo aparece como máximo en 10 min.
       let cand = null;
-      try { const hit = CacheService.getScriptCache().get('comb_idx_v1'); if (hit) cand = JSON.parse(hit); } catch (e) { cand = null; }
+      try { const hit = CacheService.getScriptCache().get('comb_idx_v2'); if (hit) cand = JSON.parse(hit); } catch (e) { cand = null; }
       if (!cand) {
         const leer = (hoja) => { const sh = ss.getSheetByName(hoja); return (sh && sh.getLastRow() > 1) ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues() : []; };
         const txt = (v) => (v == null ? '' : String(v)).trim();
@@ -376,7 +376,12 @@ function manejarLecturaBodeguero(p) {
           if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
           cand.push({ grupo: 'Generadores', ident: txt(r[2]) || ('GEN-' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
         });
-        try { CacheService.getScriptCache().put('comb_idx_v1', JSON.stringify(cand), 600); } catch (e) { /* >100 KB: sin caché */ }
+        // Maquinaria menor (cortadora de pavimento, placa compactadora, compresor, motobomba…): se carga combustible por horas.
+        leer('MAQUINARIA MENOR').forEach(r => {
+          if (!txt(r[0]) || isNaN(parseInt(r[0]))) return;
+          cand.push({ grupo: 'Maquinaria menor', ident: txt(r[10]) || ('N° ' + txt(r[0])), desc: [r[1], r[3], r[4]].map(txt).filter(Boolean).join(' '), uso: 'horas' });
+        });
+        try { CacheService.getScriptCache().put('comb_idx_v2', JSON.stringify(cand), 600); } catch (e) { /* >100 KB: sin caché */ }
       }
       if (q.length < 2) return _jsonOut({ success: true, equipos: [] });   // (calienta la caché y no devuelve nada)
       const out = [];
