@@ -2117,6 +2117,13 @@ body.is-offline #app { padding-top: 30px; }
 .comb-resumen { background: #fff; border: 1px dashed var(--accent, #d97706); border-radius: 12px; padding: 12px 14px; margin: 4px 0 12px; font-size: 14px; color: #555; }
 .comb-resumen b { color: var(--accent-dark, #92400e); }
 .comb-guardar { width: 100%; background: var(--accent, #d97706); color: #fff; font-size: 17px; font-weight: 700; padding: 15px; border-radius: 12px; margin-top: 4px; }
+/* Buscador de equipo (combustible): lista de sugerencias y botón grande para anotar uno nuevo */
+.comb-res { border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; margin-top: 6px; overflow-y: auto; max-height: 45vh; }
+.comb-res-t { font-size: 12px; font-weight: 600; color: #888; padding: 8px 14px 4px; }
+.comb-opt { padding: 13px 14px; font-size: 15px; border-top: 1px solid #f1f1f1; cursor: pointer; }
+.comb-opt:active { background: #fff7ed; }
+.comb-opt-nuevo { background: var(--accent, #d97706); color: #fff; font-size: 17px; font-weight: 700; text-align: center; padding: 16px 14px; margin: 8px; border: none; border-radius: 12px; }
+.comb-opt-nuevo:active { background: var(--accent-dark, #92400e); }
 .comb-guardar:disabled { opacity: .55; pointer-events: none; }
 .comb-guardar:active { background: var(--accent-dark, #92400e); }
 .comb-panel .input-error { border-color: #dc2626 !important; background: #fef2f2 !important; }
