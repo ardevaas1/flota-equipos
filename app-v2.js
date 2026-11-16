@@ -299,7 +299,14 @@ async function _loginPostToken() {
 // cierra solo (popup_closed). Requiere que la URL de la app esté en
 // "URIs de redireccionamiento autorizados" del cliente OAuth.
 let _loginUsarRedirect = false;
-function _redirectUri() { return location.origin + location.pathname; }
+// Siempre la dirección "de carpeta" (…/flota-equipos/), que es la que está autorizada en Google Cloud.
+// La app instalada (PWA) abre ./index.html, y sin esta normalización Google recibía …/index.html
+// y respondía redirect_uri_mismatch.
+function _redirectUri() {
+  let p = location.pathname.replace(/index\.html$/, '');
+  if (!p.endsWith('/')) p += '/';
+  return location.origin + p;
+}
 function signInRedirect() {
   try {
     const st = Math.random().toString(36).slice(2) + Date.now().toString(36);
