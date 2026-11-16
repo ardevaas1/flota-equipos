@@ -1762,7 +1762,7 @@
         <div class="form-group"><label>Obra</label><input type="text" id="comb-obra" list="comb-obras-lista" autocomplete="off" placeholder="Ej: FENATS" oninput="combResumen()"><datalist id="comb-obras-lista"></datalist></div>
 
         <div class="form-group comb-full"><label>Equipo</label>
-          <input type="text" id="comb-eq-q" autocomplete="off" placeholder="Busca por patente o código (ej. KXYZ12, GEN-02), o escribe el nombre de cualquier equipo" oninput="combEquipoEscribe()" onfocus="combFiltrarEquipos()">
+          <input type="text" id="comb-eq-q" autocomplete="off" placeholder="Patente o nombre del equipo (ej. KXYZ12, cortadora de pavimento)" oninput="combEquipoEscribe()" onfocus="combFiltrarEquipos()">
           <input type="hidden" id="comb-equipo">
           <div id="comb-eq-res" class="comb-res" style="display:none"></div>
         </div>
@@ -1772,7 +1772,7 @@
         <div class="form-group"><label id="comb-km-label">Km u horas del equipo (opcional)</label>
           <input type="text" inputmode="decimal" id="comb-km" placeholder="Ej: 45350"></div>
 
-        <div class="form-group"><label>Quién recibió</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>
+        <div class="form-group"><label>Quién recibió (opcional)</label><input type="text" id="comb-recibio" list="comb-recibio-lista" autocomplete="off" placeholder="Nombre del operador o chofer"><datalist id="comb-recibio-lista"></datalist></div>
         <div class="form-group"><label>Observaciones (opcional)</label><input type="text" id="comb-obs" placeholder="Ej: vale N° 123"></div>
       </div>
       <div class="comb-resumen" id="comb-resumen">Completa los datos para ver el resumen</div>

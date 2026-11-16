@@ -264,45 +264,52 @@ function _combRecientes() {
   return out;
 }
 let _combTimer = null, _combSeq = 0;
+// Sugerencias: SOLO lo que ya se anotó antes en este módulo (cargas anteriores y equipos de otras empresas).
+// No se consulta la flota ni el inventario: el bodeguero va anotando lo que carga y la app se lo recuerda.
+function _combSugerencias() {
+  return _combTodosLosEquipos().filter(e => e.v.startsWith('G|') || e.v.startsWith('X|') || e.v.startsWith('P|'));
+}
+function _combHistorial() {
+  // Todos los equipos distintos anotados antes (no solo los 6 últimos), del más reciente al más antiguo.
+  const vistos = new Set(), out = [];
+  [...allCombObra].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.rowIndex - a.rowIndex).forEach(c => {
+    const k = _combClave(c.ident) + '|' + _combClave(c.empresa);
+    if (!c.ident || vistos.has(k)) return;
+    vistos.add(k);
+    if (c.origen === 'EXTERNO') {
+      const e = allEqExternos.find(x => _combClave(x.ident) === _combClave(c.ident) && _combClave(x.empresa) === _combClave(c.empresa));
+      out.push({ v: e ? 'X|' + e.rowIndex : 'G|' + c.ident, ident: c.ident, desc: [c.empresa, c.desc].filter(Boolean).join(' · ') });
+    } else if (c.origen === 'PROPIO') {
+      out.push({ v: 'P|' + c.ident, ident: c.ident, desc: c.desc || '' });
+    } else {
+      out.push({ v: 'G|' + c.ident, ident: c.ident, desc: c.desc || '' });
+    }
+  });
+  allEqExternos.filter(e => e.estado !== 'RETIRADO').forEach(e => {
+    if (!out.some(o => o.v === 'X|' + e.rowIndex)) out.push({ v: 'X|' + e.rowIndex, ident: e.ident, desc: [e.empresa, e.tipo, e.desc].filter(Boolean).join(' · ') });
+  });
+  return out;
+}
 function combFiltrarEquipos() {
-  clearTimeout(_combTimer);
   const qRaw = document.getElementById('comb-eq-q').value;
   const q = _combClave(qRaw);
   const res = document.getElementById('comb-eq-res');
   res.style.display = 'block';
-  const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b><div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div></div><span class="badge ${e.grupo === 'Otras empresas' ? 'amber' : e.grupo === 'Generadores' ? 'gray' : 'blue'}">${_combEsc(e.grupo)}</span></div>`;
-  const gen = _combLimpiarGen(qRaw);
-  const nuevoGen = q.length >= 2 ? `<div class="comb-opt comb-opt-nuevo" onclick="combElegirGenerico()">＋ Usar «${_combEsc(gen)}» como equipo genérico (sin inventario)</div>` : '';
-  const nuevo = nuevoGen + `<div class="comb-opt comb-opt-nuevo" onclick="combEquipoNuevoExterno()">＋ Equipo de otra empresa (nuevo)</div>`;
-  const pinta = (titulo, lista, vacio) => {
-    res.innerHTML = `<div class="comb-res-t">${titulo}</div>` + (lista.length ? lista.map(fila).join('') : `<div class="comb-m" style="padding:10px 12px">${vacio || ''}</div>`) + nuevo;
-  };
-  const grupoOk = () => true;
+  const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b>${e.desc ? `<div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div>` : ''}</div></div>`;
+  const hist = _combHistorial();
   if (q.length < 2) {
-    const rec = _combRecientes().filter(grupoOk);
-    pinta(rec.length ? 'Últimos equipos cargados' : 'Escribe al menos 2 letras o números de la patente o código', rec,
-      rec.length ? '' : '');
+    res.innerHTML = hist.length
+      ? `<div class="comb-res-t">Equipos anotados antes</div>` + hist.slice(0, 8).map(fila).join('')
+      : `<div class="comb-m" style="padding:10px 12px">Escribe la patente o el nombre del equipo (ej. KXYZ12, cortadora de pavimento). La primera vez se anota solo; después te aparece aquí.</div>`;
     return;
   }
-  // Externos: búsqueda local (los registra el propio bodeguero)
-  const ext = allEqExternos.filter(e => e.estado !== 'RETIRADO' && (_combClave(e.ident).includes(q) || _combClave(e.empresa + e.tipo + e.desc).includes(q)))
-    .map(e => ({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' }));
-  const soloExt = false;
-  const seq = ++_combSeq;
-  res.innerHTML = `<div class="comb-res-t">Buscando…</div>` + nuevo;
-  _combTimer = setTimeout(async () => {
-    let propios = [];
-    if (!soloExt) {
-      try { propios = (await _combBuscarPropios(q)).map(e => ({ v: 'P|' + e.ident, ident: e.ident, desc: e.desc, grupo: e.grupo })).filter(grupoOk); }
-      catch (err) { if (seq === _combSeq) { res.innerHTML = `<div class="comb-m" style="padding:10px 12px;color:#dc2626">No se pudo buscar: ${_combEsc(err.message)}</div>` + nuevo; } return; }
-    }
-    if (seq !== _combSeq) return;   // llegó una respuesta vieja: se ignora
-    const lista = [...propios, ...ext];
-    pinta(`${lista.length} resultado${lista.length === 1 ? '' : 's'}`, lista, 'Sin resultados. Si es de otra empresa, agrégalo con el botón de abajo.');
-  }, 220);
+  const coin = hist.filter(e => _combClave(e.ident).includes(q) || _combClave(e.desc).includes(q)).slice(0, 8);
+  const exacto = hist.some(e => _combClave(e.ident) === q);
+  const usar = exacto ? '' : `<div class="comb-opt comb-opt-nuevo" onclick="combElegirGenerico()">＋ Anotar «${_combEsc(_combLimpiarGen(qRaw))}»</div>`;
+  res.innerHTML = (coin.length ? `<div class="comb-res-t">Ya anotados</div>` + coin.map(fila).join('') : '') + usar;
 }
 function combElegirEquipo(v) {
-  const e = v.startsWith('G|') ? { v, ident: v.slice(2), desc: 'Equipo genérico (sin registro)', grupo: 'Genérico' } : _combTodosLosEquipos().find(x => x.v === v);
+  const e = v.startsWith('G|') ? { v, ident: v.slice(2), desc: 'Equipo genérico (sin registro)', grupo: 'Genérico' } : (_combTodosLosEquipos().find(x => x.v === v) || _combHistorial().find(x => x.v === v));
   document.getElementById('comb-equipo').value = v;
   document.getElementById('comb-eq-q').value = e ? `${e.ident} — ${e.desc}` : '';
   document.getElementById('comb-eq-res').style.display = 'none';
@@ -351,14 +358,13 @@ function combAbrirNueva() {
   _combBloquearObra('comb-obra');
   _combLimpiarErrores('panel-comb-form'); combResumen();
   openPanel('panel-comb-form');
-  _appsScriptCall('comb_equipos', { q: '' }).catch(() => {});   // despierta el script y arma la caché para que la 1.ª búsqueda sea rápida
 }
 // Resumen en vivo (para revisar antes de guardar y evitar errores)
 function _combEquipoElegido() {
   const v = document.getElementById('comb-equipo').value;
   if (!v) return null;
   if (v.startsWith('G|')) return { v, ident: v.slice(2), desc: 'Equipo genérico (sin registro)', grupo: 'Genérico' };
-  return _combTodosLosEquipos().find(x => x.v === v) || null;
+  return _combTodosLosEquipos().find(x => x.v === v) || _combHistorial().find(x => x.v === v) || null;
 }
 function combResumen() {
   const el = document.getElementById('comb-resumen'); if (!el) return;
@@ -386,7 +392,11 @@ async function combGuardar() {
   _combLimpiarErrores('panel-comb-form');
   const fecha = document.getElementById('comb-fecha').value;
   const obra = document.getElementById('comb-obra').value.trim().toUpperCase();
-  const eq = document.getElementById('comb-equipo').value;
+  let eq = document.getElementById('comb-equipo').value;
+  if (!eq) {
+    const t = _combLimpiarGen(document.getElementById('comb-eq-q').value);
+    if (t.length >= 2) { const h = _combHistorial().find(e => _combClave(e.ident) === _combClave(t)); eq = h ? h.v : 'G|' + t; }
+  }
   const litros = _parseNumeroSheet(document.getElementById('comb-litros').value);
   const km = document.getElementById('comb-km').value.trim();
   const recibio = document.getElementById('comb-recibio').value.trim();
@@ -394,9 +404,8 @@ async function combGuardar() {
   // Se revisan todos los campos y se marcan los que faltan (no solo el primero)
   let primero = null;
   const falla = (id, msg) => { if (!primero) primero = id; _combErr(id, msg); };
-  if (!recibio) falla('comb-recibio', 'Indica quién recibió el combustible');
   if (isNaN(litros) || litros <= 0) falla('comb-litros', 'Ingresa los litros (mayor que 0)');
-  if (!eq) falla('comb-eq-q', 'Elige un equipo de la lista');
+  if (!eq) falla('comb-eq-q', 'Escribe la patente o el nombre del equipo');
   if (!obra) falla('comb-obra', 'Indica la obra');
   if (!fecha) falla('comb-fecha', 'La fecha es obligatoria');
   if (primero) { document.getElementById(primero).focus(); return; }
