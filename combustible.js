@@ -234,11 +234,14 @@ function _combHtmlExternos() {
 // ── Registrar carga ─────────────────────────────────────────────
 // ── Buscador de equipo (por patente / código / nombre) ──────────
 const _combNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// Equipo genérico: sin registro en el inventario ni en equipos externos (ej. "Cortadora de pavimento").
+// Se guarda en COMB-OBRA con ORIGEN = GENERICO y el nombre escrito en IDENT.
+const _combLimpiarGen = (s) => String(s || '').replace(/['"\\<>]/g, '’').replace(/\s+/g, ' ').trim();
 const _combClave = (s) => _combNorm(s).replace(/[^a-z0-9]/g, '');   // "KXYZ-12" y "kxyz 12" → "kxyz12"
 
 function _combTodosLosEquipos() {
   const out = _combEquiposPropios().map(p => ({ v: 'P|' + p.ident, ident: p.ident, desc: p.desc, grupo: p.grupo }));
-  _combRecientes().forEach(r => { if (r.v.startsWith('P|') && !out.some(o => o.v === r.v)) out.push(r); });
+  _combRecientes().forEach(r => { if ((r.v.startsWith('P|') || r.v.startsWith('G|')) && !out.some(o => o.v === r.v)) out.push(r); });
   allEqExternos.filter(e => e.estado !== 'RETIRADO').forEach(e => out.push({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' }));
   return out;
 }
@@ -248,7 +251,9 @@ function _combRecientes() {
     const k = c.origen + '|' + c.ident.toUpperCase() + '|' + (c.empresa || '').toUpperCase();
     if (vistos.has(k) || out.length >= 6) return;
     vistos.add(k);
-    if (c.origen === 'EXTERNO') {
+    if (c.origen === 'GENERICO') {
+      out.push({ v: 'G|' + c.ident, ident: c.ident, desc: 'Equipo genérico', grupo: 'Genérico' });
+    } else if (c.origen === 'EXTERNO') {
       const e = allEqExternos.find(x => x.ident.toUpperCase() === c.ident.toUpperCase() && x.empresa.toUpperCase() === (c.empresa || '').toUpperCase() && x.estado !== 'RETIRADO');
       if (e) out.push({ v: 'X|' + e.rowIndex, ident: e.ident, desc: `${e.empresa} · ${e.tipo}${e.desc ? ' · ' + e.desc : ''}`, grupo: 'Otras empresas' });
     } else {
@@ -266,7 +271,9 @@ function combFiltrarEquipos() {
   const res = document.getElementById('comb-eq-res');
   res.style.display = 'block';
   const fila = (e) => `<div class="comb-opt" onclick="combElegirEquipo('${_combEsc(e.v)}')"><div><b>${_combEsc(e.ident)}</b><div class="comb-m" style="margin-top:1px">${_combEsc(e.desc)}</div></div><span class="badge ${e.grupo === 'Otras empresas' ? 'amber' : e.grupo === 'Generadores' ? 'gray' : 'blue'}">${_combEsc(e.grupo)}</span></div>`;
-  const nuevo = `<div class="comb-opt comb-opt-nuevo" onclick="combEquipoNuevoExterno()">＋ Equipo de otra empresa (nuevo)</div>`;
+  const gen = _combLimpiarGen(qRaw);
+  const nuevoGen = q.length >= 2 ? `<div class="comb-opt comb-opt-nuevo" onclick="combElegirGenerico()">＋ Usar «${_combEsc(gen)}» como equipo genérico (sin inventario)</div>` : '';
+  const nuevo = nuevoGen + `<div class="comb-opt comb-opt-nuevo" onclick="combEquipoNuevoExterno()">＋ Equipo de otra empresa (nuevo)</div>`;
   const pinta = (titulo, lista, vacio) => {
     res.innerHTML = `<div class="comb-res-t">${titulo}</div>` + (lista.length ? lista.map(fila).join('') : `<div class="comb-m" style="padding:10px 12px">${vacio || ''}</div>`) + nuevo;
   };
@@ -295,7 +302,7 @@ function combFiltrarEquipos() {
   }, 220);
 }
 function combElegirEquipo(v) {
-  const e = _combTodosLosEquipos().find(x => x.v === v);
+  const e = v.startsWith('G|') ? { v, ident: v.slice(2), desc: 'Equipo genérico (sin registro)', grupo: 'Genérico' } : _combTodosLosEquipos().find(x => x.v === v);
   document.getElementById('comb-equipo').value = v;
   document.getElementById('comb-eq-q').value = e ? `${e.ident} — ${e.desc}` : '';
   document.getElementById('comb-eq-res').style.display = 'none';
@@ -311,6 +318,11 @@ function combEquipoEscribe() {
   document.getElementById('comb-equipo').value = '';
   document.getElementById('comb-eq-q').classList.remove('comb-elegido');
   combFiltrarEquipos(); combResumen();
+}
+function combElegirGenerico() {
+  const t = _combLimpiarGen(document.getElementById('comb-eq-q').value);
+  if (t.length < 2) return;
+  combElegirEquipo('G|' + t);
 }
 function combEquipoNuevoExterno() { document.getElementById('comb-eq-res').style.display = 'none'; combAbrirExterno(null, true); }
 
@@ -345,6 +357,7 @@ function combAbrirNueva() {
 function _combEquipoElegido() {
   const v = document.getElementById('comb-equipo').value;
   if (!v) return null;
+  if (v.startsWith('G|')) return { v, ident: v.slice(2), desc: 'Equipo genérico (sin registro)', grupo: 'Genérico' };
   return _combTodosLosEquipos().find(x => x.v === v) || null;
 }
 function combResumen() {
@@ -389,7 +402,8 @@ async function combGuardar() {
   if (primero) { document.getElementById(primero).focus(); return; }
 
   let origen = 'PROPIO', ident = '', desc = '', empresa = '';
-  if (eq.startsWith('P|')) { const p = _combTodosLosEquipos().find(x => x.v === eq); ident = eq.slice(2); desc = p ? p.desc : ''; }
+  if (eq.startsWith('G|')) { origen = 'GENERICO'; ident = eq.slice(2); desc = ''; }
+  else if (eq.startsWith('P|')) { const p = _combTodosLosEquipos().find(x => x.v === eq); ident = eq.slice(2); desc = p ? p.desc : ''; }
   else { const e = allEqExternos.find(x => String(x.rowIndex) === eq.slice(2)); if (!e) { toast('No se encontró el equipo externo', 'error'); return; } origen = 'EXTERNO'; ident = e.ident; desc = [e.tipo, e.desc].filter(Boolean).join(' '); empresa = e.empresa; }
 
   // Advertencias para evitar errores de tipeo
