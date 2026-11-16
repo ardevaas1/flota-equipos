@@ -388,7 +388,27 @@ function _combLimpiarErrores(panelId) {
   document.querySelectorAll(`#${panelId} .comb-err`).forEach(e => e.remove());
 }
 
+// Candado: evita registros dobles si se toca el botón varias veces (o se reintenta con mala señal).
+let _combGuardando = false;
 async function combGuardar() {
+  if (_combGuardando) return;
+  _combGuardando = true;
+  document.querySelectorAll('#panel-comb-form .pnl-action, #panel-comb-form .comb-guardar').forEach(b => { b.disabled = true; });
+  try { await _combGuardarImpl(); }
+  finally {
+    _combGuardando = false;
+    document.querySelectorAll('#panel-comb-form .pnl-action, #panel-comb-form .comb-guardar').forEach(b => { b.disabled = false; });
+  }
+}
+// Vuelve al inicio del módulo: lista de cargas, arriba de todo.
+function _combVolverAlInicio() {
+  _combVista = 'cargas';
+  try { combRender(); } catch (e) { /* ya se vuelve a pintar abajo */ }
+  const sc = document.querySelector('#mod-combustible .comb-scroll');
+  if (sc) sc.scrollTop = 0;
+  try { window.scrollTo(0, 0); } catch (e) { /* sin scroll */ }
+}
+async function _combGuardarImpl() {
   _combLimpiarErrores('panel-comb-form');
   const fecha = document.getElementById('comb-fecha').value;
   const obra = document.getElementById('comb-obra').value.trim().toUpperCase();
@@ -434,7 +454,8 @@ async function combGuardar() {
     try { localStorage.setItem('comb_ultima_obra', obra); } catch (e) { /* sin storage */ }
     toast(`✓ ${_combNum(litros)} L registrados en ${ident}`);
     closePanel('panel-comb-form');
-    await loadCombObra(); combRender();
+    _combVolverAlInicio();
+    await loadCombObra(); _combVolverAlInicio();
   } catch (e) { toast('Error: ' + e.message, 'error'); }
   finally { btns.forEach(b => btnEstado(b, 'reset')); }
 }
@@ -459,7 +480,13 @@ function combAbrirExterno(rowIndex, desdeCarga) {
   _combBloquearObra('comb-ext-obra');
   openPanel('panel-comb-ext');
 }
+let _combGuardandoExt = false;
 async function combGuardarExterno() {
+  if (_combGuardandoExt) return;
+  _combGuardandoExt = true;
+  try { await _combGuardarExternoImpl(); } finally { _combGuardandoExt = false; }
+}
+async function _combGuardarExternoImpl() {
   const empresa = document.getElementById('comb-ext-empresa').value.trim();
   const tipo = document.getElementById('comb-ext-tipo').value;
   const ident = document.getElementById('comb-ext-ident').value.trim().toUpperCase();
